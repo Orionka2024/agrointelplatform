@@ -1,0 +1,155 @@
+export const CROPS = {
+  onion: {
+    id: "onion",
+    label: "Лук",
+    emoji: "🧅",
+    ticker: "ЛУК",
+    price: 28.4,
+    change: 4.2,
+    deficitIdx: 1.18,
+    ndvi: 0.71,
+    importPressure: "Среднее",
+    forecast: [28.4,29.1,30.2,31.8,33.5,34.2,33.8,32.9,31.4,29.8,28.9,27.6,26.8,27.2,28.1,29.3,30.8,32.1,33.7,35.2,36.8,37.9,38.2,37.6,36.1,34.8],
+    yield: 55, cost: 750, potential: "Высокий", profitPerHa: 900000,
+    signal: "BUY", cyclePhase: "Охлаждение", cycleRec: "Стандартный объём",
+    yieldRange: "50–60", priceRange: "25–35", costNorm: "700", profitRange: "600K–1M",
+  },
+  garlic: {
+    id: "garlic",
+    label: "Чеснок",
+    emoji: "🧄",
+    ticker: "ЧЕС",
+    price: 142.0,
+    change: 12.1,
+    deficitIdx: 1.28,
+    ndvi: 0.74,
+    importPressure: "Очень низкое",
+    forecast: [142,148,156,164,174,186,198,212,228,244,258,271,282,291,298,303,306,308,305,299,290,278,265,251,238,226],
+    yield: 10, cost: 500, potential: "Очень высокий", profitPerHa: 1600000,
+    signal: "BUY", cyclePhase: "Дефицит", cycleRec: "Максимальные посевы",
+    yieldRange: "8–12", priceRange: "120–180", costNorm: "500", profitRange: "1.5–1.8M",
+  },
+  carrot: {
+    id: "carrot",
+    label: "Морковь",
+    emoji: "🥕",
+    ticker: "МОР",
+    price: 22.6,
+    change: 1.8,
+    deficitIdx: 1.02,
+    ndvi: 0.68,
+    importPressure: "Низкое",
+    forecast: [22.6,22.9,23.1,23.0,22.8,22.5,22.2,21.9,21.6,21.8,22.1,22.5,23.0,23.6,24.2,24.9,25.3,25.8,26.1,25.8,25.4,24.9,24.3,23.8,23.2,22.8],
+    yield: 45, cost: 600, potential: "Средне-высокий", profitPerHa: 700000,
+    signal: "HOLD", cyclePhase: "Баланс", cycleRec: "Держать позицию",
+    yieldRange: "40–55", priceRange: "20–30", costNorm: "600", profitRange: "400–900K",
+  },
+  potato: {
+    id: "potato",
+    label: "Картофель",
+    emoji: "🥔",
+    ticker: "КАР",
+    price: 19.2,
+    change: -2.1,
+    deficitIdx: 0.91,
+    ndvi: 0.65,
+    importPressure: "Высокое",
+    forecast: [19.2,18.9,18.5,18.1,17.8,17.5,17.2,17.0,16.8,17.1,17.5,18.0,18.6,19.2,19.8,20.3,20.7,21.0,21.2,20.8,20.3,19.8,19.3,18.8,18.4,18.1],
+    yield: 30, cost: 550, potential: "Средний", profitPerHa: 420000,
+    signal: "HOLD", cyclePhase: "Избыток", cycleRec: "Сократить площади",
+    yieldRange: "25–35", priceRange: "18–28", costNorm: "550", profitRange: "250–550K",
+  },
+  beet: {
+    id: "beet",
+    label: "Свекла",
+    emoji: "🟣",
+    ticker: "СВЕ",
+    price: 17.8,
+    change: 0.6,
+    deficitIdx: 0.98,
+    ndvi: 0.66,
+    importPressure: "Низкое",
+    forecast: [17.8,17.9,18.1,18.3,18.0,17.8,17.6,17.5,17.8,18.2,18.6,19.0,19.4,19.8,20.1,20.3,20.4,20.2,19.9,19.6,19.3,19.0,18.8,18.6,18.4,18.2],
+    yield: 42, cost: 400, potential: "Средний", profitPerHa: 480000,
+    signal: "HOLD", cyclePhase: "Баланс", cycleRec: "Держать позицию",
+    yieldRange: "35–50", priceRange: "15–22", costNorm: "400", profitRange: "300–600K",
+  },
+  cabbage: {
+    id: "cabbage",
+    label: "Капуста",
+    emoji: "🥬",
+    ticker: "КАП",
+    price: 11.4,
+    change: -8.3,
+    deficitIdx: 0.82,
+    ndvi: 0.61,
+    importPressure: "Критическое",
+    forecast: [11.4,10.9,10.3,9.8,9.4,9.1,8.9,8.8,9.0,9.3,9.7,10.1,10.5,10.9,11.2,11.4,11.6,11.5,11.3,11.0,10.7,10.5,10.3,10.1,9.9,9.8],
+    yield: 35, cost: 350, potential: "Рискованно", profitPerHa: 200000,
+    signal: "SELL", cyclePhase: "Обвал", cycleRec: "Избегать",
+    yieldRange: "30–45", priceRange: "10–18", costNorm: "350", profitRange: "50–250K",
+  },
+};
+
+export const MACRO = {
+  usdRub: 88.3,
+  usdRubChange: -0.4,
+  keyRate: 16.0,
+  diesel: 64.2,
+  dieselChange: 11,
+  harvestStock: 47,
+  inflation: 8.4,
+};
+
+export const IMPORTERS = [
+  { country: "Казахстан", share: 38, risk: "warn", flag: "KZ" },
+  { country: "Узбекистан", share: 27, risk: "up", flag: "UZ" },
+  { country: "Египет", share: 19, risk: "warn", flag: "EG" },
+  { country: "Китай", share: 16, risk: "dn", flag: "CN" },
+];
+
+export const DATA_SOURCES = [
+  { name: "Росстат", cat: "Производство" },
+  { name: "Минсельхоз РФ", cat: "Производство" },
+  { name: "ФТС / ЕЭК", cat: "Импорт" },
+  { name: "Comtrade", cat: "Импорт" },
+  { name: "NASA POWER", cat: "Погода" },
+  { name: "ERA5 / Copernicus", cat: "Погода" },
+  { name: "Sentinel-2", cat: "Спутники · NDVI" },
+  { name: "Landsat", cat: "Спутники" },
+  { name: "ЦБ РФ · Мосбиржа", cat: "Макроэкономика" },
+  { name: "АБ-Центр", cat: "Оптовые цены" },
+  { name: "Агроинвестор", cat: "Оптовые цены" },
+  { name: "Open-Meteo", cat: "Погода" },
+];
+
+export const FORECAST_CONFIDENCE = [
+  95,94,92,91,89,87,84,81,78,74,71,67,63,59,55,51,48,45,42,39,36,34,31,29,27,25
+];
+
+export const MARKET_CYCLE_STAGES = [
+  { n: "01", title: "Дефицит → высокая цена", desc: "Запасы исчерпаны. Цена взлетает. Маржа фермеров максимальна.", color: "#C0303A" },
+  { n: "02", title: "Рост посевных площадей", desc: "Все увеличивают площади, привлечённые высокой ценой.", color: "#8C5E00" },
+  { n: "03", title: "Перепроизводство", desc: "Предложение превышает спрос. Склады переполнены.", color: "#8C5E00" },
+  { n: "04", title: "Обвал цены", desc: "Цена падает ниже себестоимости. Убытки, банкротства.", color: "#1A56A8" },
+  { n: "05", title: "Сокращение посевов", desc: "Фермеры переключаются на другие культуры.", color: "#0D7C4A" },
+  { n: "06", title: "Новый дефицит", desc: "Цикл повторяется. Кто предвидел — заработал.", color: "#C0303A" },
+];
+
+export const CROP_DEFAULTS = {
+  onion:  { yield: 55, price: 28, cost: 750 },
+  garlic: { yield: 10, price: 150, cost: 500 },
+  carrot: { yield: 45, price: 22, cost: 600 },
+  potato: { yield: 30, price: 20, cost: 550 },
+  beet:   { yield: 42, price: 18, cost: 400 },
+  cabbage:{ yield: 35, price: 13, cost: 350 },
+};
+
+export const FEATURE_IMPORTANCE = [
+  { label: "Остатки урожая", pct: 32, color: "#378ADD" },
+  { label: "Импорт ЕАЭС", pct: 24, color: "#378ADD" },
+  { label: "price_lag_2w", pct: 18, color: "#378ADD" },
+  { label: "USD/RUB", pct: 12, color: "#888780" },
+  { label: "NDVI / Погода", pct: 9, color: "#888780" },
+  { label: "Дизель", pct: 5, color: "#888780" },
+];
