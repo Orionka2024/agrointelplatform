@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CROPS, FORECAST_CONFIDENCE, FEATURE_IMPORTANCE } from '../data/marketData';
 
-const FC_CROPS = ['onion', 'garlic', 'carrot', 'potato'];
+const FC_CROPS = ['onion', 'watermalon', 'melon', 'garlic', 'carrot', 'potato'];
 
 export default function Forecast() {
   const [activeCrop, setActiveCrop] = useState('onion');

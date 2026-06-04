@@ -11,6 +11,8 @@ function fmt(n) {
 const NORMS = [
   { id: 'garlic', yRange: '8–12',  pRange: '120–180', cost: '500',  pill: 'up',   profitRange: '1.5–1.8M' },
   { id: 'onion',  yRange: '50–60', pRange: '25–35',   cost: '700',  pill: 'up',   profitRange: '600K–1M' },
+  { id: 'watermalon', yRange: '30–50', pRange: '10–20', cost: '300', pill: 'up', profitRange: '200K–400K' },
+  { id: 'melon',  yRange: '15–25', pRange: '30–60',   cost: '400',  pill: 'info', profitRange: '300K–600K' },
   { id: 'carrot', yRange: '40–55', pRange: '20–30',   cost: '600',  pill: 'warn', profitRange: '400–900K' },
   { id: 'potato', yRange: '25–35', pRange: '18–28',   cost: '550',  pill: 'info', profitRange: '250–550K' },
   { id: 'beet',   yRange: '35–50', pRange: '15–22',   cost: '400',  pill: 'info', profitRange: '300–600K' },

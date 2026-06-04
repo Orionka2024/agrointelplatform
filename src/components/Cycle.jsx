@@ -3,6 +3,8 @@ import { CROPS, MARKET_CYCLE_STAGES } from '../data/marketData';
 const CYCLE_POSITIONS = [
   { id: 'garlic', phase: 'Дефицит',    pCls: 'dn',   rec: 'Максимальные посевы',  rStyle: { color: 'var(--green)', fontWeight: 500 } },
   { id: 'onion',  phase: 'Охлаждение', pCls: 'warn', rec: 'Стандартный объём',     rStyle: { color: 'var(--amber)', fontWeight: 500 } },
+  { id: 'watermalon', phase: 'Рост', pCls: 'up', rec: 'Увеличить посевы', rStyle: { color: 'var(--green)', fontWeight: 500 } },
+  { id: 'melon', phase: 'Баланс', pCls: 'info', rec: 'Стандартный объём', rStyle: { color: 'var(--blue)', fontWeight: 500 } },
   { id: 'carrot', phase: 'Баланс',     pCls: 'info', rec: 'Держать позицию',        rStyle: { color: 'var(--blue)',  fontWeight: 500 } },
   { id: 'potato', phase: 'Избыток',    pCls: 'warn', rec: 'Сократить площади',      rStyle: { color: 'var(--red)',   fontWeight: 500 } },
   { id: 'cabbage',phase: 'Обвал',      pCls: 'dn',   rec: 'Избегать',               rStyle: { color: 'var(--red)',   fontWeight: 500 } },
