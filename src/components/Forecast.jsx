@@ -31,19 +31,11 @@ export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) 
 
   const currentCashStart = cashPrices[activeCrop] ?? CASH_DEFAULTS[activeCrop] ?? 15.0;
   const baseWholesale = crop.price;
-  const maxWholesale = Math.max(...crop.forecast);
 
-  // Compute 26 weeks forecast based on mode:
-  // 1. Storage: sells conditioned from warehouse with quality/storage premium and seasonal inflation
-  // 2. Field: direct proportional raw field cash price
-  // 3. Wholesale: official Moscow wholesale with VAT
-  const fc = isStorage
-    ? crop.forecast.map((wp) => {
-        const growthFraction = (wp - baseWholesale) / (maxWholesale - baseWholesale || 1);
-        const storageMultiplier = 1.10 + 1.25 * Math.max(0, growthFraction);
-        return +(currentCashStart * storageMultiplier).toFixed(1);
-      })
-    : isField
+  // Compute 26 weeks selling price forecast from storage:
+  // W+1 selling price starts strictly at currentCashStart (15.0 ₽ for onion)
+  // Weeks W+1..W+26 scale according to the CatBoost wholesale price growth ratio: wp / baseWholesale
+  const fc = (isStorage || isField)
     ? crop.forecast.map(wp => +(currentCashStart * (wp / baseWholesale)).toFixed(1))
     : crop.forecast;
 
@@ -63,9 +55,7 @@ export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) 
 
   const peakPrice = Math.max(...fc);
   const peakWeekIdx = fc.indexOf(peakPrice);
-  const peakNet = storageMetrics[peakWeekIdx]?.netPerKg ?? peakPrice;
-  const peakNetProfit = (peakNet - currentCashStart).toFixed(1);
-  const peakRoiPct = currentCashStart > 0 ? Math.round(((peakNet - currentCashStart) / currentCashStart) * 100) : 0;
+  const totalGrowthPct = currentCashStart > 0 ? Math.round(((peakPrice - currentCashStart) / currentCashStart) * 100) : 0;
 
   return (
     <div className="panel">
@@ -112,9 +102,7 @@ export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) 
         <div className="cash-control-card">
           <div className="cash-control-left">
             <span className="cash-control-label">
-              {isStorage
-                ? `Базовая себестоимость закладки в хранилище (${crop.label}, нал):`
-                : `Стартовая цена с поля (${crop.label}, нал без НДС):`}
+              Текущая цена продажи со склада ({crop.label}, нал без НДС):
             </span>
             <div className="cash-input-row">
               <div className="cash-inp-wrap">
@@ -141,46 +129,27 @@ export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) 
             </div>
           </div>
 
-          {isStorage ? (
-            <div className="cash-spread-metrics">
-              <div className="spread-item">
-                <span className="spread-label">Отгрузка W+1 (Октябрь)</span>
-                <span className="spread-val up">{fc[0]?.toFixed(1)} ₽/кг</span>
-              </div>
-              <div className="spread-divider">→</div>
-              <div className="spread-item">
-                <span className="spread-label">Пик цены со склада (W+{peakWeekIdx + 1})</span>
-                <span className="spread-val up">{peakPrice.toFixed(1)} ₽/кг</span>
-              </div>
-              <div className="spread-divider">|</div>
-              <div className="spread-item">
-                <span className="spread-label">Чистая прибыль за вычетом потерь и OPEX</span>
-                <span className="spread-val warn">+{peakNetProfit} ₽/кг (+{peakRoiPct}% ROI)</span>
-              </div>
-              <div className="spread-divider">|</div>
-              <div className="spread-item">
-                <span className="spread-label">Окно макс. маржи</span>
-                <span className="spread-val up">W+19 – W+22 (Март)</span>
-              </div>
+          <div className="cash-spread-metrics">
+            <div className="spread-item">
+              <span className="spread-label">Текущая отгрузка со склада W+1</span>
+              <span className="spread-val up">{fc[0]?.toFixed(1)} ₽/кг</span>
             </div>
-          ) : (
-            <div className="cash-spread-metrics">
-              <div className="spread-item">
-                <span className="spread-label">С поля (Нал)</span>
-                <span className="spread-val up">{currentCashStart.toFixed(1)} ₽</span>
-              </div>
-              <div className="spread-divider">→</div>
-              <div className="spread-item">
-                <span className="spread-label">Опт Москва</span>
-                <span className="spread-val">{baseWholesale.toFixed(1)} ₽</span>
-              </div>
-              <div className="spread-divider">=</div>
-              <div className="spread-item">
-                <span className="spread-label">Оптовый спред</span>
-                <span className="spread-val warn">+{(baseWholesale - currentCashStart).toFixed(1)} ₽</span>
-              </div>
+            <div className="spread-divider">→</div>
+            <div className="spread-item">
+              <span className="spread-label">Пик цены со склада (W+{peakWeekIdx + 1})</span>
+              <span className="spread-val up">{peakPrice.toFixed(1)} ₽/кг (+{totalGrowthPct}%)</span>
             </div>
-          )}
+            <div className="spread-divider">|</div>
+            <div className="spread-item">
+              <span className="spread-label">Оптовый спред к Москве W+1</span>
+              <span className="spread-val warn">+{(baseWholesale - currentCashStart).toFixed(1)} ₽</span>
+            </div>
+            <div className="spread-divider">|</div>
+            <div className="spread-item">
+              <span className="spread-label">Окно пиковых цен</span>
+              <span className="spread-val up">W+19 – W+22 (Март)</span>
+            </div>
+          </div>
         </div>
       )}
 
@@ -282,16 +251,16 @@ export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) 
 
             <div className={`signal-box ${trendCls}`}>
               <div className={`signal-label ${trendCls}`}>
-                Тренд модели · {crop.label} {isStorage ? '(Продажа из хранилища)' : isField ? '(С поля)' : ''}
+                Тренд модели · {crop.label} {isStorage ? '(Отгрузка из хранилища)' : isField ? '(С поля)' : ''}
               </div>
               <div className={`signal-text ${trendCls}`} style={{ marginTop: 4 }}>
                 {isStorage ? (
                   <>
-                    При базовой себестоимости закладки <strong>{currentCashStart.toFixed(1)} ₽/кг</strong> цена отгрузки кондиционного сухого лука в сетке со склада начинается с <strong>{fc[0]?.toFixed(1)} ₽/кг</strong> в октябре и достигает пика <strong>{peakPrice.toFixed(1)} ₽/кг</strong> в конце марта (W+22). С учетом накопленных потерь усушки/отхода (~10.5%) и затрат на охлаждение (~2.3 ₽/кг) чистый финансовый результат составляет <strong>{peakNet} ₽/кг (+{peakRoiPct}% чистой маржи)</strong>. {crop.trendText}
+                    При текущей цене продажи со склада <strong>{currentCashStart.toFixed(1)} ₽/кг</strong> (нал без НДС в октябре) модель CatBoost прогнозирует сезонный рост отгрузок до <strong>{peakPrice.toFixed(1)} ₽/кг (+{totalGrowthPct}%)</strong> к концу марта (W+22). {crop.trendText}
                   </>
                 ) : isField ? (
                   <>
-                    При стартовой цене <strong>{currentCashStart.toFixed(1)} ₽/кг</strong> нал с поля в Волгоградской обл. ожидается рост до <strong>{peakPrice.toFixed(1)} ₽/кг</strong> к весне. {crop.trendText}
+                    При текущей цене продажи <strong>{currentCashStart.toFixed(1)} ₽/кг</strong> нал с поля в Волгоградской обл. ожидается рост до <strong>{peakPrice.toFixed(1)} ₽/кг</strong> к весне. {crop.trendText}
                   </>
                 ) : (
                   crop.trendText
