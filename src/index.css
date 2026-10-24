@@ -390,4 +390,126 @@ select:focus { border-color: var(--blue); }
     padding: 8px;
   }
 }
+/* ── Data Status Badge ────────────────────────────────────── */
+.data-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-family: var(--mono);
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid;
+}
+.data-status.fresh  { background: var(--green-bg);  border-color: var(--green-border);  color: var(--green); }
+.data-status.stale  { background: var(--amber-bg);  border-color: var(--amber-border);  color: var(--amber); }
+.data-status.offline { background: var(--red-bg);   border-color: var(--red-border);    color: var(--red); }
+.data-status.loading { background: var(--surface2); border-color: var(--border);        color: var(--txt3); }
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot.fresh   { background: var(--green); animation: pulse-green 2s infinite; }
+.status-dot.stale   { background: var(--amber); }
+.status-dot.offline { background: var(--red); }
+.status-dot.loading { background: var(--txt3); animation: blink 1s infinite; }
+
+@keyframes pulse-green {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.status-text { letter-spacing: 0.1px; }
+
+.status-refresh {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: inherit;
+  padding: 0 2px;
+  opacity: 0.7;
+  transition: opacity 0.15s, transform 0.2s;
+}
+.status-refresh:hover { opacity: 1; transform: rotate(180deg); }
+
+/* ── Live FX row ────────────────────────────────────── */
+.live-fx-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 7px 10px;
+  margin-bottom: 4px;
+}
+.live-fx-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--txt2);
+}
+.live-fx-val {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--txt);
+}
+
+/* ── Override badge ────────────────────────────────────── */
+.override-badge {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 2px;
+  background: var(--amber-bg);
+  color: var(--amber);
+  border: 1px solid var(--amber-border);
+}
+
+/* ── Reset-to-live button ────────────────────────────────────── */
+.reset-live-btn {
+  display: block;
+  margin-top: 4px;
+  margin-bottom: 4px;
+  background: none;
+  border: 1px solid var(--blue-border);
+  border-radius: 3px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--blue);
+  cursor: pointer;
+  transition: background 0.15s;
+  width: 100%;
+  text-align: center;
+}
+.reset-live-btn:hover { background: var(--blue-bg); }
+
+/* ── Skeleton loading ────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 50%, var(--surface2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 3px;
+  color: transparent !important;
+  display: inline-block;
+  min-width: 60px;
+  min-height: 1em;
+}
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 

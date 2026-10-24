@@ -1,13 +1,14 @@
 import { CROPS, MARKET_CYCLE_STAGES } from '../data/marketData';
 
 const CYCLE_POSITIONS = [
-  { id: 'garlic', phase: 'Дефицит',    pCls: 'dn',   rec: 'Максимальные посевы',  rStyle: { color: 'var(--green)', fontWeight: 500 } },
-  { id: 'onion',  phase: 'Охлаждение', pCls: 'warn', rec: 'Стандартный объём',     rStyle: { color: 'var(--amber)', fontWeight: 500 } },
-  { id: 'watermalon', phase: 'Рост', pCls: 'up', rec: 'Увеличить посевы', rStyle: { color: 'var(--green)', fontWeight: 500 } },
-  { id: 'melon', phase: 'Баланс', pCls: 'info', rec: 'Стандартный объём', rStyle: { color: 'var(--blue)', fontWeight: 500 } },
-  { id: 'carrot', phase: 'Баланс',     pCls: 'info', rec: 'Держать позицию',        rStyle: { color: 'var(--blue)',  fontWeight: 500 } },
-  { id: 'potato', phase: 'Избыток',    pCls: 'warn', rec: 'Сократить площади',      rStyle: { color: 'var(--red)',   fontWeight: 500 } },
-  { id: 'cabbage',phase: 'Обвал',      pCls: 'dn',   rec: 'Избегать',               rStyle: { color: 'var(--red)',   fontWeight: 500 } },
+  { id: 'garlic',     phase: 'Дефицит',            pCls: 'dn',   rec: 'Максимальные озимые посевы', rStyle: { color: 'var(--green)', fontWeight: 500 } },
+  { id: 'onion',      phase: 'Дефицит на хранении',pCls: 'warn', rec: 'Закладка в хранилища',       rStyle: { color: 'var(--green)', fontWeight: 500 } },
+  { id: 'watermalon', phase: 'Завершение сезона',  pCls: 'up',   rec: 'План посевов +15% на 2027',  rStyle: { color: 'var(--green)', fontWeight: 500 } },
+  { id: 'carrot',     phase: 'Закладка',           pCls: 'info', rec: 'Держать в хранилищах',       rStyle: { color: 'var(--green)', fontWeight: 500 } },
+  { id: 'melon',      phase: 'Межсезонье',         pCls: 'info', rec: 'Стандартный объём на 2027',  rStyle: { color: 'var(--blue)',  fontWeight: 500 } },
+  { id: 'potato',     phase: 'Баланс',             pCls: 'info', rec: 'Реализация с февраля',       rStyle: { color: 'var(--blue)',  fontWeight: 500 } },
+  { id: 'beet',       phase: 'Баланс',             pCls: 'info', rec: 'Стандартная закладка',       rStyle: { color: 'var(--blue)',  fontWeight: 500 } },
+  { id: 'cabbage',    phase: 'Избыток',            pCls: 'dn',   rec: 'Сбыт с поля / сократить',    rStyle: { color: 'var(--red)',   fontWeight: 500 } },
 ];
 
 export default function Cycle() {
@@ -33,7 +34,7 @@ export default function Cycle() {
       {/* Right column */}
       <div className="col-stack">
         <div className="panel">
-          <div className="panel-hd"><span className="panel-title">Позиция на цикле · Май 2026</span></div>
+          <div className="panel-hd"><span className="panel-title">Позиция на цикле · Октябрь 2026</span></div>
           <div className="panel-body" style={{ padding: 0 }}>
             <table className="tbl">
               <thead>
@@ -63,9 +64,9 @@ export default function Cycle() {
           <div className="panel-hd"><span className="panel-title">Ключевой инсайт</span></div>
           <div className="panel-body">
             <div className="signal-box hold">
-              <div className="signal-label hold">Аналитика · Май 2026</div>
+              <div className="signal-label hold">Аналитика · Октябрь 2026</div>
               <div className="signal-text hold" style={{ marginTop: 6 }}>
-                В 2024–2025 наблюдался острый дефицит лука. В 2026 рынок охлаждается — предложение растёт. ЕАЭС временно обнулял пошлины на импорт для сдерживания цен. Чеснок — наиболее перспективная культура для сезона 2026–2027.
+                Осенняя уборка в Волгоградской области завершается. По луку и моркови фиксируется дефицит качественных партий для длительного хранения — реализация из хранилищ в феврале–апреле 2027 даст премию +55–75%. В октябре идёт окно озимого сева чеснока (максимальная рентабельность сезона 2026–2027).
               </div>
             </div>
           </div>
@@ -86,3 +87,4 @@ export default function Cycle() {
     </div>
   );
 }
+

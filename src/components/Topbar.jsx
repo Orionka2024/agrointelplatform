@@ -1,6 +1,7 @@
 import { CROPS, MACRO } from '../data/marketData';
 
 const NOW = new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const TIME = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
 export default function Topbar() {
   const tickers = [
@@ -29,8 +30,9 @@ export default function Topbar() {
       </div>
       <div className="topbar-right">
         <div className="live-dot" />
-        <span className="live-label">LIVE · {NOW} · 14:22</span>
+        <span className="live-label">LIVE · {NOW} · {TIME}</span>
       </div>
     </div>
   );
 }
+

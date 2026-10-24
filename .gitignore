@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.vercel
+.npm-cache
+*.png
+*.jpg
+*.webp
+!public/*
+!src/assets/*

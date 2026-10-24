@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { Chart, registerables } from 'chart.js';
 import { CROPS, MACRO, IMPORTERS } from '../data/marketData';
+import { useLiveData } from '../hooks/useLiveData';
+import DataStatusBadge from './DataStatusBadge';
+import WeatherWidget from './WeatherWidget';
 
 Chart.register(...registerables);
 
@@ -33,7 +36,12 @@ function MainChart() {
   useEffect(() => {
     if (!ref.current) return;
     if (chartRef.current) chartRef.current.destroy();
-    const labels = Array.from({ length: 26 }, (_, i) => `W+${i + 1}`);
+    const labels = Array.from({ length: 26 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() + (i + 1) * 7);
+      const dt = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+      return `W+${i + 1} (${dt})`;
+    });
     chartRef.current = new Chart(ref.current, {
       type: 'line',
       data: {
@@ -60,7 +68,7 @@ function MainChart() {
   return (
     <div className="panel" style={{ marginTop: 0 }}>
       <div className="panel-hd">
-        <span className="panel-title">Прогноз цен · 26 недель</span>
+        <span className="panel-title">Прогноз цен · 26 недель (Октябрь 2026 – Апрель 2027)</span>
         <div className="chart-legend">
           <div className="legend-item"><div className="legend-swatch" style={{ background: '#1A56A8' }} />Лук</div>
           <div className="legend-item"><div className="legend-swatch" style={{ background: '#0D7C4A' }} />Морковь</div>
@@ -78,6 +86,7 @@ function MainChart() {
 
 export default function Dashboard() {
   const onion = CROPS.onion;
+  const { liveData, isLoading, isStale, isOffline, lastUpdated, refresh } = useLiveData();
 
   return (
     <>
@@ -158,10 +167,40 @@ export default function Dashboard() {
         <div className="col-stack">
           {/* Macro */}
           <div className="panel">
-            <div className="panel-hd"><span className="panel-title">Макроэкономика</span></div>
+            <div className="panel-hd">
+              <span className="panel-title">Макроэкономика</span>
+              <DataStatusBadge
+                isLoading={isLoading}
+                isOffline={isOffline}
+                isStale={isStale}
+                lastUpdated={lastUpdated}
+                onRefresh={refresh}
+              />
+            </div>
             <div className="panel-body" style={{ padding: '8px 14px' }}>
-              <div className="macro-row"><span className="macro-lbl">USD/RUB</span><span className="macro-val">{MACRO.usdRub.toFixed(2)}</span></div>
-              <div className="macro-row"><span className="macro-lbl">Ключевая ставка ЦБ</span><span className="macro-val" style={{ color: 'var(--red)' }}>{MACRO.keyRate.toFixed(1)}%</span></div>
+              <div className="macro-row">
+                <span className="macro-lbl">USD/RUB · ЦБ РФ</span>
+                {isLoading
+                  ? <span className="macro-val skeleton" style={{ width: 60 }}>—</span>
+                  : <span className="macro-val" style={{ color: liveData.usdRub > 100 ? 'var(--red)' : liveData.usdRub > 90 ? 'var(--amber)' : 'inherit' }}>
+                      {(liveData.usdRub ?? MACRO.usdRub).toFixed(2)}
+                    </span>
+                }
+              </div>
+              <div className="macro-row">
+                <span className="macro-lbl">KZT/RUB · ЦБ РФ</span>
+                {isLoading
+                  ? <span className="macro-val skeleton" style={{ width: 60 }}>—</span>
+                  : <span className="macro-val">
+                      {(liveData.kztRub ?? MACRO.kztRub).toFixed(3)}
+                    </span>
+                }
+              </div>
+              <div className="macro-row">
+                <span className="macro-lbl">Ключевая ставка ЦБ</span>
+                <span className="macro-val" style={{ color: 'var(--red)' }}>{(liveData.keyRate ?? MACRO.keyRate).toFixed(1)}%</span>
+              </div>
+              <div className="macro-row"><span className="macro-lbl">Фура на Москву (Волгоград)</span><span className="macro-val" style={{ color: 'var(--amber)' }}>{(MACRO.truckRateMsk / 1000).toFixed(0)}K ₽</span></div>
               <div className="macro-row"><span className="macro-lbl">Дизель</span><span className="macro-val" style={{ color: 'var(--amber)' }}>{MACRO.diesel.toFixed(1)} ₽/л</span></div>
               <div className="macro-row"><span className="macro-lbl">Остатки урожая</span><span className="macro-val" style={{ color: 'var(--red)' }}>{MACRO.harvestStock}% нормы</span></div>
             </div>
@@ -186,6 +225,8 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      <WeatherWidget />
 
       <MainChart />
     </>
