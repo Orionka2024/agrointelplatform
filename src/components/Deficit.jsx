@@ -405,6 +405,10 @@ export default function Deficit() {
                 ))}
               </tbody>
             </table>
+
+            <div style={{ marginTop: 10, padding: '8px 10px', background: 'var(--surface2)', borderRadius: 4, border: '1px solid var(--border)', fontSize: 11, color: 'var(--txt2)' }}>
+              💡 <strong>Связь с прогнозом:</strong> Вклад импорта (КЗ/УЗ) в модель прогноза CatBoost составляет <strong>23% (SHAP)</strong>. В разделе <em>«Прогноз»</em> доступно интерактивное моделирование влияния сценариев импорта на 26 недель вперед.
+            </div>
           </div>
         </div>
       </div>
