@@ -24,8 +24,8 @@ export default function App() {
   function renderTab() {
     switch (tab) {
       case 'dashboard':     return <Dashboard />;
-      case 'forecast':      return <Forecast initialBasis="wholesale" onSwitchBasis={b => setTab(b === 'wholesale' ? 'forecast' : 'cash_forecast')} />;
-      case 'cash_forecast': return <Forecast initialBasis="storage" onSwitchBasis={b => setTab(b === 'wholesale' ? 'forecast' : 'cash_forecast')} />;
+      case 'forecast':      return <Forecast key="wholesale_fc" basis="wholesale" onSwitchBasis={b => setTab(b === 'wholesale' ? 'forecast' : 'cash_forecast')} />;
+      case 'cash_forecast': return <Forecast key="storage_fc" basis="storage" onSwitchBasis={b => setTab(b === 'wholesale' ? 'forecast' : 'cash_forecast')} />;
       case 'deficit':       return <Deficit />;
       case 'profit':        return <Profit />;
       case 'cycle':         return <Cycle />;

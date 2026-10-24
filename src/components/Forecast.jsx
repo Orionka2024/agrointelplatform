@@ -30,17 +30,19 @@ function getSeasonPhase(weekIdx) {
   return { tag: 'Май · Ранний юг', desc: 'Заход раннего озимого лука ЦА' };
 }
 
-export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) {
+export default function Forecast({ basis = 'wholesale', initialBasis, onSwitchBasis }) {
   const { liveData } = useLiveData();
   const [activeCrop, setActiveCrop] = useState('onion');
-  const [priceBasis, setPriceBasis] = useState(initialBasis);
+  
+  const resolvedBasis = basis || initialBasis || 'wholesale';
+  const [priceBasis, setPriceBasis] = useState(resolvedBasis);
   const [cashPrices, setCashPrices] = useState(CASH_DEFAULTS);
   const [importScenario, setImportScenario] = useState('base');
   const [customImportDelta, setCustomImportDelta] = useState(0);
 
-  function handleBasisChange(basis) {
-    setPriceBasis(basis);
-    if (onSwitchBasis) onSwitchBasis(basis);
+  function handleBasisChange(newBasis) {
+    setPriceBasis(newBasis);
+    if (onSwitchBasis) onSwitchBasis(newBasis);
   }
 
   function handleCashPriceChange(val) {
@@ -57,47 +59,50 @@ export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) 
   const baseWholesale = crop.price;
   const currentActualPrice = isWholesale ? baseWholesale : currentCashStart;
 
-  // 1. Base Forecast Curve (CatBoost wholesale baseline scaled to actual starting cash/storage price)
-  const fcBase = (isStorage || isField)
-    ? crop.forecast.map(wp => +(currentCashStart * (wp / baseWholesale)).toFixed(1))
-    : crop.forecast;
-
-  // 2. Import Scenario Simulation
+  // Import Scenario Simulation Parameters
   const activeScenario = IMPORT_SCENARIOS[importScenario] || IMPORT_SCENARIOS.base;
   const deltaPct = importScenario === 'custom' ? customImportDelta : activeScenario.deltaPct;
-
-  // Live currency impact
   const liveUsd = liveData.usdRub ?? MACRO.usdRub;
   const liveKzt = liveData.kztRub ?? MACRO.kztRub;
   const shapWeight = (crop.importDetail?.shapWeight ?? 23) / 100;
 
-  // 3. Forecast with Import Influence Curve
-  const fcImport = fcBase.map((basePrice, i) => {
-    // Phase elasticity:
-    // W+1..W+5 (Autumn): 0.35 (fresh harvest buffers shock)
-    // W+6..W+15 (Winter): 0.85 (domestic storage depletes, KZ freezing risks)
-    // W+16..W+22 (Peak spring): 1.30 (maximum deficit elasticity in March)
-    // W+23..W+26 (Late spring): 0.40 (early Central Asian harvest arrives)
+  // Helper: calculate total impact % for any week
+  function getWeekImpactPct(i) {
     let elasticity = 0.35;
     if (i >= 5 && i <= 14) elasticity = 0.85;
     else if (i >= 15 && i <= 21) elasticity = 1.30;
     else if (i >= 22) elasticity = 0.40;
 
-    // Direct import volume shock impact
-    // Negative deltaPct (e.g. -35% KZ restrictions) -> deficit -> price increases
-    // Positive deltaPct (e.g. +30% dumping) -> surplus -> price decreases
     const volumeImpactPct = (-deltaPct * shapWeight * elasticity);
-
-    // FX exchange rate impact (weaker Ruble makes foreign onion more expensive in Rubles)
     const fxImpactPct = ((liveUsd - 94.6) / 94.6) * 12 * elasticity;
+    return volumeImpactPct + fxImpactPct;
+  }
 
-    const totalImpactPct = volumeImpactPct + fxImpactPct;
-    const adjustedPrice = +(basePrice * (1 + totalImpactPct / 100)).toFixed(1);
-    return adjustedPrice;
+  // 1. Base Forecast Curve (CatBoost baseline for the ACTIVE basis)
+  const fcBase = (isStorage || isField)
+    ? crop.forecast.map(wp => +(currentCashStart * (wp / baseWholesale)).toFixed(1))
+    : crop.forecast;
+
+  // 2. Active Forecast with Import Curve
+  const fcImport = fcBase.map((basePrice, i) => {
+    const totalImpactPct = getWeekImpactPct(i);
+    return +(basePrice * (1 + totalImpactPct / 100)).toFixed(1);
+  });
+
+  // 3. Moscow Wholesale Forecast Curve (for side-by-side comparison)
+  const mskImport = crop.forecast.map((baseMsk, i) => {
+    const totalImpactPct = getWeekImpactPct(i);
+    return +(baseMsk * (1 + totalImpactPct / 100)).toFixed(1);
+  });
+
+  // 4. Storage Cash Forecast Curve (for side-by-side comparison)
+  const storageImport = crop.forecast.map((baseMsk, i) => {
+    const totalImpactPct = getWeekImpactPct(i);
+    return +(currentCashStart * (baseMsk / baseWholesale) * (1 + totalImpactPct / 100)).toFixed(1);
   });
 
   // Storage cost and shrinkage loss models per week
-  const storageMetrics = fcImport.map((p, i) => {
+  const storageMetrics = storageImport.map((p, i) => {
     const months = (i + 1) / 4.33;
     const lossPct = +(Math.min(13.5, 1.5 + months * 1.6)).toFixed(1); // shrinkage + rot
     const opex = +(0.5 + months * 0.35).toFixed(2); // cooling electricity, ventilation, sorting
@@ -111,7 +116,7 @@ export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) 
   const features = crop.features || FEATURE_IMPORTANCE;
   const trendCls = crop.trendSignal || 'hold';
 
-  // Key Peak Statistics
+  // Peak Statistics
   const peakBasePrice = Math.max(...fcBase);
   const peakImportPrice = Math.max(...fcImport);
   const peakWeekIdx = fcImport.indexOf(peakImportPrice);
@@ -128,10 +133,17 @@ export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) 
         <div className="basis-switcher">
           <button
             type="button"
+            className={`basis-btn ${priceBasis === 'wholesale' ? 'active' : ''}`}
+            onClick={() => handleBasisChange('wholesale')}
+          >
+            🏢 Опт Москва · с НДС ({baseWholesale.toFixed(1)} ₽)
+          </button>
+          <button
+            type="button"
             className={`basis-btn ${priceBasis === 'storage' ? 'active' : ''}`}
             onClick={() => handleBasisChange('storage')}
           >
-            🏬 Из хранилища · Нал ({fcImport[0]?.toFixed(1)} ₽)
+            🏬 Из хранилища · Нал ({currentCashStart.toFixed(1)} ₽)
           </button>
           <button
             type="button"
@@ -140,22 +152,15 @@ export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) 
           >
             🚜 С поля · Нал ({currentCashStart.toFixed(1)} ₽)
           </button>
-          <button
-            type="button"
-            className={`basis-btn ${priceBasis === 'wholesale' ? 'active' : ''}`}
-            onClick={() => handleBasisChange('wholesale')}
-          >
-            🏢 Опт Москва · с НДС ({baseWholesale.toFixed(1)} ₽)
-          </button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="badge neu" style={{ fontSize: 11 }}>
-            {isStorage
+            {isWholesale
+              ? 'Базис: Опт Москва (РЦ сетей / Овощебазы, с НДС 10%)'
+              : isStorage
               ? 'Базис: Со склада / Овощехранилище (Волгоград, нал без НДС)'
-              : isField
-              ? 'Базис: С поля / ex-farm (сырец, нал без НДС)'
-              : 'Базис: Опт Москва (РЦ / Овощебазы, с НДС)'}
+              : 'Базис: С поля / ex-farm (сырец, нал без НДС)'}
           </span>
           <span className="badge info">CatBoost v2.6</span>
         </div>
@@ -164,28 +169,34 @@ export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) 
       {/* ── Actual vs Forecast Comparison Grid (KPI Cards) ── */}
       <div className="actual-vs-fc-grid">
         <div className="compare-card">
-          <span className="compare-lbl">Фактическая цена сейчас (W+1)</span>
+          <span className="compare-lbl">
+            {isWholesale ? 'Оптовая цена в Москве сейчас (W+1)' : 'Фактическая цена со склада (W+1)'}
+          </span>
           <div className="compare-val">
             {currentActualPrice.toFixed(1)} ₽/кг
           </div>
           <span className="compare-sub">
-            {isStorage ? 'Отгрузка со склада (нал)' : isField ? 'С поля (нал)' : 'Опт Москва (с НДС)'}
+            {isWholesale ? 'Опт Москва с НДС 10% (РЦ / Базы)' : 'Отгрузка со склада (нал без НДС)'}
           </span>
         </div>
 
         <div className="compare-card">
-          <span className="compare-lbl">Базовый прогноз CatBoost (пик W+22)</span>
+          <span className="compare-lbl">
+            {isWholesale ? 'Базовый опт CatBoost (пик W+22)' : 'Базовый склад CatBoost (пик W+22)'}
+          </span>
           <div className="compare-val up">
             {peakBasePrice.toFixed(1)} ₽/кг
             <span style={{ fontSize: 11, fontWeight: 500 }}>(+{baseGrowthPct}%)</span>
           </div>
           <span className="compare-sub">
-            Штатный сезонный баланс без шоков импорта
+            {isWholesale ? 'Оптовый пик без шоков импорта' : 'Складской пик без шоков импорта'}
           </span>
         </div>
 
         <div className={`compare-card ${importDeltaAtPeak > 0 ? 'danger' : importDeltaAtPeak < 0 ? 'highlight' : ''}`}>
-          <span className="compare-lbl">Прогноз с учетом импорта (пик W+22)</span>
+          <span className="compare-lbl">
+            {isWholesale ? 'Опт Москва со сценарием (пик W+22)' : 'Склад со сценарием (пик W+22)'}
+          </span>
           <div className={`compare-val ${importDeltaAtPeak > 0 ? 'up' : importDeltaAtPeak < 0 ? 'dn' : ''}`}>
             {peakImportPrice.toFixed(1)} ₽/кг
             <span style={{ fontSize: 11, fontWeight: 500 }}>(+{totalGrowthPct}%)</span>
@@ -200,12 +211,12 @@ export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) 
         </div>
 
         <div className="compare-card">
-          <span className="compare-lbl">Фактор импорта · Казахстан (39%)</span>
+          <span className="compare-lbl">Спред цен Москва vs Склад</span>
           <div className="compare-val warn">
-            {activeScenario.badge}
+            +{(baseWholesale - currentCashStart).toFixed(1)} ₽/кг
           </div>
           <span className="compare-sub">
-            Вклад SHAP: {shapWeight * 100}% · USD: {liveUsd.toFixed(1)} ₽ · KZT: {liveKzt.toFixed(3)} ₽
+            Доставка фурой (~6.75 ₽) + НДС 10% + фасовка
           </span>
         </div>
       </div>
@@ -347,7 +358,7 @@ export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) 
         <div className="fc-left">
           <div className="fc-section-hd">
             <span className="panel-title">
-              26-недельный прогноз · {isStorage ? 'Отгрузка из хранилища (нал)' : isField ? 'С поля (нал)' : 'Опт Москва (с НДС)'}
+              26-недельный прогноз · {isWholesale ? 'Опт Москва (с НДС)' : isStorage ? 'Отгрузка из хранилища (нал)' : 'С поля (нал)'}
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span className="badge info">R² = {(crop.r2 ?? 0.85).toFixed(2)}</span>
@@ -356,18 +367,24 @@ export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) 
           </div>
 
           <div style={{ padding: '0 14px' }}>
-            {/* Table Header */}
+            {/* Table Header showing BOTH prices */}
             <div className="fc-table-head">
-              <span style={{ minWidth: 80 }}>Неделя · Дата</span>
-              <span style={{ flex: 1 }}>Тренд цены</span>
-              <span style={{ minWidth: 70, textAlign: 'right' }}>Прогноз</span>
+              <span style={{ minWidth: 78 }}>Неделя · Дата</span>
+              <span style={{ flex: 1 }}>Тренд</span>
+              <span style={{ minWidth: 72, textAlign: 'right' }}>
+                {isWholesale ? 'Опт Москва' : 'Цена склада'}
+              </span>
               {importScenario !== 'base' && (
-                <span style={{ minWidth: 60, textAlign: 'right' }}>Эффект КЗ</span>
+                <span style={{ minWidth: 55, textAlign: 'right' }}>Эффект КЗ</span>
               )}
               {isStorage && (
-                <span style={{ minWidth: 95, textAlign: 'right' }}>Чистыми</span>
+                <span style={{ minWidth: 85, textAlign: 'right' }}>Чистыми</span>
               )}
-              <span style={{ minWidth: 105, textAlign: 'center' }}>Фаза сезона</span>
+              <span style={{ minWidth: 78, textAlign: 'right' }}>
+                {isWholesale ? 'Склад (нал)' : 'Опт Москва'}
+              </span>
+              <span style={{ minWidth: 55, textAlign: 'right' }}>Спред</span>
+              <span style={{ minWidth: 100, textAlign: 'center' }}>Фаза сезона</span>
               <span style={{ minWidth: 32, textAlign: 'right' }}>Conf.</span>
             </div>
 
@@ -383,9 +400,14 @@ export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) 
                 const metrics = storageMetrics[i];
                 const phase = getSeasonPhase(i);
 
+                // Both prices for side-by-side comparison
+                const mskP = mskImport[i];
+                const storageP = storageImport[i];
+                const spread = +(mskP - storageP).toFixed(1);
+
                 return (
                   <div className="fc-row" key={i}>
-                    <span className="wk" style={{ minWidth: 80 }}>
+                    <span className="wk" style={{ minWidth: 78 }}>
                       W+{i + 1} <span style={{ color: 'var(--txt2)', opacity: 0.75 }}>({getWeekDateLabel(i + 1)})</span>
                     </span>
 
@@ -399,31 +421,62 @@ export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) 
                       />
                     </div>
 
-                    <span className="fc-price" style={{ minWidth: 70, color: up ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>
+                    {/* Primary Price for this tab */}
+                    <span className="fc-price" style={{ minWidth: 72, color: up ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>
                       {up ? '▲' : '▼'} {p.toFixed(1)} ₽
                     </span>
 
+                    {/* Import Delta Badge */}
                     {importScenario !== 'base' && (
                       <span
                         className={`fc-delta-pill ${deltaP > 0 ? 'up' : deltaP < 0 ? 'dn' : 'neu'}`}
-                        style={{ minWidth: 60, textAlign: 'center' }}
+                        style={{ minWidth: 55, textAlign: 'center' }}
                         title={`Отклонение от базового прогноза (${baseP.toFixed(1)} ₽) из-за фактора импорта`}
                       >
-                        {deltaP > 0 ? `+${deltaP} ₽` : deltaP < 0 ? `${deltaP} ₽` : '0 ₽'}
+                        {deltaP > 0 ? `+${deltaP}` : deltaP < 0 ? `${deltaP}` : '0'} ₽
                       </span>
                     )}
 
+                    {/* Net Realization (in storage mode) */}
                     {isStorage && (
                       <span
                         className="storage-net-tag"
-                        style={{ minWidth: 95 }}
+                        style={{ minWidth: 85 }}
                         title={`Чистая выручка со склада за вычетом потерь (${metrics.lossPct}%) и OPEX (${metrics.opex} ₽/кг)`}
                       >
                         {metrics.netPerKg} ₽
                       </span>
                     )}
 
-                    <span className="fc-phase-tag" style={{ minWidth: 105, textAlign: 'center' }} title={phase.desc}>
+                    {/* Secondary Comparative Price */}
+                    <span
+                      style={{
+                        minWidth: 78,
+                        textAlign: 'right',
+                        fontFamily: 'var(--mono)',
+                        fontSize: 11,
+                        color: 'var(--txt2)',
+                      }}
+                      title={isWholesale ? 'Справочно: отгрузка со склада в Волгограде (нал)' : 'Справочно: оптовая цена в Москве (с НДС)'}
+                    >
+                      {isWholesale ? `${storageP.toFixed(1)} ₽` : `${mskP.toFixed(1)} ₽`}
+                    </span>
+
+                    {/* Price Spread */}
+                    <span
+                      style={{
+                        minWidth: 55,
+                        textAlign: 'right',
+                        fontFamily: 'var(--mono)',
+                        fontSize: 10,
+                        color: 'var(--amber)',
+                      }}
+                      title="Спред Москва — Склад (логистика + фасовка + НДС)"
+                    >
+                      +{spread.toFixed(1)}
+                    </span>
+
+                    <span className="fc-phase-tag" style={{ minWidth: 100, textAlign: 'center' }} title={phase.desc}>
                       {phase.tag}
                     </span>
 
@@ -536,12 +589,16 @@ export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) 
             {/* Trend interpretation */}
             <div className={`signal-box ${trendCls}`}>
               <div className={`signal-label ${trendCls}`}>
-                Оценка динамики · {crop.label} {isStorage ? '(Хранилище / Нал)' : isField ? '(С поля)' : '(Опт)'}
+                Оценка динамики · {crop.label} {isWholesale ? '(Опт Москва)' : isStorage ? '(Хранилище / Нал)' : '(С поля)'}
               </div>
               <div className={`signal-text ${trendCls}`} style={{ marginTop: 4 }}>
-                {isStorage ? (
+                {isWholesale ? (
                   <>
-                    При стартовой цене отгрузки со склада <strong>{currentCashStart.toFixed(1)} ₽/кг</strong> модель CatBoost при сценарии <em>«{activeScenario.shortLabel}»</em> прогнозирует сезонный рост до <strong>{peakImportPrice.toFixed(1)} ₽/кг (+{totalGrowthPct}%)</strong> к концу марта (W+22).
+                    Оптовая цена в Москве стартует с <strong>{baseWholesale.toFixed(1)} ₽/кг</strong> (с НДС 10% и логистикой). При сценарии <em>«{activeScenario.shortLabel}»</em> прогнозируется сезонный рост до <strong>{peakImportPrice.toFixed(1)} ₽/кг (+{totalGrowthPct}%)</strong> к концу марта (W+22).
+                  </>
+                ) : isStorage ? (
+                  <>
+                    При стартовой цене отгрузки со склада <strong>{currentCashStart.toFixed(1)} ₽/кг</strong> (нал без НДС) модель прогнозирует рост до <strong>{peakImportPrice.toFixed(1)} ₽/кг (+{totalGrowthPct}%)</strong> к концу марта (W+22).
                     {importDeltaAtPeak > 0 && ` Ограничение экспорта из Казахстана добавляет +${importDeltaAtPeak} ₽/кг к выручке с каждого килограмма на хранении.`}
                     {importDeltaAtPeak < 0 && ` Избыточный импорт снижает потенциал пика на ${Math.abs(importDeltaAtPeak)} ₽/кг.`}
                   </>
