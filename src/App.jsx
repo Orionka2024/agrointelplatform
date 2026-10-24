@@ -11,7 +11,7 @@ import AIAdvisor from './components/AIAdvisor';
 const TABS = [
   { id: 'dashboard',     label: 'Обзор' },
   { id: 'forecast',      label: 'Прогноз (Москва опт)' },
-  { id: 'cash_forecast', label: 'Прогноз (С поля / Нал)' },
+  { id: 'cash_forecast', label: 'Прогноз (Из хранилища / Нал)' },
   { id: 'deficit',       label: 'Индексы' },
   { id: 'profit',        label: 'Прибыльность' },
   { id: 'cycle',         label: 'Цикл рынка' },
@@ -24,8 +24,8 @@ export default function App() {
   function renderTab() {
     switch (tab) {
       case 'dashboard':     return <Dashboard />;
-      case 'forecast':      return <Forecast initialBasis="wholesale" onSwitchBasis={b => setTab(b === 'cash' ? 'cash_forecast' : 'forecast')} />;
-      case 'cash_forecast': return <Forecast initialBasis="cash" onSwitchBasis={b => setTab(b === 'cash' ? 'cash_forecast' : 'forecast')} />;
+      case 'forecast':      return <Forecast initialBasis="wholesale" onSwitchBasis={b => setTab(b === 'wholesale' ? 'forecast' : 'cash_forecast')} />;
+      case 'cash_forecast': return <Forecast initialBasis="storage" onSwitchBasis={b => setTab(b === 'wholesale' ? 'forecast' : 'cash_forecast')} />;
       case 'deficit':       return <Deficit />;
       case 'profit':        return <Profit />;
       case 'cycle':         return <Cycle />;
