@@ -513,3 +513,172 @@ select:focus { border-color: var(--blue); }
   100% { background-position: -200% 0; }
 }
 
+/* ── Price Basis Switcher & Cash Controls ───────────────────────── */
+.basis-switcher-wrap {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.basis-switcher {
+  display: inline-flex;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.basis-btn {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--txt2);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.basis-btn:hover:not(.active) {
+  color: var(--txt);
+  background: rgba(0,0,0,0.03);
+}
+
+.basis-btn.active {
+  background: var(--surface);
+  color: var(--blue);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.cash-control-card {
+  padding: 10px 14px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.cash-control-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cash-control-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--txt);
+}
+
+.cash-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cash-inp-wrap {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.cash-inp {
+  width: 65px;
+  border: none;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--txt);
+  outline: none;
+  text-align: right;
+  padding: 2px 4px;
+}
+
+.cash-inp-unit {
+  font-size: 11px;
+  color: var(--txt3);
+  margin-left: 2px;
+}
+
+.cash-reset-btn {
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--txt2);
+  font-size: 10px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.cash-reset-btn:hover {
+  background: var(--surface);
+  color: var(--txt);
+}
+
+.cash-spread-metrics {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+}
+
+.spread-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.spread-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--txt3);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.spread-val {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--txt);
+}
+.spread-val.up { color: var(--green); }
+.spread-val.warn { color: var(--amber); }
+
+.spread-divider {
+  color: var(--txt3);
+  font-size: 12px;
+}
+
+.fc-compare-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--txt3);
+  min-width: 80px;
+  text-align: right;
+}
+
+

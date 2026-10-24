@@ -9,12 +9,13 @@ import Cycle from './components/Cycle';
 import AIAdvisor from './components/AIAdvisor';
 
 const TABS = [
-  { id: 'dashboard', label: 'Обзор' },
-  { id: 'forecast',  label: 'Прогноз' },
-  { id: 'deficit',   label: 'Индексы' },
-  { id: 'profit',    label: 'Прибыльность' },
-  { id: 'cycle',     label: 'Цикл рынка' },
-  { id: 'ai',        label: 'AI-советник' },
+  { id: 'dashboard',     label: 'Обзор' },
+  { id: 'forecast',      label: 'Прогноз (Москва опт)' },
+  { id: 'cash_forecast', label: 'Прогноз (С поля / Нал)' },
+  { id: 'deficit',       label: 'Индексы' },
+  { id: 'profit',        label: 'Прибыльность' },
+  { id: 'cycle',         label: 'Цикл рынка' },
+  { id: 'ai',            label: 'AI-советник' },
 ];
 
 export default function App() {
@@ -22,13 +23,14 @@ export default function App() {
 
   function renderTab() {
     switch (tab) {
-      case 'dashboard': return <Dashboard />;
-      case 'forecast':  return <Forecast />;
-      case 'deficit':   return <Deficit />;
-      case 'profit':    return <Profit />;
-      case 'cycle':     return <Cycle />;
-      case 'ai':        return <AIAdvisor />;
-      default:          return <Dashboard />;
+      case 'dashboard':     return <Dashboard />;
+      case 'forecast':      return <Forecast initialBasis="wholesale" onSwitchBasis={b => setTab(b === 'cash' ? 'cash_forecast' : 'forecast')} />;
+      case 'cash_forecast': return <Forecast initialBasis="cash" onSwitchBasis={b => setTab(b === 'cash' ? 'cash_forecast' : 'forecast')} />;
+      case 'deficit':       return <Deficit />;
+      case 'profit':        return <Profit />;
+      case 'cycle':         return <Cycle />;
+      case 'ai':            return <AIAdvisor />;
+      default:              return <Dashboard />;
     }
   }
 

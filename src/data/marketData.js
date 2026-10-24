@@ -309,3 +309,15 @@ export const FEATURE_IMPORTANCE = [
   { label: "Дизель и логистика", pct: 5, color: "#888780" },
 ];
 
+export const CASH_DEFAULTS = {
+  onion: 15.0,
+  watermalon: 13.0,
+  melon: 28.0,
+  garlic: 95.0,
+  carrot: 12.5,
+  potato: 11.5,
+  beet: 10.0,
+  cabbage: 6.5,
+};
+
+
