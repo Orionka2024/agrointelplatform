@@ -909,5 +909,60 @@ select:focus { border-color: var(--blue); }
   border-bottom: 1px solid var(--border);
 }
 
+/* ── Rich SHAP factor cards ── */
+.shap-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  transition: border-color 0.15s ease;
+}
+
+.shap-item:hover {
+  border-color: var(--border2);
+}
+
+.shap-item.highlight {
+  border-color: var(--blue-border);
+  background: #fbfdff;
+}
+
+.shap-item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.shap-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px dashed var(--border);
+  flex-wrap: wrap;
+}
+
+.shap-source-badge {
+  font-size: 9px;
+  color: var(--txt3);
+  background: var(--surface2);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  font-family: var(--mono);
+}
+
+.shap-trend-desc {
+  font-size: 9px;
+  color: var(--txt2);
+  margin-top: 2px;
+}
+
 
 

@@ -445,27 +445,50 @@ export default function Forecast({ initialBasis = 'wholesale', onSwitchBasis }) 
           </div>
 
           <div style={{ padding: '12px 14px' }}>
-            {features.map(f => (
-              <div key={f.label} style={{ marginBottom: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
-                  <span style={{ color: 'var(--txt2)', fontWeight: f.label.includes('Импорт') ? 600 : 400 }}>
-                    {f.label} {f.label.includes('Импорт') ? '⭐ (КЗ/УЗ)' : ''}
-                  </span>
-                  <span style={{ fontFamily: 'var(--mono)', fontWeight: f.label.includes('Импорт') ? 600 : 400 }}>
-                    {f.pct}%
-                  </span>
+            {features.map(f => {
+              const isImport = f.label.includes('Импорт');
+              return (
+                <div key={f.label} className={`shap-item ${isImport ? 'highlight' : ''}`}>
+                  <div className="shap-item-head">
+                    <span style={{ fontWeight: 600, color: 'var(--txt)' }}>
+                      {f.label} {isImport ? '⭐ (КЗ/УЗ)' : ''}
+                    </span>
+                    <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: isImport ? 'var(--blue)' : 'var(--txt)' }}>
+                      {f.pct}%
+                    </span>
+                  </div>
+
+                  <div className="progress" style={{ height: 4, marginBottom: f.currentVal ? 6 : 0 }}>
+                    <div
+                      className="progress-fill"
+                      style={{
+                        width: `${f.pct}%`,
+                        background: isImport ? 'var(--blue)' : f.color,
+                      }}
+                    />
+                  </div>
+
+                  {f.currentVal && (
+                    <div className="shap-meta-row">
+                      <div>
+                        <span style={{ color: 'var(--txt3)' }}>Факт: </span>
+                        <strong style={{ color: 'var(--txt)', fontFamily: 'var(--mono)' }}>{f.currentVal}</strong>
+                      </div>
+                      <span className="shap-source-badge" title={`Источник: ${f.source}`}>
+                        {f.asOf}
+                      </span>
+                    </div>
+                  )}
+
+                  {f.trend && (
+                    <div className="shap-trend-desc" style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                      <span style={{ color: 'var(--txt3)' }}>Динамика:</span>
+                      <span style={{ color: 'var(--txt2)' }}>{f.trend}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="progress">
-                  <div
-                    className="progress-fill"
-                    style={{
-                      width: `${f.pct}%`,
-                      background: f.label.includes('Импорт') ? 'var(--blue)' : f.color,
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
 
             <div className="divider" />
 
