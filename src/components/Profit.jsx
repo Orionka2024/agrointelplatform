@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CROPS, CROP_DEFAULTS } from '../data/marketData';
+import { useStoragePrices } from '../hooks/useStoragePrices';
 
 function fmt(n) {
   const a = Math.abs(n), s = n < 0 ? '−' : '';
@@ -19,7 +20,7 @@ const NORMS = [
   { id: 'cabbage',    yRange: '30–45', pRange: '12–20',   cost: '380', pill: 'warn', profitRange: '80–280K' },
 ];
 
-function getCropParams(id) {
+function getCropParams(id, storagePrices) {
   try {
     const saved = localStorage.getItem(`farm_params_${id}`);
     if (saved) {
@@ -27,7 +28,7 @@ function getCropParams(id) {
       return {
         area: parsed.area ?? 10,
         yld: parsed.yld ?? 55,
-        price: parsed.price ?? 31,
+        price: parsed.price ?? (storagePrices?.[id] ?? 31),
         cost: parsed.cost ?? 780,
         isSaved: true,
       };
@@ -36,26 +37,28 @@ function getCropParams(id) {
     console.error("Failed to parse saved farm params", e);
   }
   const d = CROP_DEFAULTS[id] || { yield: 55, price: 31, cost: 780 };
+  const defaultPrice = storagePrices?.[id] ?? d.price;
   return {
     area: 10,
     yld: d.yield,
-    price: d.price,
+    price: defaultPrice,
     cost: d.cost,
     isSaved: false,
   };
 }
 
 export default function Profit() {
+  const { storagePrices, isCustom } = useStoragePrices();
   const [cropId, setCropId] = useState('onion');
-  const [area,   setArea]   = useState(() => getCropParams('onion').area);
-  const [yld,    setYld]    = useState(() => getCropParams('onion').yld);
-  const [price,  setPrice]  = useState(() => getCropParams('onion').price);
-  const [cost,   setCost]   = useState(() => getCropParams('onion').cost);
-  const [isSaved, setIsSaved] = useState(() => getCropParams('onion').isSaved);
+  const [area,   setArea]   = useState(() => getCropParams('onion', storagePrices).area);
+  const [yld,    setYld]    = useState(() => getCropParams('onion', storagePrices).yld);
+  const [price,  setPrice]  = useState(() => getCropParams('onion', storagePrices).price);
+  const [cost,   setCost]   = useState(() => getCropParams('onion', storagePrices).cost);
+  const [isSaved, setIsSaved] = useState(() => getCropParams('onion', storagePrices).isSaved);
 
   function handleCropChange(id) {
     setCropId(id);
-    const p = getCropParams(id);
+    const p = getCropParams(id, storagePrices);
     setArea(p.area);
     setYld(p.yld);
     setPrice(p.price);
@@ -74,7 +77,7 @@ export default function Profit() {
     const d = CROP_DEFAULTS[cropId] || { yield: 55, price: 31, cost: 780 };
     setArea(10);
     setYld(d.yield);
-    setPrice(d.price);
+    setPrice(storagePrices[cropId] ?? d.price);
     setCost(d.cost);
     setIsSaved(false);
   }
@@ -122,8 +125,24 @@ export default function Profit() {
           </div>
           <div className="inp-row">
             <span className="inp-label">Цена продажи (₽/кг)</span>
-            <input type="range" min="5" max="200" step="1" value={price} onChange={e => setPrice(+e.target.value)} />
+            <input type="range" min="5" max="200" step="0.5" value={price} onChange={e => setPrice(+e.target.value)} />
             <span className="inp-val">{price}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6, marginBottom: 12, paddingLeft: 4, flexWrap: 'wrap', gap: 6 }}>
+            <div style={{ fontSize: 11, color: 'var(--txt2)' }}>
+              Цена со склада: <strong style={{ color: isCustom(cropId) ? 'var(--blue)' : 'var(--txt)', fontFamily: 'var(--mono)' }}>{storagePrices[cropId]} ₽</strong>
+              {isCustom(cropId) && <span className="badge info" style={{ fontSize: 9, marginLeft: 6 }}>своя цена</span>}
+            </div>
+            {price !== storagePrices[cropId] && (
+              <button
+                type="button"
+                className="cash-reset-btn"
+                style={{ fontSize: 10, padding: '3px 8px', borderRadius: 4 }}
+                onClick={() => setPrice(storagePrices[cropId])}
+              >
+                🏬 Подставить цену склада ({storagePrices[cropId]} ₽)
+              </button>
+            )}
           </div>
           <div className="inp-row" style={{ marginBottom: 16 }}>
             <span className="inp-label">Затраты (тыс. ₽/га)</span>
@@ -197,11 +216,18 @@ export default function Profit() {
             <tbody>
               {NORMS.map(n => {
                 const c = CROPS[n.id];
+                const storPrice = storagePrices[n.id];
+                const custom = isCustom(n.id);
                 return (
                   <tr key={n.id}>
                     <td className="pl fw">{c.emoji} {c.label}</td>
                     <td className="mono">{n.yRange}</td>
-                    <td className="mono">{n.pRange}</td>
+                    <td className="mono">
+                      {n.pRange}
+                      <span style={{ fontSize: 10, color: custom ? 'var(--blue)' : 'var(--txt3)', marginLeft: 4 }} title="Текущая цена отгрузки со склада">
+                        (скл {storPrice} ₽{custom ? ' ✏️' : ''})
+                      </span>
+                    </td>
                     <td className="mono">{n.cost}</td>
                     <td><span className={`pill ${n.pill}`}>{n.profitRange}</span></td>
                   </tr>

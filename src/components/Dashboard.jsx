@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Chart, registerables } from 'chart.js';
 import { CROPS, MACRO, IMPORTERS } from '../data/marketData';
 import { useLiveData } from '../hooks/useLiveData';
+import { useStoragePrices } from '../hooks/useStoragePrices';
 import DataStatusBadge from './DataStatusBadge';
 import WeatherWidget from './WeatherWidget';
 
@@ -29,27 +30,41 @@ function fmt(n) {
   return n;
 }
 
-function MainChart() {
+function MainChart({ storagePrices }) {
   const ref = useRef(null);
   const chartRef = useRef(null);
+  const [chartBasis, setChartBasis] = useState('wholesale');
 
   useEffect(() => {
     if (!ref.current) return;
     if (chartRef.current) chartRef.current.destroy();
+
+    const isStor = chartBasis === 'storage';
+    const onionData = isStor
+      ? CROPS.onion.forecast.map(wp => +(storagePrices.onion * (wp / CROPS.onion.price)).toFixed(1))
+      : CROPS.onion.forecast;
+    const carrotData = isStor
+      ? CROPS.carrot.forecast.map(wp => +(storagePrices.carrot * (wp / CROPS.carrot.price)).toFixed(1))
+      : CROPS.carrot.forecast;
+    const potatoData = isStor
+      ? CROPS.potato.forecast.map(wp => +(storagePrices.potato * (wp / CROPS.potato.price)).toFixed(1))
+      : CROPS.potato.forecast;
+
     const labels = Array.from({ length: 26 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() + (i + 1) * 7);
       const dt = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
       return `W+${i + 1} (${dt})`;
     });
+
     chartRef.current = new Chart(ref.current, {
       type: 'line',
       data: {
         labels,
         datasets: [
-          { label: 'Лук', data: CROPS.onion.forecast, borderColor: '#1A56A8', backgroundColor: 'rgba(26,86,168,.05)', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
-          { label: 'Морковь', data: CROPS.carrot.forecast, borderColor: '#0D7C4A', backgroundColor: 'rgba(13,124,74,.05)', borderWidth: 1.5, pointRadius: 0, tension: 0.3, borderDash: [4, 2] },
-          { label: 'Картофель', data: CROPS.potato.forecast, borderColor: '#8C97A8', backgroundColor: 'rgba(140,151,168,.04)', borderWidth: 1.5, pointRadius: 0, tension: 0.3, borderDash: [2, 2] },
+          { label: 'Лук', data: onionData, borderColor: '#1A56A8', backgroundColor: 'rgba(26,86,168,.05)', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+          { label: 'Морковь', data: carrotData, borderColor: '#0D7C4A', backgroundColor: 'rgba(13,124,74,.05)', borderWidth: 1.5, pointRadius: 0, tension: 0.3, borderDash: [4, 2] },
+          { label: 'Картофель', data: potatoData, borderColor: '#8C97A8', backgroundColor: 'rgba(140,151,168,.04)', borderWidth: 1.5, pointRadius: 0, tension: 0.3, borderDash: [2, 2] },
         ],
       },
       options: {
@@ -63,16 +78,36 @@ function MainChart() {
       },
     });
     return () => { if (chartRef.current) chartRef.current.destroy(); };
-  }, []);
+  }, [chartBasis, storagePrices]);
 
   return (
     <div className="panel" style={{ marginTop: 0 }}>
-      <div className="panel-hd">
-        <span className="panel-title">Прогноз цен · 26 недель (Октябрь 2026 – Апрель 2027)</span>
-        <div className="chart-legend">
-          <div className="legend-item"><div className="legend-swatch" style={{ background: '#1A56A8' }} />Лук</div>
-          <div className="legend-item"><div className="legend-swatch" style={{ background: '#0D7C4A' }} />Морковь</div>
-          <div className="legend-item"><div className="legend-swatch" style={{ background: '#8C97A8' }} />Картофель</div>
+      <div className="panel-hd" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <span className="panel-title">Прогноз цен · 26 недель ({chartBasis === 'storage' ? 'Базис: Склад / Нал' : 'Базис: Опт Москва'})</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="basis-switcher" style={{ margin: 0, padding: 2 }}>
+            <button
+              type="button"
+              className={`basis-btn ${chartBasis === 'wholesale' ? 'active' : ''}`}
+              style={{ padding: '3px 8px', fontSize: 11 }}
+              onClick={() => setChartBasis('wholesale')}
+            >
+              🏢 Опт
+            </button>
+            <button
+              type="button"
+              className={`basis-btn ${chartBasis === 'storage' ? 'active' : ''}`}
+              style={{ padding: '3px 8px', fontSize: 11 }}
+              onClick={() => setChartBasis('storage')}
+            >
+              🏬 Склад
+            </button>
+          </div>
+          <div className="chart-legend">
+            <div className="legend-item"><div className="legend-swatch" style={{ background: '#1A56A8' }} />Лук</div>
+            <div className="legend-item"><div className="legend-swatch" style={{ background: '#0D7C4A' }} />Морковь</div>
+            <div className="legend-item"><div className="legend-swatch" style={{ background: '#8C97A8' }} />Картофель</div>
+          </div>
         </div>
       </div>
       <div style={{ padding: '12px 14px' }}>
@@ -87,17 +122,24 @@ function MainChart() {
 export default function Dashboard() {
   const onion = CROPS.onion;
   const { liveData, isLoading, isStale, isOffline, lastUpdated, refresh } = useLiveData();
+  const { storagePrices, isCustom } = useStoragePrices();
+  const [tableBasis, setTableBasis] = useState('wholesale');
 
   return (
     <>
       {/* Stat cards */}
       <div className="row-4">
         <div className="panel"><div className="panel-body">
-          <div className="stat-label">Цена · Лук опт.</div>
-          <div className="stat-val warn">{onion.price.toFixed(2)} ₽</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+            <div className="stat-label">Цена · Лук</div>
+            {isCustom('onion') && (
+              <span className="badge info" style={{ fontSize: 9, padding: '2px 5px' }} title="Задана своя цена отгрузки со склада">вручную</span>
+            )}
+          </div>
+          <div className="stat-val warn">{onion.price.toFixed(1)} ₽</div>
           <div className="stat-meta">
             <span className="badge up">▲ +{onion.change}%</span>
-            <span className="stat-sub">за кг · Москва</span>
+            <span className="stat-sub">склад {storagePrices.onion.toFixed(1)} ₽ (спред +{(onion.price - storagePrices.onion).toFixed(1)} ₽)</span>
           </div>
         </div></div>
 
@@ -132,9 +174,29 @@ export default function Dashboard() {
       {/* Crop table + side panels */}
       <div className="row-32">
         <div className="panel">
-          <div className="panel-hd">
+          <div className="panel-hd" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span className="panel-title">Рейтинг культур · потенциал 2026</span>
-            <span className="badge info">CatBoost</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div className="basis-switcher" style={{ margin: 0, padding: 2 }}>
+                <button
+                  type="button"
+                  className={`basis-btn ${tableBasis === 'wholesale' ? 'active' : ''}`}
+                  style={{ padding: '3px 8px', fontSize: 11 }}
+                  onClick={() => setTableBasis('wholesale')}
+                >
+                  🏢 Опт
+                </button>
+                <button
+                  type="button"
+                  className={`basis-btn ${tableBasis === 'storage' ? 'active' : ''}`}
+                  style={{ padding: '3px 8px', fontSize: 11 }}
+                  onClick={() => setTableBasis('storage')}
+                >
+                  🏬 Склад
+                </button>
+              </div>
+              <span className="badge info">CatBoost</span>
+            </div>
           </div>
           <div className="panel-body" style={{ padding: 0 }}>
             <table className="tbl">
@@ -143,22 +205,36 @@ export default function Dashboard() {
                   <th className="pl">Культура</th>
                   <th>Потенциал</th>
                   <th>Индекс деф.</th>
-                  <th>Цена ₽/кг</th>
+                  <th>{tableBasis === 'storage' ? 'Склад ₽/кг' : 'Опт ₽/кг'}</th>
                   <th>Прибыль/га</th>
                   <th>Сигнал</th>
                 </tr>
               </thead>
               <tbody>
-                {CROP_LIST.map(c => (
-                  <tr key={c.id}>
-                    <td className="pl fw">{c.emoji} {c.label}</td>
-                    <td><span className={`pill ${potentialClass(c.potential)}`}>{c.potential}</span></td>
-                    <td className={`mono ${defClass(c.deficitIdx)}`}>{c.deficitIdx.toFixed(2)}</td>
-                    <td className="mono">{c.price.toFixed(1)}</td>
-                    <td className={`mono ${c.profitPerHa > 600000 ? 'up' : c.profitPerHa < 300000 ? 'dn' : ''}`}>{fmt(c.profitPerHa)}</td>
-                    <td><span className={`pill ${signalClass(c.signal)}`}>{c.signal}</span></td>
-                  </tr>
-                ))}
+                {CROP_LIST.map(c => {
+                  const storPrice = storagePrices[c.id];
+                  const hasCustom = isCustom(c.id);
+                  const displayPrice = tableBasis === 'storage' ? storPrice : c.price;
+                  const calculatedProfit = tableBasis === 'storage'
+                    ? Math.round((c.yield * storPrice * 1000) - (c.cost * 1000))
+                    : c.profitPerHa;
+
+                  return (
+                    <tr key={c.id}>
+                      <td className="pl fw">{c.emoji} {c.label}</td>
+                      <td><span className={`pill ${potentialClass(c.potential)}`}>{c.potential}</span></td>
+                      <td className={`mono ${defClass(c.deficitIdx)}`}>{c.deficitIdx.toFixed(2)}</td>
+                      <td className="mono">
+                        {displayPrice.toFixed(1)}
+                        {tableBasis === 'storage' && hasCustom && (
+                          <span style={{ color: 'var(--blue)', marginLeft: 4 }} title="Задано вручную">✏️</span>
+                        )}
+                      </td>
+                      <td className={`mono ${calculatedProfit > 600000 ? 'up' : calculatedProfit < 300000 ? 'dn' : ''}`}>{fmt(calculatedProfit)}</td>
+                      <td><span className={`pill ${signalClass(c.signal)}`}>{c.signal}</span></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -228,7 +304,7 @@ export default function Dashboard() {
 
       <WeatherWidget />
 
-      <MainChart />
+      <MainChart storagePrices={storagePrices} />
     </>
   );
 }

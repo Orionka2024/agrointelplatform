@@ -8,6 +8,7 @@ import {
   MACRO,
 } from '../data/marketData';
 import { useLiveData } from '../hooks/useLiveData';
+import { useStoragePrices } from '../hooks/useStoragePrices';
 
 const FC_CROPS = Object.keys(CROPS);
 
@@ -18,27 +19,42 @@ function getWeekDateLabel(weeksAhead) {
 }
 
 function getSeasonPhase(weekIdx) {
-  if (weekIdx <= 4) {
-    return { tag: 'Осень · Давление КЗ', desc: 'Свежий урожай ЕАЭС сдерживает цены' };
+  if (weekIdx <= 3) {
+    return { tag: 'Ноябрь · Сброс с полей', desc: 'Давление свежего урожая и сброс с необорудованных складов' };
   }
-  if (weekIdx <= 14) {
-    return { tag: 'Зима · Риски РК', desc: 'Морозы и риски экспортных квот Казахстана' };
+  if (weekIdx <= 6) {
+    return { tag: 'Декабрь · Склады', desc: 'Переход на отапливаемые хранилища, начало зимнего спроса' };
+  }
+  if (weekIdx <= 8) {
+    return { tag: 'Предновогодний пик', desc: 'Ажиотажный выкуп сетями к новогоднему столу' };
+  }
+  if (weekIdx <= 12) {
+    return { tag: 'Январское затишье', desc: 'Постновогодний спад розничного потребления и коррекция' };
+  }
+  if (weekIdx <= 16) {
+    return { tag: 'Февраль · Морозы', desc: 'Холода (-20°C..-30°C), срыв погрузок, дефицит рефрижераторов' };
   }
   if (weekIdx <= 21) {
-    return { tag: 'Весна · Пик дефицита', desc: 'Истощение запасов в РФ и ЕАЭС' };
+    return { tag: 'Весенний дефицит', desc: 'Истощение запасов РФ и ЕАЭС, годовой пик котировок' };
   }
-  return { tag: 'Май · Ранний юг', desc: 'Заход раннего озимого лука ЦА' };
+  return { tag: 'Апрель · Ранний юг', desc: 'Обвал цен старого урожая с приходом свежих овощей из ЦА/Египта' };
 }
 
 export default function Forecast({ basis = 'wholesale', initialBasis, onSwitchBasis }) {
   const { liveData } = useLiveData();
+  const { storagePrices, setStoragePrice, resetStoragePrice, isCustom } = useStoragePrices();
   const [activeCrop, setActiveCrop] = useState('onion');
   
   const resolvedBasis = basis || initialBasis || 'wholesale';
+  const [prevBasis, setPrevBasis] = useState(resolvedBasis);
   const [priceBasis, setPriceBasis] = useState(resolvedBasis);
-  const [cashPrices, setCashPrices] = useState(CASH_DEFAULTS);
   const [importScenario, setImportScenario] = useState('base');
   const [customImportDelta, setCustomImportDelta] = useState(0);
+
+  if (basis && basis !== prevBasis) {
+    setPrevBasis(basis);
+    setPriceBasis(basis);
+  }
 
   function handleBasisChange(newBasis) {
     setPriceBasis(newBasis);
@@ -47,7 +63,7 @@ export default function Forecast({ basis = 'wholesale', initialBasis, onSwitchBa
 
   function handleCashPriceChange(val) {
     const num = isNaN(val) ? 0 : val;
-    setCashPrices(prev => ({ ...prev, [activeCrop]: num }));
+    setStoragePrice(activeCrop, num);
   }
 
   const crop = CROPS[activeCrop];
@@ -55,7 +71,7 @@ export default function Forecast({ basis = 'wholesale', initialBasis, onSwitchBa
   const isField = priceBasis === 'field';
   const isWholesale = priceBasis === 'wholesale';
 
-  const currentCashStart = cashPrices[activeCrop] ?? CASH_DEFAULTS[activeCrop] ?? 15.0;
+  const currentCashStart = storagePrices[activeCrop] ?? CASH_DEFAULTS[activeCrop] ?? 15.0;
   const baseWholesale = crop.price;
   const currentActualPrice = isWholesale ? baseWholesale : currentCashStart;
 
@@ -69,9 +85,11 @@ export default function Forecast({ basis = 'wholesale', initialBasis, onSwitchBa
   // Helper: calculate total impact % for any week
   function getWeekImpactPct(i) {
     let elasticity = 0.35;
-    if (i >= 5 && i <= 14) elasticity = 0.85;
-    else if (i >= 15 && i <= 21) elasticity = 1.30;
-    else if (i >= 22) elasticity = 0.40;
+    if (i >= 4 && i <= 8) elasticity = 0.70;        // Предновогодний разгон
+    else if (i >= 9 && i <= 12) elasticity = 0.50;  // Январское затишье
+    else if (i >= 13 && i <= 16) elasticity = 1.10; // Февральские морозы и логистика
+    else if (i >= 17 && i <= 21) elasticity = 1.45; // Весенний пик дефицита
+    else if (i >= 22) elasticity = 0.85;            // Апрельский слом рынка
 
     const volumeImpactPct = (-deltaPct * shapWeight * elasticity);
     const fxImpactPct = ((liveUsd - 94.6) / 94.6) * 12 * elasticity;
@@ -143,14 +161,14 @@ export default function Forecast({ basis = 'wholesale', initialBasis, onSwitchBa
             className={`basis-btn ${priceBasis === 'storage' ? 'active' : ''}`}
             onClick={() => handleBasisChange('storage')}
           >
-            🏬 Из хранилища · Нал ({currentCashStart.toFixed(1)} ₽)
+            🏬 Из хранилища · Нал ({currentCashStart.toFixed(1)} ₽){isCustom(activeCrop) ? ' ✏️' : ''}
           </button>
           <button
             type="button"
             className={`basis-btn ${priceBasis === 'field' ? 'active' : ''}`}
             onClick={() => handleBasisChange('field')}
           >
-            🚜 С поля · Нал ({currentCashStart.toFixed(1)} ₽)
+            🚜 С поля · Нал ({currentCashStart.toFixed(1)} ₽){isCustom(activeCrop) ? ' ✏️' : ''}
           </button>
         </div>
 
@@ -162,6 +180,9 @@ export default function Forecast({ basis = 'wholesale', initialBasis, onSwitchBa
               ? 'Базис: Со склада / Овощехранилище (Волгоград, нал без НДС)'
               : 'Базис: С поля / ex-farm (сырец, нал без НДС)'}
           </span>
+          {isCustom(activeCrop) && (
+            <span className="badge info" style={{ fontSize: 10 }}>Своя цена</span>
+          )}
           <span className="badge info">CatBoost v2.6</span>
         </div>
       </div>
@@ -174,6 +195,9 @@ export default function Forecast({ basis = 'wholesale', initialBasis, onSwitchBa
           </span>
           <div className="compare-val">
             {currentActualPrice.toFixed(1)} ₽/кг
+            {(!isWholesale && isCustom(activeCrop)) && (
+              <span className="badge info" style={{ fontSize: 10, marginLeft: 6 }}>вручную</span>
+            )}
           </div>
           <span className="compare-sub">
             {isWholesale ? 'Опт Москва с НДС 10% (РЦ / Базы)' : 'Отгрузка со склада (нал без НДС)'}
@@ -182,7 +206,7 @@ export default function Forecast({ basis = 'wholesale', initialBasis, onSwitchBa
 
         <div className="compare-card">
           <span className="compare-lbl">
-            {isWholesale ? 'Базовый опт CatBoost (пик W+22)' : 'Базовый склад CatBoost (пик W+22)'}
+            {isWholesale ? `Базовый опт (пик W+${fcBase.indexOf(peakBasePrice) + 1})` : `Базовый склад (пик W+${fcBase.indexOf(peakBasePrice) + 1})`}
           </span>
           <div className="compare-val up">
             {peakBasePrice.toFixed(1)} ₽/кг
@@ -195,7 +219,7 @@ export default function Forecast({ basis = 'wholesale', initialBasis, onSwitchBa
 
         <div className={`compare-card ${importDeltaAtPeak > 0 ? 'danger' : importDeltaAtPeak < 0 ? 'highlight' : ''}`}>
           <span className="compare-lbl">
-            {isWholesale ? 'Опт Москва со сценарием (пик W+22)' : 'Склад со сценарием (пик W+22)'}
+            {isWholesale ? `Опт со сценарием (пик W+${peakWeekIdx + 1})` : `Склад со сценарием (пик W+${peakWeekIdx + 1})`}
           </span>
           <div className={`compare-val ${importDeltaAtPeak > 0 ? 'up' : importDeltaAtPeak < 0 ? 'dn' : ''}`}>
             {peakImportPrice.toFixed(1)} ₽/кг
@@ -241,13 +265,13 @@ export default function Forecast({ basis = 'wholesale', initialBasis, onSwitchBa
                 />
                 <span className="cash-inp-unit">₽/кг</span>
               </div>
-              {currentCashStart !== CASH_DEFAULTS[activeCrop] && (
+              {isCustom(activeCrop) && (
                 <button
                   type="button"
                   className="cash-reset-btn"
-                  onClick={() => handleCashPriceChange(CASH_DEFAULTS[activeCrop])}
+                  onClick={() => resetStoragePrice(activeCrop)}
                 >
-                  ↺ Сбросить ({CASH_DEFAULTS[activeCrop]} ₽)
+                  ↺ Сбросить к норме ({CASH_DEFAULTS[activeCrop]} ₽)
                 </button>
               )}
             </div>
@@ -260,13 +284,13 @@ export default function Forecast({ basis = 'wholesale', initialBasis, onSwitchBa
             </div>
             <div className="spread-divider">|</div>
             <div className="spread-item">
-              <span className="spread-label">Пик со склада (W+{peakWeekIdx + 1} · Март)</span>
+              <span className="spread-label">Пик со склада (W+{peakWeekIdx + 1} · {getWeekDateLabel(peakWeekIdx + 1)})</span>
               <span className="spread-val up">{peakImportPrice.toFixed(1)} ₽/кг</span>
             </div>
             <div className="spread-divider">|</div>
             <div className="spread-item">
               <span className="spread-label">Окно максимальной цены</span>
-              <span className="spread-val up">W+19 – W+22</span>
+              <span className="spread-val up">W+{Math.max(1, peakWeekIdx)} – W+{Math.min(26, peakWeekIdx + 2)}</span>
             </div>
           </div>
         </div>
@@ -552,20 +576,24 @@ export default function Forecast({ basis = 'wholesale', initialBasis, onSwitchBa
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 11 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
-                  <span style={{ color: 'var(--txt2)' }}>🍂 Окт–Ноя (W+1..W+6):</span>
-                  <span style={{ fontWeight: 500, color: 'var(--amber)' }}>Сдерживание цен (-2.1 ₽)</span>
+                  <span style={{ color: 'var(--txt2)' }}>🍂 Ноябрь (W+1..W+4):</span>
+                  <span style={{ fontWeight: 500, color: 'var(--amber)' }}>Сдерживание цен (-1.8 ₽)</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
-                  <span style={{ color: 'var(--txt2)' }}>❄️ Дек–Фев (W+7..W+16):</span>
-                  <span style={{ fontWeight: 500, color: 'var(--red)' }}>Риск квот / ускорение (+3.8 ₽)</span>
+                  <span style={{ color: 'var(--txt2)' }}>🎄 Декабрь (W+5..W+9):</span>
+                  <span style={{ fontWeight: 500, color: 'var(--green)' }}>Новогодний всплеск (+4.2 ₽)</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
-                  <span style={{ color: 'var(--txt2)' }}>🌱 Март (W+17..W+22):</span>
-                  <span style={{ fontWeight: 600, color: 'var(--green)' }}>Пик дефицита (+5.3 ₽)</span>
+                  <span style={{ color: 'var(--txt2)' }}>❄️ Янв–Фев (W+10..W+17):</span>
+                  <span style={{ fontWeight: 500, color: 'var(--red)' }}>Морозы и риски квот (+5.8 ₽)</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
+                  <span style={{ color: 'var(--txt2)' }}>🌱 Март (W+18..W+22):</span>
+                  <span style={{ fontWeight: 600, color: 'var(--green)' }}>Пик дефицита (+7.4 ₽)</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--txt2)' }}>☀️ Апр–Май (W+23..W+26):</span>
-                  <span style={{ fontWeight: 500, color: 'var(--blue)' }}>Ранний юг / плато (-2.8 ₽)</span>
+                  <span style={{ color: 'var(--txt2)' }}>☀️ Апрель (W+23..W+26):</span>
+                  <span style={{ fontWeight: 500, color: 'var(--blue)' }}>Ранний юг / обвал (-11.2 ₽)</span>
                 </div>
               </div>
             </div>
@@ -594,12 +622,12 @@ export default function Forecast({ basis = 'wholesale', initialBasis, onSwitchBa
               <div className={`signal-text ${trendCls}`} style={{ marginTop: 4 }}>
                 {isWholesale ? (
                   <>
-                    Оптовая цена в Москве стартует с <strong>{baseWholesale.toFixed(1)} ₽/кг</strong> (с НДС 10% и логистикой). При сценарии <em>«{activeScenario.shortLabel}»</em> прогнозируется сезонный рост до <strong>{peakImportPrice.toFixed(1)} ₽/кг (+{totalGrowthPct}%)</strong> к концу марта (W+22).
+                    Оптовая цена в Москве стартует с <strong>{baseWholesale.toFixed(1)} ₽/кг</strong>. При сценарии <em>«{activeScenario.shortLabel}»</em> прогнозируется сезонная волна с предновогодним подъёмом, январской паузой и выходом на годовой пик <strong>{peakImportPrice.toFixed(1)} ₽/кг (+{totalGrowthPct}%)</strong> на W+{peakWeekIdx + 1} ({getWeekDateLabel(peakWeekIdx + 1)}), с последующим апрельским снижением под давлением нового урожая.
                   </>
                 ) : isStorage ? (
                   <>
-                    При стартовой цене отгрузки со склада <strong>{currentCashStart.toFixed(1)} ₽/кг</strong> (нал без НДС) модель прогнозирует рост до <strong>{peakImportPrice.toFixed(1)} ₽/кг (+{totalGrowthPct}%)</strong> к концу марта (W+22).
-                    {importDeltaAtPeak > 0 && ` Ограничение экспорта из Казахстана добавляет +${importDeltaAtPeak} ₽/кг к выручке с каждого килограмма на хранении.`}
+                    При стартовой цене отгрузки со склада <strong>{currentCashStart.toFixed(1)} ₽/кг</strong> модель прогнозирует сезонный пик <strong>{peakImportPrice.toFixed(1)} ₽/кг (+{totalGrowthPct}%)</strong> на W+{peakWeekIdx + 1} ({getWeekDateLabel(peakWeekIdx + 1)}).
+                    {importDeltaAtPeak > 0 && ` Ограничение экспорта из Казахстана добавляет +${importDeltaAtPeak} ₽/кг к пиковой выручке на хранении.`}
                     {importDeltaAtPeak < 0 && ` Избыточный импорт снижает потенциал пика на ${Math.abs(importDeltaAtPeak)} ₽/кг.`}
                   </>
                 ) : (
