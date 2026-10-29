@@ -168,11 +168,18 @@ export default function Dashboard() {
         </div>
       )}
       {demo && (
-        <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: 6, padding: '8px 14px', marginBottom: 14, fontSize: 11, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: 6, padding: '10px 14px', marginBottom: 14, fontSize: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            ℹ️ <strong>ДЕМО-РЕЖИМ АКТИВЕН:</strong> отображаются иллюстративные данные (26 недель, зафиксировано на дату 24.10.2026).
+            ℹ️ <strong>Активен ДЕМО-режим:</strong> в платформу уже встроена <strong>6-летняя база наблюдений (313 недель, 2020–2026)</strong>. Вам не требуется загружать CSV-файлы — просто переключитесь на режим «Факт» для работы с реальными ценами и валидацией бэктестом.
           </div>
-          <span className="badge warn" style={{ fontSize: 10 }}>ДЕМО-ДАННЫЕ</span>
+          <button
+            type="button"
+            className="basis-btn active"
+            onClick={() => setDemo(false)}
+            style={{ fontSize: 11, padding: '4px 12px', whiteSpace: 'nowrap', marginLeft: 12 }}
+          >
+            Включить режим «Факт (313 нед.)»
+          </button>
         </div>
       )}
 

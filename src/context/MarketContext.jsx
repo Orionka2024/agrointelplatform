@@ -9,10 +9,10 @@ export function MarketProvider({ children }) {
       const saved = localStorage.getItem('agro_demo_mode');
       if (saved === 'false') return false;
       if (saved === 'true') return true;
-      // Default to DEMO mode on first launch so the dashboard opens populated with illustrative data
-      return true;
+      // Default to observed mode now that the built-in 6-year dataset (313 weeks) is active
+      return false;
     } catch {
-      return true;
+      return false;
     }
   });
 
@@ -31,7 +31,7 @@ export function MarketProvider({ children }) {
         kztRub: { value: 0.198, asOf: '2026-10-24', source: 'cbr.ru' },
         keyRate: { value: 21.0, asOf: '2026-10-24', source: 'cbr.ru' },
       },
-      demo: true,
+      demo: false,
       today: todayISO(),
       storeAvailable: false,
     });

@@ -1,0 +1,52 @@
+[
+  {
+    "id": "ind-volg-harvest-2026",
+    "indicator": "harvest_progress_pct",
+    "value": 98,
+    "unit": "%",
+    "region": "Волгоградская обл.",
+    "cropYear": 2026,
+    "observationDate": "2026-10-18",
+    "retrievedDate": "2026-10-19",
+    "source": "Комитет сельского хозяйства Волгоградской обл.",
+    "notes": "Уборка на капельном поливе практически завершена (98%), основной объем заложен в хранилища."
+  },
+  {
+    "id": "ind-volg-temp-storage-2026",
+    "indicator": "temp_storage_stock_t",
+    "value": 45000,
+    "unit": "т",
+    "region": "Волгоградская обл.",
+    "storageType": "необорудованный склад",
+    "cropYear": 2026,
+    "observationDate": "2026-10-20",
+    "retrievedDate": "2026-10-21",
+    "source": "Мониторинг овощехранилищ АПК",
+    "notes": "Остатки лука во временных неотапливаемых складах. Реализация активна до наступления заморозков."
+  },
+  {
+    "id": "ind-import-kz-2026",
+    "indicator": "import_arrivals_t",
+    "value": 14200,
+    "unit": "т",
+    "region": "РФ / ЕАЭС",
+    "cropYear": 2026,
+    "observationDate": "2026-10-22",
+    "retrievedDate": "2026-10-23",
+    "source": "ФТС РФ / ЕЭК",
+    "notes": "Поставки репчатого лука из Жамбылской и Туркестанской областей Казахстана в рамках осеннего коридора."
+  },
+  {
+    "id": "ind-volg-long-term-2026",
+    "indicator": "long_term_release_t",
+    "value": 26000,
+    "unit": "т",
+    "region": "Волгоградская обл.",
+    "storageType": "климатические склады",
+    "cropYear": 2026,
+    "observationDate": "2026-10-23",
+    "retrievedDate": "2026-10-24",
+    "source": "Союз овощеводов РФ",
+    "notes": "Начало планомерных поставок по долгосрочным контрактам в федеральные розничные сети."
+  }
+]

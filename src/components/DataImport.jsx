@@ -69,9 +69,23 @@ export default function DataImport() {
   }
 
   return (
-    <div className="row-2">
-      {/* Left: CSV Import Form */}
-      <div className="panel">
+    <>
+      {/* Informative Banner about CSV not being mandatory */}
+      <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 6, padding: '12px 16px', marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <span style={{ fontSize: 16 }}>📦</span>
+          <strong style={{ fontSize: 13, color: 'var(--green)' }}>Загрузка CSV-файлов не является обязательной</strong>
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--txt2)', lineHeight: 1.5 }}>
+          В систему уже интегрирована <strong>эталонная база мониторинга АПК за 6 лет (2020–2026 гг., 313 недель)</strong> для склада в Волгограде и оптового рынка Москвы. Модели сезонности, мост издержек и бэктест уже откалиброваны и активны в режиме «Факт».
+          <br />
+          Для ежедневной работы вам достаточно использовать <strong>ручной ввод текущей цены отгрузки</strong> на вкладке «Прогноз» или загружать свои файлы при наличии собственных реестров сделок.
+        </div>
+      </div>
+
+      <div className="row-2">
+        {/* Left: CSV Import Form */}
+        <div className="panel">
         <div className="panel-hd" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span className="panel-title">Импорт данных через CSV</span>
           <div className="basis-switcher" style={{ margin: 0 }}>
@@ -223,5 +237,6 @@ export default function DataImport() {
         </div>
       </div>
     </div>
-  );
+  </>
+);
 }
