@@ -2,10 +2,31 @@
  * Vercel Serverless Function & Local Dev Handler: /api/advisor
  * Secure AI Advisor with structured snapshot context and strict evidence boundaries.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import { store } from '../server/store.js';
 import { computeMarketModel } from '../shared/marketModel.js';
 import { buildSnapshot, sanitizeSnapshot } from '../shared/snapshot.js';
 import { todayISO } from '../shared/dates.js';
+import { generateAutonomousAnalysis } from '../shared/autonomousAdvisor.js';
+
+function getEnvVar(name) {
+  if (process.env[name]) return process.env[name];
+  try {
+    for (const filename of ['.env.local', '.env']) {
+      const p = path.join(process.cwd(), filename);
+      if (fs.existsSync(p)) {
+        const text = fs.readFileSync(p, 'utf-8');
+        const re = new RegExp(`^${name}\\s*=\\s*["']?([^"'\\r\\n]+)["']?`, 'm');
+        const m = text.match(re);
+        if (m && m[1].trim()) return m[1].trim();
+      }
+    }
+  } catch {
+    // silent
+  }
+  return null;
+}
 
 const SYSTEM_INSTRUCTIONS = `Ты — аналитик платформы Agro Intelligence Platform. Твоя задача — давать честный, доказательный экономический анализ рынка лука в Волгоградской области (склад продавца) и сравнения с оптовым рынком Москвы.
 
@@ -182,31 +203,36 @@ export default async function handler(req, res) {
 
   const promptText = formatUserPrompt(sanitizedQuery, snapshot);
 
-  // Identify configured provider
-  const explicitProvider = process.env.AI_PROVIDER?.toLowerCase();
-  const geminiKey = process.env.GEMINI_API_KEY;
-  const openaiKey = process.env.OPENAI_API_KEY;
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  // Identify configured provider or user-provided key
+  const headers = req.headers || {};
+  const userKey = (body?.userApiKey || headers['x-ai-key'])?.trim();
+  const explicitProvider = (body?.userProvider || headers['x-ai-provider'] || getEnvVar('AI_PROVIDER'))?.toLowerCase();
+  const geminiKey = userKey && (explicitProvider === 'gemini' || userKey.startsWith('AIzaSy')) ? userKey : getEnvVar('GEMINI_API_KEY');
+  const openaiKey = userKey && (explicitProvider === 'openai' || userKey.startsWith('sk-proj-') || userKey.startsWith('sk-')) ? userKey : getEnvVar('OPENAI_API_KEY');
+  const anthropicKey = userKey && (explicitProvider === 'anthropic' || userKey.startsWith('sk-ant-')) ? userKey : getEnvVar('ANTHROPIC_API_KEY');
 
   let provider = explicitProvider || (geminiKey ? 'gemini' : openaiKey ? 'openai' : anthropicKey ? 'anthropic' : null);
 
-  if (!provider) {
-    return res.status(401).json({
-      error: 'API_KEY_MISSING',
-      message: 'Ни один AI-ключ не настроен. Добавьте GEMINI_API_KEY (бесплатно), OPENAI_API_KEY или ANTHROPIC_API_KEY в .env.local или в панель Vercel.',
+  // Fallback to Autonomous Market Analyst if no API key is available
+  if (!provider || (provider === 'gemini' && !geminiKey) || (provider === 'openai' && !openaiKey) || (provider === 'anthropic' && !anthropicKey)) {
+    const autonomousText = generateAutonomousAnalysis(sanitizedQuery, snapshot);
+    return res.status(200).json({
+      answer: autonomousText,
+      model: 'Автономный аналитический движок платформы',
+      contextMode: snapshot.mode,
+      basis: snapshot.selectedBasis,
+      autonomous: true,
+      timestamp: new Date().toISOString(),
     });
   }
 
   try {
     let result;
     if (provider === 'gemini') {
-      if (!geminiKey) throw new Error('GEMINI_API_KEY не задан в переменных окружения.');
       result = await callGemini(geminiKey, promptText);
     } else if (provider === 'openai') {
-      if (!openaiKey) throw new Error('OPENAI_API_KEY не задан в переменных окружения.');
       result = await callOpenAI(openaiKey, promptText);
     } else if (provider === 'anthropic') {
-      if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY не задан в переменных окружения.');
       result = await callAnthropic(anthropicKey, promptText);
     } else {
       throw new Error(`Неизвестный провайдер: ${provider}`);
@@ -220,11 +246,16 @@ export default async function handler(req, res) {
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
-    console.error('[api/advisor] Provider execution error:', err.message);
-    return res.status(502).json({
-      error: 'AI_PROVIDER_ERROR',
-      message: err.message,
-      provider,
+    console.warn('[api/advisor] Provider execution failed, falling back to autonomous analysis:', err.message);
+    const autonomousText = generateAutonomousAnalysis(sanitizedQuery, snapshot);
+    const note = `*(Внешний сервис ${provider} вернул ошибку: ${err.message}. Ответ сформирован встроенным аналитическим модулем платформы на основе актуального среза данных).* \n\n`;
+    return res.status(200).json({
+      answer: note + autonomousText,
+      model: 'Автономный аналитический модуль (резервный)',
+      contextMode: snapshot.mode,
+      basis: snapshot.selectedBasis,
+      autonomous: true,
+      timestamp: new Date().toISOString(),
     });
   }
 }

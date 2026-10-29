@@ -47,7 +47,16 @@ export default function AIAdvisor() {
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [modelName, setModelName] = useState('AI Advisor');
+  const [modelName, setModelName] = useState('Автономный аналитик');
+  const [userApiKey, setUserApiKey] = useState(() => {
+    try {
+      return localStorage.getItem('agro_user_ai_key') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [keyInput, setKeyInput] = useState('');
+  const [showKeyConfig, setShowKeyConfig] = useState(false);
 
   async function ask(q) {
     const query = q || question.trim();
@@ -71,6 +80,7 @@ export default function AIAdvisor() {
           message: query,
           snapshot,
           demo,
+          userApiKey: userApiKey.trim() || undefined,
         }),
       });
 
@@ -101,8 +111,73 @@ export default function AIAdvisor() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {demo && <span className="badge warn" style={{ fontSize: 10 }}>ДЕМО-КОНТЕКСТ</span>}
             <span className="badge info">{modelName}</span>
+            <button
+              type="button"
+              className="basis-btn"
+              onClick={() => { setShowKeyConfig(!showKeyConfig); setKeyInput(userApiKey); }}
+              style={{ fontSize: 10, padding: '2px 7px' }}
+            >
+              ⚙️ {userApiKey ? 'Ключ задан' : 'Настроить ключ'}
+            </button>
           </div>
         </div>
+
+        {showKeyConfig && (
+          <div style={{ padding: '10px 14px', background: 'var(--surface2)', borderBottom: '1px solid var(--border)', fontSize: 11 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>
+              Настройка внешнего AI-ключа (Gemini, OpenAI, Anthropic):
+            </div>
+            <div style={{ color: 'var(--txt2)', marginBottom: 8, lineHeight: 1.4 }}>
+              По умолчанию советник работает в <strong>автономном режиме</strong> (строит структурированный расчетный отчет прямо из математической модели платформы). При наличии личного ключа (например, бесплатного Gemini из <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" style={{ color: 'var(--blue)' }}>Google AI Studio</a>) введите его ниже для ответов языковой модели:
+            </div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input
+                type="password"
+                placeholder="AIzaSy... или sk-..."
+                value={keyInput}
+                onChange={e => setKeyInput(e.target.value)}
+                style={{ flex: 1, padding: '4px 8px', borderRadius: 4, border: '1px solid var(--border)', fontSize: 11, background: 'var(--surface)', color: 'var(--txt)', fontFamily: 'var(--mono)' }}
+              />
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  const k = keyInput.trim();
+                  setUserApiKey(k);
+                  try {
+                    if (k) localStorage.setItem('agro_user_ai_key', k);
+                    else localStorage.removeItem('agro_user_ai_key');
+                  } catch (_err) {
+                    void _err;
+                  }
+                  setShowKeyConfig(false);
+                }}
+                style={{ padding: '4px 10px', fontSize: 11, background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+              >
+                Сохранить
+              </button>
+              {userApiKey && (
+                <button
+                  type="button"
+                  className="cash-reset-btn"
+                  onClick={() => {
+                    setUserApiKey('');
+                    setKeyInput('');
+                    try {
+                      localStorage.removeItem('agro_user_ai_key');
+                    } catch (_err) {
+                      void _err;
+                    }
+                    setShowKeyConfig(false);
+                  }}
+                  style={{ fontSize: 10, padding: '3px 7px' }}
+                >
+                  Удалить
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="panel-body">
           <div className="ask-wrap">
