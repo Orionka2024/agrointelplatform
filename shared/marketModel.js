@@ -17,26 +17,47 @@ import { buildDemoForecast, DEMO_ISSUE_DATE, DEMO_BRIDGE, DEMO_STORAGE, DEMO_BAL
 import { DEFAULT_VAT_RATE, TARGET_SPECS } from './spec.js';
 import { moscowToWarehouse } from './bridge.js';
 
-export const EMPTY_BRIDGE = { truckCostRub: null, truckPayloadKg: null, packagingRubKg: null, handlingRubKg: null, lossPct: null, marginRubKg: null, vatRate: DEFAULT_VAT_RATE };
-export const EMPTY_STORAGE = { months: null, shrinkPct: null, rotPct: null, downgradeSharePct: null, downgradeDiscountPct: null, energyRubKgMonth: null, handlingRubKg: null, sortingRubKgSold: null, financingRatePctYear: null, sellNowCostRubKg: null, acquisitionCostRubKg: null };
+export const BENCHMARK_BRIDGE = {
+  truckCostRub: 135000,
+  truckPayloadKg: 20000,
+  packagingRubKg: 1.5,
+  handlingRubKg: 1.0,
+  lossPct: 1.5,
+  marginRubKg: 1.5,
+  vatRate: DEFAULT_VAT_RATE,
+};
+
+export const BENCHMARK_STORAGE = {
+  months: 4,
+  shrinkPct: 6,
+  rotPct: 4,
+  downgradeSharePct: 10,
+  downgradeDiscountPct: 15,
+  energyRubKgMonth: 0.35,
+  handlingRubKg: 0.5,
+  sortingRubKgSold: 0.6,
+  financingRatePctYear: 20,
+  sellNowCostRubKg: 0.2,
+  acquisitionCostRubKg: 12,
+};
 
 export const DEFAULT_ASSUMPTIONS = {
   version: 1,
-  bridge: EMPTY_BRIDGE,
-  manualPrices: { warehouse: null, moscow: null }, // {value, vat:'excl'|'incl', asOf:'YYYY-MM-DD', note}
-  storage: EMPTY_STORAGE,
+  bridge: BENCHMARK_BRIDGE,
+  manualPrices: { warehouse: null, moscow: null },
+  storage: BENCHMARK_STORAGE,
   scenarios: DEFAULT_SCENARIOS,
-  sensitivities: EMPTY_SENSITIVITIES,
-  balance: {}, // cropId → {D,P,I,S,asOf,source}
+  sensitivities: DEMO_SCENARIO_SENSITIVITIES,
+  balance: DEMO_BALANCE,
 };
 
 function mergeAssumptions(a) {
   return {
     ...DEFAULT_ASSUMPTIONS, ...(a || {}),
-    bridge: { ...EMPTY_BRIDGE, ...(a?.bridge || {}) },
-    storage: { ...EMPTY_STORAGE, ...(a?.storage || {}) },
+    bridge: { ...BENCHMARK_BRIDGE, ...(a?.bridge || {}) },
+    storage: { ...BENCHMARK_STORAGE, ...(a?.storage || {}) },
     scenarios: { ...DEFAULT_SCENARIOS, ...(a?.scenarios || {}) },
-    sensitivities: { ...EMPTY_SENSITIVITIES, ...(a?.sensitivities || {}) },
+    sensitivities: { ...DEMO_SCENARIO_SENSITIVITIES, ...(a?.sensitivities || {}) },
     manualPrices: { warehouse: null, moscow: null, ...(a?.manualPrices || {}) },
   };
 }

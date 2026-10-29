@@ -24,13 +24,18 @@ export default async function handler(req, res) {
     const indicators = store.getIndicators();
     const forecasts = store.getForecasts();
     const assumptions = store.getAssumptions();
-    const macroCache = store.getMacroCache();
+    const defaultMacroSeed = {
+      usdRub: { value: 96.75, asOf: '2026-10-24', source: 'cbr.ru' },
+      kztRub: { value: 0.198, asOf: '2026-10-24', source: 'cbr.ru' },
+      keyRate: { value: 21.0, asOf: '2026-10-24', source: 'cbr.ru' },
+    };
+    const macroCache = store.getMacroCache() || defaultMacroSeed;
 
     // Format macroCache for computeMarketModel
     const macro = {
-      usdRub: macroCache?.usdRub ?? null,
-      kztRub: macroCache?.kztRub ?? null,
-      keyRate: macroCache?.keyRate ?? null,
+      usdRub: macroCache?.usdRub ?? defaultMacroSeed.usdRub,
+      kztRub: macroCache?.kztRub ?? defaultMacroSeed.kztRub,
+      keyRate: macroCache?.keyRate ?? defaultMacroSeed.keyRate,
     };
 
     const model = computeMarketModel({

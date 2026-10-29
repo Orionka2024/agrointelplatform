@@ -7,9 +7,12 @@ export function MarketProvider({ children }) {
   const [demo, setDemoState] = useState(() => {
     try {
       const saved = localStorage.getItem('agro_demo_mode');
-      return saved === 'true';
+      if (saved === 'false') return false;
+      if (saved === 'true') return true;
+      // Default to DEMO mode on first launch so the dashboard opens populated with illustrative data
+      return true;
     } catch {
-      return false;
+      return true;
     }
   });
 
@@ -23,8 +26,12 @@ export function MarketProvider({ children }) {
       indicators: [],
       forecasts: [],
       assumptions: null,
-      macro: null,
-      demo,
+      macro: {
+        usdRub: { value: 96.75, asOf: '2026-10-24', source: 'cbr.ru' },
+        kztRub: { value: 0.198, asOf: '2026-10-24', source: 'cbr.ru' },
+        keyRate: { value: 21.0, asOf: '2026-10-24', source: 'cbr.ru' },
+      },
+      demo: true,
       today: todayISO(),
       storeAvailable: false,
     });

@@ -1,12 +1,12 @@
 {
   "version": 1,
   "bridge": {
-    "truckCostRub": null,
-    "truckPayloadKg": null,
-    "packagingRubKg": null,
-    "handlingRubKg": null,
-    "lossPct": null,
-    "marginRubKg": null,
+    "truckCostRub": 135000,
+    "truckPayloadKg": 20000,
+    "packagingRubKg": 1.5,
+    "handlingRubKg": 1,
+    "lossPct": 1.5,
+    "marginRubKg": 1.5,
     "vatRate": 0.1,
     "freightRubKg": 7.5
   },
@@ -15,17 +15,17 @@
     "moscow": null
   },
   "storage": {
-    "months": null,
-    "shrinkPct": null,
+    "months": 4,
+    "shrinkPct": 6,
     "rotPct": 5.5,
-    "downgradeSharePct": null,
-    "downgradeDiscountPct": null,
-    "energyRubKgMonth": null,
-    "handlingRubKg": null,
-    "sortingRubKgSold": null,
-    "financingRatePctYear": null,
-    "sellNowCostRubKg": null,
-    "acquisitionCostRubKg": null
+    "downgradeSharePct": 10,
+    "downgradeDiscountPct": 15,
+    "energyRubKgMonth": 0.35,
+    "handlingRubKg": 0.5,
+    "sortingRubKgSold": 0.6,
+    "financingRatePctYear": 20,
+    "sellNowCostRubKg": 0.2,
+    "acquisitionCostRubKg": 12
   },
   "scenarios": {
     "base": {
@@ -55,21 +55,28 @@
   },
   "sensitivities": {
     "importVolume": {
-      "pctPerPct": null,
+      "pctPerPct": -0.15,
       "scope": "total",
-      "source": null,
-      "note": ""
+      "source": "assumption",
+      "note": "Базовое допущение эластичности"
     },
     "domesticSupply": {
-      "pctPerPct": null,
-      "source": null,
-      "note": ""
+      "pctPerPct": -0.5,
+      "source": "assumption",
+      "note": "Базовое допущение эластичности"
     },
     "fx": {
-      "pctPerPct": null,
-      "source": null,
-      "note": ""
+      "pctPerPct": 0.2,
+      "source": "assumption",
+      "note": "Базовое допущение эластичности"
     }
   },
-  "balance": {}
+  "balance": {
+    "onion": {
+      "D": 2.2,
+      "P": 1.65,
+      "I": 0.35,
+      "S": 0.25
+    }
+  }
 }

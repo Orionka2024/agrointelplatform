@@ -1,0 +1,21 @@
+{
+  "usdRub": {
+    "value": 96.75,
+    "asOf": "2026-10-24",
+    "fetchedAt": "2026-10-24T12:00:00.000Z",
+    "source": "cbr.ru"
+  },
+  "kztRub": {
+    "value": 0.198,
+    "asOf": "2026-10-24",
+    "fetchedAt": "2026-10-24T12:00:00.000Z",
+    "source": "cbr.ru"
+  },
+  "keyRate": {
+    "value": 21.0,
+    "asOf": "2026-10-24",
+    "fetchedAt": "2026-10-24T12:00:00.000Z",
+    "source": "cbr.ru"
+  },
+  "lastAttemptAt": "2026-10-24T12:00:00.000Z"
+}

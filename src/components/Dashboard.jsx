@@ -142,7 +142,7 @@ function MainChart({ forecast, demo }) {
 }
 
 export default function Dashboard() {
-  const { model, demo, basis, setBasis } = useMarket();
+  const { model, demo, setDemo, basis, setBasis } = useMarket();
 
   const whPrice = model.prices.warehouse;
   const mskPrice = model.prices.moscow;
@@ -151,6 +151,31 @@ export default function Dashboard() {
 
   return (
     <>
+      {/* Mode Status Banner */}
+      {!demo && whPrice.exVat === null && (
+        <div style={{ background: 'rgba(234, 179, 8, 0.1)', border: '1px solid var(--amber)', borderRadius: 6, padding: '10px 14px', marginBottom: 14, fontSize: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            ℹ️ <strong>В базе пока нет загруженных реальных сделок</strong> (активен режим «Факт»). Чтобы увидеть демонстрационный 26-недельный прогноз и расчеты, включите ДЕМО-режим или импортируйте сделки через вкладку «Импорт данных (CSV)».
+          </div>
+          <button
+            type="button"
+            className="basis-btn active"
+            onClick={() => setDemo(true)}
+            style={{ fontSize: 11, padding: '4px 12px', whiteSpace: 'nowrap', marginLeft: 12 }}
+          >
+            Включить ДЕМО-режим
+          </button>
+        </div>
+      )}
+      {demo && (
+        <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: 6, padding: '8px 14px', marginBottom: 14, fontSize: 11, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            ℹ️ <strong>ДЕМО-РЕЖИМ АКТИВЕН:</strong> отображаются иллюстративные данные (26 недель, зафиксировано на дату 24.10.2026).
+          </div>
+          <span className="badge warn" style={{ fontSize: 10 }}>ДЕМО-ДАННЫЕ</span>
+        </div>
+      )}
+
       {/* Stat KPI Cards */}
       <div className="row-4">
         {/* Card 1: Warehouse Price */}

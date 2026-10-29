@@ -28,9 +28,17 @@ function getFilePath(filename) {
 function readJSON(filename, fallback) {
   try {
     const p = getFilePath(filename);
-    if (!fs.existsSync(p)) return fallback;
-    const raw = fs.readFileSync(p, 'utf-8');
-    return JSON.parse(raw);
+    if (fs.existsSync(p)) {
+      const raw = fs.readFileSync(p, 'utf-8');
+      return JSON.parse(raw);
+    }
+    // Fallback to project seed files if running in /tmp
+    const seedPath = path.join(process.cwd(), 'data', filename);
+    if (fs.existsSync(seedPath)) {
+      const raw = fs.readFileSync(seedPath, 'utf-8');
+      return JSON.parse(raw);
+    }
+    return fallback;
   } catch (err) {
     console.warn(`[store] Failed to read ${filename}:`, err.message);
     return fallback;
