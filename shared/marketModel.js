@@ -13,7 +13,7 @@ import { deficitIndex } from './balance.js';
 import { DEFAULT_SCENARIOS, EMPTY_SENSITIVITIES, SCENARIO_IDS, evaluateScenario, applyScenarioToRows } from './scenarios.js';
 import { evaluateStorage, validateStorageParams, weeksToMonths } from './storageEconomics.js';
 import { evaluateSeasonalPressure } from './seasonality.js';
-import { buildDemoForecast, DEMO_ISSUE_DATE, DEMO_BRIDGE, DEMO_STORAGE, DEMO_BALANCE, DEMO_SCENARIO_SENSITIVITIES, DEMO_ONION_MOSCOW_INCL } from './demo.js';
+import { buildDemoForecast, DEMO_ISSUE_DATE, DEMO_BRIDGE, DEMO_STORAGE, DEMO_BALANCE, DEMO_SCENARIO_SENSITIVITIES, DEMO_ONION_MOSCOW_INCL, DEMO_SEASONAL_PRESSURES } from './demo.js';
 import { DEFAULT_VAT_RATE, TARGET_SPECS } from './spec.js';
 import { moscowToWarehouse } from './bridge.js';
 
@@ -174,7 +174,7 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
 
   // seasonal pressure
   const seasonal = demo
-    ? { status: 'demo_no_indicators', asOf: today, pressures: [], note: 'ДЕМО: сезонные индикаторы не моделируются.' }
+    ? { status: 'demo', asOf: DEMO_ISSUE_DATE, pressures: DEMO_SEASONAL_PRESSURES, note: 'ДЕМО: иллюстративные сезонные фазы на 24.10.2026.' }
     : evaluateSeasonalPressure({ asOf: today, indicators });
 
   // macro

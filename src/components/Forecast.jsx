@@ -258,7 +258,10 @@ export default function Forecast({ onNavigateToImport }) {
 
               {/* Seasonal Factors Note */}
               <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--surface2)', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11 }}>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>🌿 Сезонное давление предложения:</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <span style={{ fontWeight: 600 }}>🌿 Сезонное давление предложения:</span>
+                  {demo && <span className="badge amber" style={{ fontSize: 9 }}>ДЕМО-ФАЗЫ</span>}
+                </div>
                 {model.seasonal.pressures.length > 0 ? (
                   model.seasonal.pressures.map((p, idx) => (
                     <div key={idx} style={{ marginTop: 4 }}>
@@ -271,6 +274,14 @@ export default function Forecast({ onNavigateToImport }) {
                     Наблюдений сезонных индикаторов на дату среза нет. Сезонные факторы не привязаны к жестким номерам строк прогноза.
                   </div>
                 )}
+
+                <div style={{ borderTop: '1px dashed var(--border)', marginTop: 8, paddingTop: 6, fontSize: 10, color: 'var(--txt3)', lineHeight: 1.5 }}>
+                  <strong>Справочные региональные агрономические окна (ориентиры):</strong><br />
+                  • <strong>Волгоградская обл.:</strong> уборка на капельном поливе — август–сентябрь; окончание закладки в хранилища — октябрь.<br />
+                  • <strong>Казахстан (Жамбылская обл.):</strong> сезон массового экспорта — август–октябрь.<br />
+                  • <strong>Узбекистан:</strong> ранний лук нового урожая — апрель–май.<br />
+                  <em>* Фактическая сила сезонного давления в модели определяется только по датированным сводкам (ход уборки, запасы, качество), загружаемым через CSV.</em>
+                </div>
               </div>
             </div>
           )}

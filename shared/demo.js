@@ -75,3 +75,22 @@ export function buildDemoForecast(basis, bridge = DEMO_BRIDGE) {
     reasons: ['ДЕМО: иллюстративные числа, не прогноз. Выпущено фиксированной датой.'],
   };
 }
+
+export const DEMO_SEASONAL_PRESSURES = [
+  {
+    phaseId: 'planned_release',
+    label: 'Плановые отгрузки из долгосрочного хранения',
+    reason: 'Иллюстративная фаза на дату 24.10.2026: завершение уборочной кампании (95%), закладка на зимнее хранение и начало планомерных отгрузок.',
+    priceImpactNote: 'моделируется на основе ретроспективных сезонных кривых',
+    status: 'demo',
+    observationDate: DEMO_ISSUE_DATE,
+  },
+  {
+    phaseId: 'incoming_supply',
+    label: 'Поставки импортного лука (Казахстан)',
+    reason: 'Сезон массовых поставок репчатого лука из Жамбылской и Туркестанской областей (август–октябрь).',
+    priceImpactNote: 'учитывается в сценарном анализе предложения',
+    status: 'demo',
+    observationDate: DEMO_ISSUE_DATE,
+  },
+];
