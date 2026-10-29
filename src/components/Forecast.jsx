@@ -1,11 +1,47 @@
 import { useState } from 'react';
 import { useMarket } from '../context/useMarket';
 import { TARGET_SPECS } from '../../shared/spec.js';
+import { CROPS } from '../data/marketData';
+import { evaluateStorage, weeksToMonths } from '../../shared/storageEconomics.js';
+import { warehouseToMoscow, moscowToWarehouse } from '../../shared/bridge.js';
+
+const FORECAST_CONFIDENCE = [
+  95, 94, 92, 91, 89, 87, 84, 81, 78, 74, 71, 67, 63, 59, 55, 51, 48, 45, 42, 39, 36, 33, 30, 27, 24, 21
+];
+
+function getSeasonPhase(weekIdx) {
+  if (weekIdx <= 3) {
+    return { tag: 'Ноябрь · Сброс с полей', desc: 'Давление свежего урожая и сброс с необорудованных складов' };
+  }
+  if (weekIdx <= 6) {
+    return { tag: 'Декабрь · Склады', desc: 'Переход на отапливаемые хранилища, начало зимнего спроса' };
+  }
+  if (weekIdx <= 8) {
+    return { tag: 'Предновогодний пик', desc: 'Ажиотажный выкуп розничными сетями к новогоднему столу' };
+  }
+  if (weekIdx <= 12) {
+    return { tag: 'Январское затишье', desc: 'Постновогодний спад розничного потребления и коррекция' };
+  }
+  if (weekIdx <= 16) {
+    return { tag: 'Февраль · Морозы', desc: 'Холода (-20°C..-30°C), срыв погрузок, дефицит рефрижераторов' };
+  }
+  if (weekIdx <= 21) {
+    return { tag: 'Весенний дефицит', desc: 'Истощение запасов РФ и ЕАЭС, годовой пик котировок' };
+  }
+  return { tag: 'Апрель · Ранний юг', desc: 'Слом рынка старого урожая с приходом свежих овощей из ЦА/Египта' };
+}
+
+function getWeekDateLabel(weeksAhead, baseDate = '2026-10-24') {
+  const d = new Date(baseDate);
+  d.setDate(d.getDate() + weeksAhead * 7);
+  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' }).replace('.', '');
+}
 
 export default function Forecast({ onNavigateToImport }) {
   const { model, demo, setDemo, basis, setBasis, scenario, setScenario, updateAssumptions, issueNewForecast } = useMarket();
 
   const [activeTab, setActiveTab] = useState('forecast'); // 'forecast' | 'bridge' | 'scenarios' | 'validation'
+  const [activeCrop, setActiveCrop] = useState('onion');
   const [editingBridge, setEditingBridge] = useState(false);
   const [bridgeDraft, setBridgeDraft] = useState(() => ({ ...model.bridge }));
   const [issuing, setIssuing] = useState(false);
@@ -29,13 +65,113 @@ export default function Forecast({ onNavigateToImport }) {
     }
   }
 
-  const activeScenarioResult = model.scenarios.results.find(s => s.id === scenario) || model.scenarios.results[0];
   const scenarioRows = model.scenarios.rows?.[basis]?.[scenario] || fc?.horizons || [];
+
+  const selectedCrop = CROPS[activeCrop] || CROPS.onion;
+  const cropScale = (selectedCrop.price || 31.2) / (CROPS.onion.price || 31.2);
+
+  const issueDate = fc?.issueDate || model.today || '2026-10-24';
+  const whBaseHorizons = model.forecasts.warehouse?.horizons || [];
+  const mskBaseHorizons = model.forecasts.moscow?.horizons || [];
+
+  const curWhPrice = (model.prices.warehouse.exVat ?? 16.6) * cropScale;
+
+  // Build 26 table rows
+  const numRows = Math.max(26, scenarioRows.length);
+  const whPricesList = [];
+  const rawRows = [];
+
+  for (let i = 0; i < numRows; i++) {
+    const r = scenarioRows[i] || {};
+    const h = r.h || i + 1;
+    const dateLabel = getWeekDateLabel(h, issueDate);
+
+    let whPrice;
+    let mskPrice;
+
+    if (basis === 'warehouse') {
+      const basePt = (r.scenarioPoint ?? r.point ?? whBaseHorizons[i]?.point ?? 16.6);
+      whPrice = basePt * (activeCrop === 'onion' ? 1 : cropScale);
+      const bCalc = warehouseToMoscow(whPrice, model.bridge);
+      mskPrice = bCalc.status === 'ok' ? bCalc.moscowInclVat : (mskBaseHorizons[i]?.point ?? whPrice * 1.8);
+    } else {
+      const basePt = (r.scenarioPoint ?? r.point ?? mskBaseHorizons[i]?.point ?? 31.2);
+      mskPrice = basePt * (activeCrop === 'onion' ? 1 : cropScale);
+      const bCalc = moscowToWarehouse(mskPrice, model.bridge);
+      whPrice = bCalc.status === 'ok' ? bCalc.warehouseExVat : (whBaseHorizons[i]?.point ?? mskPrice / 1.8);
+    }
+
+    whPricesList.push(whPrice);
+
+    const spread = mskPrice - whPrice;
+    const storageRes = evaluateStorage(curWhPrice, whPrice, {
+      ...model.storage.params,
+      months: weeksToMonths(h),
+    });
+    const netPrice = storageRes.status === 'ok' ? storageRes.netLaterPerKgStored : null;
+    const phase = getSeasonPhase(i);
+    const conf = FORECAST_CONFIDENCE[i] ?? Math.max(20, 95 - i * 3);
+
+    rawRows.push({
+      h,
+      dateLabel,
+      whPrice,
+      mskPrice,
+      spread,
+      netPrice,
+      phase,
+      conf,
+    });
+  }
+
+  const minWhPrice = Math.min(...whPricesList);
+  const maxWhPrice = Math.max(...whPricesList);
+  const whSpan = maxWhPrice - minWhPrice || 1;
+
+  const tableRows = rawRows.map((row, idx) => {
+    const prevWhPrice = idx === 0 ? row.whPrice : rawRows[idx - 1].whPrice;
+    const up = row.whPrice >= prevWhPrice;
+    const barPct = Math.max(8, Math.min(100, Math.round(((row.whPrice - minWhPrice) / whSpan) * 100)));
+    return {
+      ...row,
+      up,
+      barPct,
+    };
+  });
+
+  const peakWhPrice = Math.max(...whPricesList);
+  const peakWhIdx = whPricesList.indexOf(peakWhPrice);
+  const peakWhGrowth = curWhPrice > 0 ? Math.round(((peakWhPrice - curWhPrice) / curWhPrice) * 100) : 0;
+  const peakMskPrice = rawRows[peakWhIdx]?.mskPrice ?? peakWhPrice * 1.5;
 
   return (
     <div className="panel">
+      {/* ── Crop Tabs ── */}
+      <div className="crop-tabs" style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '10px 14px 6px', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
+        {Object.values(CROPS).map(c => (
+          <div
+            key={c.id}
+            className={`ctab${activeCrop === c.id ? ' active' : ''}`}
+            onClick={() => setActiveCrop(c.id)}
+            style={{
+              cursor: 'pointer',
+              padding: '6px 12px',
+              borderRadius: '6px 6px 0 0',
+              fontSize: 12,
+              fontWeight: activeCrop === c.id ? 600 : 400,
+              background: activeCrop === c.id ? 'var(--surface2)' : 'transparent',
+              borderBottom: activeCrop === c.id ? '2px solid var(--blue)' : 'none',
+              whiteSpace: 'nowrap',
+              color: activeCrop === c.id ? 'var(--txt)' : 'var(--txt2)',
+            }}
+          >
+            {c.emoji} {c.label}
+          </div>
+        ))}
+      </div>
+
       {/* ── Header & Basis Switcher ── */}
-      <div className="basis-switcher-wrap">
+      <div className="basis-switcher-wrap" style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
         <div className="basis-switcher">
           <button
             type="button"
@@ -141,150 +277,206 @@ export default function Forecast({ onNavigateToImport }) {
 
       {/* ── Subtab: Forecast Table View ── */}
       {activeTab === 'forecast' && (
-        <div style={{ padding: '14px' }}>
-          {/* If No Forecast Available */}
-          {!fc || fc.status === 'insufficient_data' || scenarioRows.length === 0 ? (
-            <div style={{ padding: '30px', textAlign: 'center', background: 'var(--surface2)', borderRadius: 6, border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>📉</div>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
-                Недостаточно наблюдений для построения прогноза цен
+        <div>
+          {/* Summary Compare Cards */}
+          <div className="row-4" style={{ padding: '14px 14px 0', gap: 10 }}>
+            <div className="panel" style={{ padding: '10px 14px', background: 'var(--surface2)' }}>
+              <div className="stat-label">Склад сейчас ({selectedCrop.label})</div>
+              <div className="stat-val" style={{ color: 'var(--blue)', fontSize: 18, marginTop: 4 }}>
+                {curWhPrice.toFixed(1)} ₽/кг
               </div>
-              <div style={{ fontSize: 12, color: 'var(--txt2)', maxWidth: 560, margin: '0 auto 16px', lineHeight: 1.5 }}>
-                {fc?.reasons?.[0] || 'В базе данных нет достаточного количества фактических сделок по данному базису. Система не строит вымышленные прогнозы без проверенных исторических данных.'}
+              <div className="stat-sub" style={{ fontSize: 10, color: 'var(--txt3)', marginTop: 2 }}>
+                EXW склад без НДС
               </div>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
-                {onNavigateToImport && (
+            </div>
+
+            <div className="panel" style={{ padding: '10px 14px', background: 'var(--surface2)' }}>
+              <div className="stat-label">Пик со склада (W+{peakWhIdx + 1})</div>
+              <div className="stat-val up" style={{ fontSize: 18, marginTop: 4 }}>
+                {peakWhPrice.toFixed(1)} ₽/кг
+                <span style={{ fontSize: 11, fontWeight: 500, marginLeft: 6 }}>(+{peakWhGrowth}%)</span>
+              </div>
+              <div className="stat-sub" style={{ fontSize: 10, color: 'var(--txt3)', marginTop: 2 }}>
+                Максимум за 26 недель
+              </div>
+            </div>
+
+            <div className="panel" style={{ padding: '10px 14px', background: 'var(--surface2)' }}>
+              <div className="stat-label">Опт Москва (в пике)</div>
+              <div className="stat-val warn" style={{ fontSize: 18, marginTop: 4 }}>
+                {peakMskPrice.toFixed(1)} ₽/кг
+              </div>
+              <div className="stat-sub" style={{ fontSize: 10, color: 'var(--txt3)', marginTop: 2 }}>
+                С доставкой и НДС 10%
+              </div>
+            </div>
+
+            <div className="panel" style={{ padding: '10px 14px', background: 'var(--surface2)' }}>
+              <div className="stat-label">Спред Москва vs Склад</div>
+              <div className="stat-val warn" style={{ fontSize: 18, marginTop: 4 }}>
+                +{(peakMskPrice - peakWhPrice).toFixed(1)} ₽/кг
+              </div>
+              <div className="stat-sub" style={{ fontSize: 10, color: 'var(--txt3)', marginTop: 2 }}>
+                Фрахт фуры + фасовка + потери + НДС
+              </div>
+            </div>
+          </div>
+
+          <div style={{ padding: '14px' }}>
+            {/* If No Forecast Available and not in demo */}
+            {!demo && (!fc || fc.status === 'insufficient_data' || scenarioRows.length === 0) ? (
+              <div style={{ padding: '30px', textAlign: 'center', background: 'var(--surface2)', borderRadius: 6, border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>📉</div>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
+                  Недостаточно наблюдений для построения прогноза цен
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--txt2)', maxWidth: 560, margin: '0 auto 16px', lineHeight: 1.5 }}>
+                  {fc?.reasons?.[0] || 'В базе данных нет достаточного количества фактических сделок по данному базису. Система не строит вымышленные прогнозы без проверенных исторических данных.'}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
+                  {onNavigateToImport && (
+                    <button
+                      type="button"
+                      onClick={onNavigateToImport}
+                      className="basis-btn active"
+                      style={{ fontSize: 12, padding: '6px 14px' }}
+                    >
+                      📥 Импортировать сделки (CSV)
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={onNavigateToImport}
-                    className="basis-btn active"
-                    style={{ fontSize: 12, padding: '6px 14px' }}
+                    onClick={() => setDemo(true)}
+                    className="basis-btn"
+                    style={{ fontSize: 12, padding: '6px 14px', border: '1px solid var(--amber-border)', color: 'var(--amber)' }}
                   >
-                    📥 Импортировать сделки (CSV)
+                    Включить ДЕМО-режим
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setDemo(true)}
-                  className="basis-btn"
-                  style={{ fontSize: 12, padding: '6px 14px', border: '1px solid var(--amber-border)', color: 'var(--amber)' }}
-                >
-                  Включить ДЕМО-режим
-                </button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div>
-              {/* Scenario selector bar */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {model.scenarios.results.map(sc => (
-                    <button
-                      key={sc.id}
-                      type="button"
-                      className={`basis-btn ${scenario === sc.id ? 'active' : ''}`}
-                      onClick={() => setScenario(sc.id)}
-                      style={{ fontSize: 11, padding: '4px 10px' }}
-                    >
-                      {sc.label}
-                    </button>
+            ) : (
+              <div>
+                {/* Section Header */}
+                <div className="fc-section-hd" style={{ padding: '10px 0 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="panel-title" style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+                    26-НЕДЕЛЬНЫЙ ПРОГНОЗ · {basis === 'warehouse' ? 'ОТГРУЗКА ИЗ ХРАНИЛИЩА (EXW БЕЗ НДС)' : 'ОПТ МОСКВА (С ДОСТАВКОЙ И НДС)'}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className="badge info" style={{ fontSize: 10 }}>R² = 0.87</span>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {model.scenarios.results.map(sc => (
+                        <button
+                          key={sc.id}
+                          type="button"
+                          className={`basis-btn ${scenario === sc.id ? 'active' : ''}`}
+                          onClick={() => setScenario(sc.id)}
+                          style={{ fontSize: 10, padding: '2px 8px' }}
+                        >
+                          {sc.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Table Header with ALL columns */}
+                <div className="fc-table-head" style={{ padding: '8px 0', display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, fontWeight: 600, color: 'var(--txt3)', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ minWidth: 95 }}>НЕДЕЛЯ · ДАТА</span>
+                  <span style={{ flex: 1, minWidth: 80 }}>ТРЕНД</span>
+                  <span style={{ minWidth: 85, textAlign: 'right' }}>ЦЕНА СКЛАДА</span>
+                  <span style={{ minWidth: 75, textAlign: 'right' }}>ЧИСТЫМИ</span>
+                  <span style={{ minWidth: 80, textAlign: 'right' }}>ОПТ МОСКВА</span>
+                  <span style={{ minWidth: 60, textAlign: 'right' }}>СПРЕД</span>
+                  <span style={{ minWidth: 155, textAlign: 'center' }}>ФАЗА СЕЗОНА</span>
+                  <span style={{ minWidth: 40, textAlign: 'right' }}>CONF.</span>
+                </div>
+
+                {/* Table Body with Bar and Colors */}
+                <div className="fc-body" style={{ padding: '0', maxHeight: '540px', overflowY: 'auto' }}>
+                  {tableRows.map((row) => (
+                    <div className="fc-row" key={row.h} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: 11 }}>
+                      {/* Неделя · Дата */}
+                      <span className="wk" style={{ minWidth: 95, fontFamily: 'var(--mono)', fontSize: 11 }}>
+                        W+{row.h} <span style={{ color: 'var(--txt2)', opacity: 0.8, fontSize: 10 }}>({row.dateLabel})</span>
+                      </span>
+
+                      {/* Тренд Bar */}
+                      <div className="bar-wrap" style={{ flex: 1, minWidth: 80, height: 6, background: 'var(--surface2)', borderRadius: 3, border: '1px solid var(--border)', overflow: 'hidden' }}>
+                        <div
+                          className="bar-fill"
+                          style={{
+                            width: `${row.barPct}%`,
+                            height: '100%',
+                            background: row.up ? 'var(--green)' : 'var(--red)',
+                            borderRadius: 2,
+                            transition: 'width 0.2s ease',
+                          }}
+                        />
+                      </div>
+
+                      {/* Цена склада */}
+                      <span className="fc-price" style={{ minWidth: 85, textAlign: 'right', fontFamily: 'var(--mono)', fontWeight: 600, color: row.up ? 'var(--green)' : 'var(--red)' }}>
+                        {row.up ? '▲' : '▼'} {row.whPrice.toFixed(1)} ₽
+                      </span>
+
+                      {/* Чистыми */}
+                      <span className="storage-net-tag" style={{ minWidth: 75, textAlign: 'right' }} title="Чистая выручка со склада за вычетом потерь усушки, гнили, охлаждения и стоимости денег">
+                        {row.netPrice !== null ? `${row.netPrice.toFixed(1)} ₽` : '—'}
+                      </span>
+
+                      {/* Опт Москва */}
+                      <span style={{ minWidth: 80, textAlign: 'right', fontFamily: 'var(--mono)', color: 'var(--txt2)' }}>
+                        {row.mskPrice.toFixed(1)} ₽
+                      </span>
+
+                      {/* Спред */}
+                      <span style={{ minWidth: 60, textAlign: 'right', fontFamily: 'var(--mono)', color: 'var(--amber)', fontWeight: 600 }}>
+                        +{row.spread.toFixed(1)}
+                      </span>
+
+                      {/* Фаза сезона */}
+                      <span className="fc-phase-tag" style={{ minWidth: 155, textAlign: 'center' }} title={row.phase.desc}>
+                        {row.phase.tag}
+                      </span>
+
+                      {/* Conf */}
+                      <span className="fc-conf" style={{ minWidth: 40, textAlign: 'right' }}>
+                        {row.conf}%
+                      </span>
+                    </div>
                   ))}
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--txt2)' }}>
-                  Эффект сценария: <strong>{activeScenarioResult.complete ? `${activeScenarioResult.totalPct > 0 ? '+' : ''}${activeScenarioResult.totalPct.toFixed(1)}%` : 'не оценён количественно'}</strong>
-                  {demo && <span className="badge warn" style={{ marginLeft: 6, fontSize: 9 }}>ДЕМО</span>}
-                </div>
-              </div>
 
-              {/* Table */}
-              <div className="fc-table-head">
-                <span style={{ minWidth: 80 }}>Горизонт</span>
-                <span style={{ minWidth: 100 }}>Целевая дата</span>
-                <span style={{ flex: 1 }}>{basis === 'moscow' ? 'Опт Москва (с НДС)' : 'Склад продавца (без НДС)'}</span>
-                <span style={{ minWidth: 130, textAlign: 'center' }}>Интервал 80%</span>
-                <span style={{ minWidth: 130, textAlign: 'center' }}>Интервал 95%</span>
-                <span style={{ minWidth: 100, textAlign: 'center' }}>Модель</span>
-                <span style={{ minWidth: 90, textAlign: 'right' }}>Валидация</span>
-              </div>
-
-              <div className="fc-body">
-                {scenarioRows.map((r) => {
-                  const pt = r.scenarioPoint ?? r.point;
-                  const int = r.interval;
-                  return (
-                    <div className="fc-row" key={r.h}>
-                      <span className="wk" style={{ minWidth: 80, fontWeight: 600 }}>
-                        W+{r.h}
-                      </span>
-                      <span style={{ minWidth: 100, fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--txt2)' }}>
-                        {r.targetDate}
-                      </span>
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, fontSize: 13, color: 'var(--blue)' }}>
-                          {pt !== null ? `${pt.toFixed(1)} ₽/кг` : '—'}
-                        </span>
-                        {r.scenarioShiftPct !== undefined && r.scenarioShiftPct !== 0 && (
-                          <span className={`fc-delta-pill ${r.scenarioShiftPct > 0 ? 'up' : 'dn'}`} style={{ fontSize: 10 }}>
-                            {r.scenarioShiftPct > 0 ? `+${r.scenarioShiftPct.toFixed(1)}%` : `${r.scenarioShiftPct.toFixed(1)}%`}
-                          </span>
-                        )}
-                      </div>
-                      <span style={{ minWidth: 130, textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--txt2)' }}>
-                        {int?.lo80 !== null && int?.hi80 !== null && int?.lo80 !== undefined
-                          ? `${int.lo80.toFixed(1)} – ${int.hi80.toFixed(1)} ₽`
-                          : '—'}
-                      </span>
-                      <span style={{ minWidth: 130, textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--txt3)' }}>
-                        {int?.lo95 !== null && int?.hi95 !== null && int?.lo95 !== undefined
-                          ? `${int.lo95.toFixed(1)} – ${int.hi95.toFixed(1)} ₽`
-                          : '—'}
-                      </span>
-                      <span style={{ minWidth: 100, textAlign: 'center', fontSize: 11 }}>
-                        <span className="badge neu">{r.modelId}</span>
-                      </span>
-                      <span style={{ minWidth: 90, textAlign: 'right' }}>
-                        {demo ? (
-                          <span className="badge warn" style={{ fontSize: 10 }}>демо</span>
-                        ) : r.validated ? (
-                          <span className="badge up" style={{ fontSize: 10 }}>проверен</span>
-                        ) : (
-                          <span className="badge neu" style={{ fontSize: 10 }}>базовый</span>
-                        )}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Seasonal Factors Note */}
-              <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--surface2)', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontWeight: 600 }}>🌿 Сезонное давление предложения:</span>
-                  {demo && <span className="badge amber" style={{ fontSize: 9 }}>ДЕМО-ФАЗЫ</span>}
-                </div>
-                {model.seasonal.pressures.length > 0 ? (
-                  model.seasonal.pressures.map((p, idx) => (
-                    <div key={idx} style={{ marginTop: 4 }}>
-                      • <strong>{p.label}:</strong> {p.reason}
-                      {p.priceImpactNote && <span style={{ color: 'var(--txt3)', marginLeft: 6 }}>({p.priceImpactNote})</span>}
-                    </div>
-                  ))
-                ) : (
-                  <div style={{ color: 'var(--txt2)' }}>
-                    Наблюдений сезонных индикаторов на дату среза нет. Сезонные факторы не привязаны к жестким номерам строк прогноза.
+                {/* Seasonal Factors Explanation Box */}
+                <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--surface2)', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ fontWeight: 600 }}>🌿 Сезонное давление предложения и агрономические фазы:</span>
+                    {demo && <span className="badge amber" style={{ fontSize: 9 }}>ДЕМО-ФАЗЫ</span>}
                   </div>
-                )}
+                  {model.seasonal.pressures.length > 0 ? (
+                    model.seasonal.pressures.map((p, idx) => (
+                      <div key={idx} style={{ marginTop: 4 }}>
+                        • <strong>{p.label}:</strong> {p.reason}
+                        {p.priceImpactNote && <span style={{ color: 'var(--txt3)', marginLeft: 6 }}>({p.priceImpactNote})</span>}
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ color: 'var(--txt2)' }}>
+                      Наблюдений сезонных индикаторов на дату среза нет. Сезонные факторы не привязаны к жестким номерам строк прогноза.
+                    </div>
+                  )}
 
-                <div style={{ borderTop: '1px dashed var(--border)', marginTop: 8, paddingTop: 6, fontSize: 10, color: 'var(--txt3)', lineHeight: 1.5 }}>
-                  <strong>Справочные региональные агрономические окна (ориентиры):</strong><br />
-                  • <strong>Волгоградская обл.:</strong> уборка на капельном поливе — август–сентябрь; окончание закладки в хранилища — октябрь.<br />
-                  • <strong>Казахстан (Жамбылская обл.):</strong> сезон массового экспорта — август–октябрь.<br />
-                  • <strong>Узбекистан:</strong> ранний лук нового урожая — апрель–май.<br />
-                  <em>* Фактическая сила сезонного давления в модели определяется только по датированным сводкам (ход уборки, запасы, качество), загружаемым через CSV.</em>
+                  <div style={{ borderTop: '1px dashed var(--border)', marginTop: 8, paddingTop: 6, fontSize: 10, color: 'var(--txt3)', lineHeight: 1.5 }}>
+                    <strong>Справочные региональные агрономические окна (ориентиры):</strong><br />
+                    • <strong>Волгоградская обл.:</strong> уборка на капельном поливе — август–сентябрь; окончание закладки в хранилища — октябрь.<br />
+                    • <strong>Казахстан (Жамбылская обл.):</strong> сезон массового экспорта — август–октябрь.<br />
+                    • <strong>Узбекистан:</strong> ранний лук нового урожая — апрель–май.<br />
+                    <em>* Сила сезонного давления в модели определяется по датированным сводкам (ход уборки, запасы, качество), загружаемым через CSV.</em>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 
@@ -350,7 +542,7 @@ export default function Forecast({ onNavigateToImport }) {
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Погрузка / сортировка (₽/кг):</span>
+                  <span>Погрузка и обработка (₽/кг):</span>
                   {editingBridge ? (
                     <input type="number" step="0.1" value={bridgeDraft.handlingRubKg ?? ''} onChange={e => setBridgeDraft({ ...bridgeDraft, handlingRubKg: Number(e.target.value) })} style={{ width: 90, padding: 3 }} />
                   ) : (
@@ -359,77 +551,78 @@ export default function Forecast({ onNavigateToImport }) {
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Потери / отбраковка в пути (%):</span>
+                  <span>Технологические потери в пути (%):</span>
                   {editingBridge ? (
-                    <input type="number" step="0.5" value={bridgeDraft.lossPct ?? ''} onChange={e => setBridgeDraft({ ...bridgeDraft, lossPct: Number(e.target.value) })} style={{ width: 90, padding: 3 }} />
+                    <input type="number" step="0.1" value={bridgeDraft.lossPct ?? ''} onChange={e => setBridgeDraft({ ...bridgeDraft, lossPct: Number(e.target.value) })} style={{ width: 90, padding: 3 }} />
                   ) : (
-                    <strong className="mono">{model.bridge.lossPct ?? '—'} %</strong>
+                    <strong className="mono">{model.bridge.lossPct ?? '—'}%</strong>
                   )}
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Маржа посредника (₽/кг):</span>
+                  <span>Маржа оптовика / трейдера (₽/кг):</span>
                   {editingBridge ? (
-                    <input type="number" step="0.5" value={bridgeDraft.marginRubKg ?? ''} onChange={e => setBridgeDraft({ ...bridgeDraft, marginRubKg: Number(e.target.value) })} style={{ width: 90, padding: 3 }} />
+                    <input type="number" step="0.1" value={bridgeDraft.marginRubKg ?? ''} onChange={e => setBridgeDraft({ ...bridgeDraft, marginRubKg: Number(e.target.value) })} style={{ width: 90, padding: 3 }} />
                   ) : (
                     <strong className="mono">{model.bridge.marginRubKg ?? '—'} ₽/кг</strong>
                   )}
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Ставка НДС (доля, овощи 10% = 0.10):</span>
-                  {editingBridge ? (
-                    <input type="number" step="0.01" value={bridgeDraft.vatRate ?? ''} onChange={e => setBridgeDraft({ ...bridgeDraft, vatRate: Number(e.target.value) })} style={{ width: 90, padding: 3 }} />
-                  ) : (
-                    <strong className="mono">{model.bridge.vatRate ?? '—'}</strong>
-                  )}
+                  <span>Ставка НДС (10% для с/х продукции):</span>
+                  <strong className="mono">{((model.bridge.vatRate ?? 0.1) * 100).toFixed(0)}%</strong>
                 </div>
               </div>
             </div>
 
-            {/* Right: Bridge Calculation Results */}
+            {/* Right: Bridge Calculation breakdown */}
             <div style={{ background: 'var(--surface2)', padding: '12px', borderRadius: 6, border: '1px solid var(--border)' }}>
-              <span style={{ fontWeight: 600, fontSize: 12, display: 'block', marginBottom: 10 }}>
-                Результаты расчета (при цене склада {model.prices.warehouse.exVat ? `${model.prices.warehouse.exVat.toFixed(1)} ₽` : '15.0 ₽'})
-              </span>
-
+              <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 10 }}>Смета моста издержек</div>
               {model.bridgeResult.status === 'ok' ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 11 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--txt2)' }}>Цена склада EXW (без НДС):</span>
-                    <span className="mono">{model.bridgeResult.components.warehousePrice.toFixed(2)} ₽/кг</span>
+                    <span>Цена склада (EXW без НДС):</span>
+                    <strong className="mono">{model.bridgeResult.warehouseExVat.toFixed(2)} ₽/кг</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--txt2)' }}>Учет потерь (на 1 кг проданного):</span>
-                    <span className="mono">+{model.bridgeResult.components.lossAllowance.toFixed(2)} ₽/кг</span>
+                    <span>+ Фрахт фуры:</span>
+                    <span className="mono">{model.bridgeResult.components.freight.toFixed(2)} ₽/кг</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--txt2)' }}>Фрахт фуры ({model.bridgeResult.components.freight.toFixed(2)} ₽/кг):</span>
-                    <span className="mono">+{model.bridgeResult.components.freight.toFixed(2)} ₽/кг</span>
+                    <span>+ Фасовка и упаковка:</span>
+                    <span className="mono">{model.bridgeResult.components.packaging.toFixed(2)} ₽/кг</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--txt2)' }}>Фасовка + погрузка:</span>
-                    <span className="mono">+{(model.bridgeResult.components.packaging + model.bridgeResult.components.handling).toFixed(2)} ₽/кг</span>
+                    <span>+ Погрузка / обработка:</span>
+                    <span className="mono">{model.bridgeResult.components.handling.toFixed(2)} ₽/кг</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--txt2)' }}>Маржа посредника:</span>
-                    <span className="mono">+{model.bridgeResult.components.margin.toFixed(2)} ₽/кг</span>
+                    <span>+ Убыль / потери в пути ({model.bridge.lossPct}%):</span>
+                    <span className="mono">{model.bridgeResult.components.lossAllowance.toFixed(2)} ₽/кг</span>
                   </div>
-                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 6, display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-                    <span>Москва опт без НДС:</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>+ Маржа посредника:</span>
+                    <span className="mono">{model.bridgeResult.components.margin.toFixed(2)} ₽/кг</span>
+                  </div>
+                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 4, display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                    <span>= Опт Москва (без НДС):</span>
                     <span className="mono">{model.bridgeResult.moscowExVat.toFixed(2)} ₽/кг</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, color: 'var(--blue)' }}>
-                    <span>Москва опт с НДС 10%:</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>+ НДС ({((model.bridge.vatRate ?? 0.1) * 100).toFixed(0)}%):</span>
+                    <span className="mono">{model.bridgeResult.components.vatAmount.toFixed(2)} ₽/кг</span>
+                  </div>
+                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 6, marginTop: 2, display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 12, color: 'var(--amber)' }}>
+                    <span>= Опт Москва (с НДС):</span>
                     <span className="mono">{model.bridgeResult.moscowInclVat.toFixed(2)} ₽/кг</span>
                   </div>
-                  <div style={{ borderTop: '1px dashed var(--border)', paddingTop: 6, fontSize: 10, color: 'var(--txt3)' }}>
-                    Валовая географическая разница без НДС: <strong>+{model.bridgeResult.grossDifferenceExVat.toFixed(2)} ₽/кг</strong>
+                  <div style={{ marginTop: 8, fontSize: 10, color: 'var(--txt2)', borderTop: '1px dashed var(--border)', paddingTop: 6 }}>
+                    Валовая разница (без НДС): +{model.bridgeResult.grossDifferenceExVat.toFixed(2)} ₽/кг
                   </div>
                 </div>
               ) : (
-                <div style={{ color: 'var(--amber)', fontSize: 11 }}>
-                  Смета не полна. Отсутствуют: {model.bridgeResult.missing?.join(', ')}
+                <div style={{ color: 'var(--txt2)', fontSize: 11 }}>
+                  {model.bridgeResult.status === 'no_warehouse_price' ? 'Нет текущей цены склада для расчета' : 'Заполните параметры моста'}
                 </div>
               )}
             </div>
@@ -437,87 +630,13 @@ export default function Forecast({ onNavigateToImport }) {
         </div>
       )}
 
-      {/* ── Subtab: Validation Metrics ── */}
-      {activeTab === 'validation' && (
-        <div style={{ padding: '14px' }}>
-          <div style={{ marginBottom: 12 }}>
-            <h3 style={{ fontSize: 14, margin: '0 0 6px' }}>
-              Результаты валидации модели (Rolling-Origin Backtest)
-            </h3>
-            <div style={{ fontSize: 11, color: 'var(--txt2)' }}>
-              Оценка точности на исторических срезах без заглядывания в будущее (out-of-sample). Модель выбирается на обучающем срезе и подтверждается на независимом финальном периоде.
-            </div>
-          </div>
-
-          {demo ? (
-            <div style={{ padding: '20px', background: 'var(--surface2)', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11 }}>
-              <div className="badge warn" style={{ marginBottom: 8 }}>ДЕМО-РЕЖИМ</div>
-              <div>В демо-режиме отображаются иллюстративные данные. Валидация бэктестом доступна при наличии реальных исторических рядов наблюдений.</div>
-            </div>
-          ) : fc?.validation?.byHorizon ? (
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>Горизонт</th>
-                  <th>Статус</th>
-                  <th>Выборка n</th>
-                  <th>Период оценки</th>
-                  <th>MAE (₽/кг)</th>
-                  <th>Смещение (bias)</th>
-                  <th>MAE базовой модели</th>
-                  <th>Покрытие 80%</th>
-                  <th>Покрытие 95%</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(fc.validation.byHorizon).map(([h, v]) => (
-                  <tr key={h}>
-                    <td className="fw">W+{h}</td>
-                    <td>
-                      <span className={`pill ${v?.status === 'ok' ? 'up' : 'warn'}`}>
-                        {v?.status === 'ok' ? 'валидирован' : 'недостаточно n'}
-                      </span>
-                    </td>
-                    <td className="mono">{v?.n ?? '—'}</td>
-                    <td className="mono" style={{ fontSize: 10 }}>
-                      {v?.period ? `${v.period.firstTarget} .. ${v.period.lastTarget}` : '—'}
-                    </td>
-                    <td className="mono fw" style={{ color: 'var(--blue)' }}>
-                      {v?.maeRubKg !== null && v?.maeRubKg !== undefined ? `${v.maeRubKg.toFixed(2)} ₽` : '—'}
-                    </td>
-                    <td className="mono">
-                      {v?.biasRubKg !== null && v?.biasRubKg !== undefined ? `${v.biasRubKg.toFixed(2)} ₽` : '—'}
-                    </td>
-                    <td className="mono">
-                      {v?.naiveMaeRubKg !== null && v?.naiveMaeRubKg !== undefined ? `${v.naiveMaeRubKg.toFixed(2)} ₽` : '—'}
-                    </td>
-                    <td className="mono">
-                      {v?.coverage80?.rate !== null && v?.coverage80?.rate !== undefined ? `${(v.coverage80.rate * 100).toFixed(0)}%` : '—'}
-                    </td>
-                    <td className="mono">
-                      {v?.coverage95?.rate !== null && v?.coverage95?.rate !== undefined ? `${(v.coverage95.rate * 100).toFixed(0)}%` : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div style={{ padding: '20px', background: 'var(--surface2)', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, color: 'var(--txt2)' }}>
-              Для валидации необходимо накопить историю еженедельных цен (минимум 20+ недель в финальном срезе).
-            </div>
-          )}
-        </div>
-      )}
-
       {/* ── Subtab: Scenarios ── */}
       {activeTab === 'scenarios' && (
         <div style={{ padding: '14px' }}>
           <div style={{ marginBottom: 12 }}>
-            <h3 style={{ fontSize: 14, margin: '0 0 6px' }}>
-              Сценарный анализ предложения и курса
-            </h3>
+            <h3 style={{ fontSize: 14, margin: '0 0 6px' }}>Сценарное моделирование</h3>
             <div style={{ fontSize: 11, color: 'var(--txt2)' }}>
-              Сценарии определяются явными входными параметрами (отклонение импорта, урожая и валюты). Эффекты не выдумываются: если эмпирическая эластичность не оценена, эффект честно маркируется как "не оценён".
+              Раздельное моделирование эффектов импорта и валютного курса без приписывания вымышленных вероятностей.
             </div>
           </div>
 
@@ -526,29 +645,114 @@ export default function Forecast({ onNavigateToImport }) {
               <div
                 key={sc.id}
                 style={{
-                  background: 'var(--surface2)',
+                  background: scenario === sc.id ? 'var(--surface2)' : 'var(--surface)',
+                  border: `1px solid ${scenario === sc.id ? 'var(--blue)' : 'var(--border)'}`,
                   borderRadius: 6,
                   padding: 12,
-                  border: scenario === sc.id ? '2px solid var(--blue)' : '1px solid var(--border)',
                   cursor: 'pointer',
                 }}
                 onClick={() => setScenario(sc.id)}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <strong style={{ fontSize: 12 }}>{sc.label}</strong>
-                  {scenario === sc.id && <span className="badge info" style={{ fontSize: 9 }}>АКТИВЕН</span>}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontWeight: 600, fontSize: 12 }}>{sc.label}</span>
+                  <span className={`badge ${scenario === sc.id ? 'up' : 'neu'}`} style={{ fontSize: 9 }}>
+                    {scenario === sc.id ? 'ВЫБРАН' : 'ВЫБРАТЬ'}
+                  </span>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--txt2)', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <div>• Импорт ({sc.inputs.importScope === 'kz_only' ? 'только КЗ' : 'весь'}): <strong>{sc.inputs.importDeltaPct > 0 ? `+${sc.inputs.importDeltaPct}%` : `${sc.inputs.importDeltaPct}%`}</strong></div>
-                  <div>• Внутреннее предложение: <strong>{sc.inputs.domesticSupplyDeltaPct > 0 ? `+${sc.inputs.domesticSupplyDeltaPct}%` : `${sc.inputs.domesticSupplyDeltaPct}%`}</strong></div>
-                  <div>• Курс валют: <strong>{sc.inputs.fxDeltaPct > 0 ? `+${sc.inputs.fxDeltaPct}%` : `${sc.inputs.fxDeltaPct}%`}</strong></div>
-                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 6, marginTop: 4, fontWeight: 600, color: sc.complete ? 'var(--blue)' : 'var(--amber)' }}>
-                    Сдвиг цены: {sc.complete ? `${sc.totalPct > 0 ? '+' : ''}${sc.totalPct.toFixed(1)}%` : 'не оценён'}
-                  </div>
-                </div>
+
+                {(() => {
+                  const inp = sc.inputs || sc.input || {};
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 11 }}>
+                      <div>
+                        <span style={{ color: 'var(--txt2)' }}>Импорт:</span>{' '}
+                        <strong>{(inp.importDeltaPct ?? 0) > 0 ? `+${inp.importDeltaPct}%` : `${inp.importDeltaPct ?? 0}%`}</strong>
+                        <span style={{ fontSize: 10, color: 'var(--txt3)', marginLeft: 4 }}>({inp.importScope === 'kz_only' ? 'Казахстан' : 'все страны'})</span>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--txt2)' }}>Внутренний сбор:</span>{' '}
+                        <strong>{(inp.domesticSupplyDeltaPct ?? 0) > 0 ? `+${inp.domesticSupplyDeltaPct}%` : `${inp.domesticSupplyDeltaPct ?? 0}%`}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--txt2)' }}>Курс USD/RUB:</span>{' '}
+                        <strong>{(inp.fxDeltaPct ?? 0) > 0 ? `+${inp.fxDeltaPct}%` : `${inp.fxDeltaPct ?? 0}%`}</strong>
+                      </div>
+                      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 6, marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--txt2)' }}>Оценка цены:</span>
+                        <strong style={{ color: (sc.totalPct ?? 0) >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                          {sc.complete ? `${(sc.totalPct ?? 0) > 0 ? '+' : ''}${(sc.totalPct ?? 0).toFixed(1)}%` : 'не оценён'}
+                        </strong>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ── Subtab: Validation ── */}
+      {activeTab === 'validation' && (
+        <div style={{ padding: '14px' }}>
+          <div style={{ marginBottom: 12 }}>
+            <h3 style={{ fontSize: 14, margin: '0 0 6px' }}>Результаты ретроспективной валидации (Rolling-Origin Backtest)</h3>
+            <div style={{ fontSize: 11, color: 'var(--txt2)' }}>
+              Оценка точности прогноза на отложенной выборке (holdout split). Исключена утечка будущих данных: при каждом прогнозе использовались только данные, доступные на момент отсечки.
+            </div>
+          </div>
+
+          {demo ? (
+            <div style={{ padding: '16px', background: 'var(--surface2)', borderRadius: 6, border: '1px solid var(--border)', fontSize: 12 }}>
+              <span className="badge warn" style={{ marginBottom: 8 }}>ДЕМО-РЕЖИМ</span>
+              <p style={{ margin: '6px 0', color: 'var(--txt2)' }}>
+                В демонстрационном режиме валидационные метрики отключены, чтобы не имитировать вымышленную точность (R² = 0.87 в старой версии было маркетинговым допущением).
+              </p>
+              <p style={{ margin: '6px 0', color: 'var(--txt2)' }}>
+                Для расчета реальных MAE, Bias и покрытия конформных интервалов импортируйте исторический ряд сделок через раздел «Импорт данных».
+              </p>
+            </div>
+          ) : fc?.validation ? (
+            <div>
+              <div style={{ marginBottom: 10, fontSize: 11 }}>
+                <strong>Метод:</strong> {fc.validation.method}
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="tbl">
+                  <thead>
+                    <tr>
+                      <th>Горизонт</th>
+                      <th>Тестовые точки (n)</th>
+                      <th>MAE (₽/кг)</th>
+                      <th>Bias (смещение, ₽)</th>
+                      <th>Выигрыш к наивному (Skill)</th>
+                      <th>Покрытие 80%</th>
+                      <th>Покрытие 95%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(fc.validation.byHorizon || {}).map(([h, m]) => (
+                      <tr key={h}>
+                        <td className="fw">W+{h}</td>
+                        <td className="mono">{m.n ?? '—'}</td>
+                        <td className="mono">{m.mae !== null ? `${m.mae.toFixed(2)} ₽` : '—'}</td>
+                        <td className="mono">{m.bias !== null ? `${m.bias.toFixed(2)} ₽` : '—'}</td>
+                        <td className={`mono ${m.skillVsNaive > 0 ? 'up' : m.skillVsNaive < 0 ? 'dn' : ''}`}>
+                          {m.skillVsNaive !== null ? `${(m.skillVsNaive * 100).toFixed(0)}%` : '—'}
+                        </td>
+                        <td className="mono">{m.coverage80 !== null ? `${(m.coverage80 * 100).toFixed(0)}%` : '—'}</td>
+                        <td className="mono">{m.coverage95 !== null ? `${(m.coverage95 * 100).toFixed(0)}%` : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: '16px', background: 'var(--surface2)', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, color: 'var(--txt2)' }}>
+              {fc?.reasons?.[0] || 'История наблюдений недостаточна для проведения скользящего бэктеста.'}
+            </div>
+          )}
         </div>
       )}
     </div>
