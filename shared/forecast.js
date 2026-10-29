@@ -12,8 +12,9 @@ import { hash32 } from './observations.js';
 import { TARGET_SPECS, PRICE_UNIT } from './spec.js';
 
 export const MAX_DATA_AGE_WEEKS_FOR_ISSUE = 1; // latest observed week may lag the issue week by at most 1 week
+export const FULL_HORIZONS = Array.from({ length: 26 }, (_, i) => i + 1);
 
-export function issueForecast({ observations, basis, issueDate, kind = 'transaction', publishLagDays = 0, now = null, backtestOpts = {}, horizons = HORIZONS }) {
+export function issueForecast({ observations, basis, issueDate, kind = 'transaction', publishLagDays = 0, now = null, backtestOpts = {}, horizons = FULL_HORIZONS }) {
   const target = TARGET_SPECS[basis];
   const series = buildWeeklySeries(observations, { basis, kind, asOf: issueDate, publishLagDays });
   const desc = describeSeries(series.points);
@@ -52,7 +53,7 @@ export function issueForecast({ observations, basis, issueDate, kind = 'transact
 
   const map = pointsToMap(series.points);
   const origin = desc.lastWeek;
-  const bt = rollingOriginBacktest(series.points, backtestOpts);
+  const bt = rollingOriginBacktest(series.points, { horizons, ...backtestOpts });
   const rows = [];
   let anyValidated = false;
   for (const h of horizons) {

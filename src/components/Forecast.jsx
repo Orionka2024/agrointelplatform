@@ -11,7 +11,7 @@ const FORECAST_CONFIDENCE = [
 
 function getSeasonPhase(weekIdx) {
   if (weekIdx <= 3) {
-    return { tag: 'Ноябрь · Сброс с полей', desc: 'Давление свежего урожая и сброс с необорудованных складов' };
+    return { tag: 'Ноябрь · Необорудованные склады', desc: 'Поля убраны в октябре. Продажи лука из временных складов до заморозков' };
   }
   if (weekIdx <= 6) {
     return { tag: 'Декабрь · Склады', desc: 'Переход на отапливаемые хранилища, начало зимнего спроса' };
@@ -68,13 +68,67 @@ export default function Forecast({ onNavigateToImport }) {
   const scenarioRows = model.scenarios.rows?.[basis]?.[scenario] || fc?.horizons || [];
 
   const selectedCrop = CROPS[activeCrop] || CROPS.onion;
-  const cropScale = (selectedCrop.price || 31.2) / (CROPS.onion.price || 31.2);
+
+  // Custom manual price support per crop
+  const savedManualPrice = model.assumptions?.manualPrices?.[activeCrop]?.value;
+  const hasSavedCustomPrice = savedManualPrice != null && Number.isFinite(Number(savedManualPrice)) && Number(savedManualPrice) > 0;
+  const savedPriceVal = hasSavedCustomPrice ? Number(savedManualPrice) : null;
+
+  const defaultBenchmarkPrice = basis === 'warehouse'
+    ? (activeCrop === 'onion' ? (model.prices.warehouse.exVat ?? 16.6) : (selectedCrop.price / 1.8))
+    : (activeCrop === 'onion' ? (model.prices.moscow.inclVat ?? 31.2) : selectedCrop.price);
+
+  const currentActualPrice = hasSavedCustomPrice ? savedPriceVal : defaultBenchmarkPrice;
+
+  const [userPrice, setUserPrice] = useState(null);
+  const [savingPrice, setSavingPrice] = useState(false);
+  const displayPrice = userPrice !== null ? userPrice : currentActualPrice.toFixed(1);
+
+  async function handleSavePrice() {
+    const val = parseFloat(displayPrice);
+    if (isNaN(val) || val <= 0) return;
+    setSavingPrice(true);
+    try {
+      await updateAssumptions({
+        manualPrices: {
+          [activeCrop]: {
+            value: val,
+            basis,
+            asOf: model.today || '2026-10-24',
+            note: 'Ручной ввод цены пользователя',
+          },
+        },
+      });
+      setUserPrice(null);
+    } finally {
+      setSavingPrice(false);
+    }
+  }
+
+  async function handleResetPrice() {
+    setSavingPrice(true);
+    try {
+      await updateAssumptions({
+        manualPrices: {
+          [activeCrop]: null,
+        },
+      });
+      setUserPrice(null);
+    } finally {
+      setSavingPrice(false);
+    }
+  }
 
   const issueDate = fc?.issueDate || model.today || '2026-10-24';
   const whBaseHorizons = model.forecasts.warehouse?.horizons || [];
   const mskBaseHorizons = model.forecasts.moscow?.horizons || [];
 
-  const curWhPrice = (model.prices.warehouse.exVat ?? 16.6) * cropScale;
+  const curWhPrice = basis === 'warehouse'
+    ? currentActualPrice
+    : (moscowToWarehouse(currentActualPrice, model.bridge).status === 'ok' ? moscowToWarehouse(currentActualPrice, model.bridge).warehouseExVat : currentActualPrice / 1.8);
+
+  const originWhBase = whBaseHorizons[0]?.point || 15.89;
+  const originMskBase = mskBaseHorizons[0]?.point || 28.34;
 
   // Build 26 table rows
   const numRows = Math.max(26, scenarioRows.length);
@@ -90,13 +144,15 @@ export default function Forecast({ onNavigateToImport }) {
     let mskPrice;
 
     if (basis === 'warehouse') {
-      const basePt = (r.scenarioPoint ?? r.point ?? whBaseHorizons[i]?.point ?? 16.6);
-      whPrice = basePt * (activeCrop === 'onion' ? 1 : cropScale);
+      const basePt = (r.scenarioPoint ?? r.point ?? whBaseHorizons[i]?.point ?? originWhBase);
+      const ratio = originWhBase > 0 ? basePt / originWhBase : 1;
+      whPrice = currentActualPrice * ratio;
       const bCalc = warehouseToMoscow(whPrice, model.bridge);
       mskPrice = bCalc.status === 'ok' ? bCalc.moscowInclVat : (mskBaseHorizons[i]?.point ?? whPrice * 1.8);
     } else {
-      const basePt = (r.scenarioPoint ?? r.point ?? mskBaseHorizons[i]?.point ?? 31.2);
-      mskPrice = basePt * (activeCrop === 'onion' ? 1 : cropScale);
+      const basePt = (r.scenarioPoint ?? r.point ?? mskBaseHorizons[i]?.point ?? originMskBase);
+      const ratio = originMskBase > 0 ? basePt / originMskBase : 1;
+      mskPrice = currentActualPrice * ratio;
       const bCalc = moscowToWarehouse(mskPrice, model.bridge);
       whPrice = bCalc.status === 'ok' ? bCalc.warehouseExVat : (whBaseHorizons[i]?.point ?? mskPrice / 1.8);
     }
@@ -152,7 +208,7 @@ export default function Forecast({ onNavigateToImport }) {
           <div
             key={c.id}
             className={`ctab${activeCrop === c.id ? ' active' : ''}`}
-            onClick={() => setActiveCrop(c.id)}
+            onClick={() => { setActiveCrop(c.id); setUserPrice(null); }}
             style={{
               cursor: 'pointer',
               padding: '6px 12px',
@@ -176,14 +232,14 @@ export default function Forecast({ onNavigateToImport }) {
           <button
             type="button"
             className={`basis-btn ${basis === 'warehouse' ? 'active' : ''}`}
-            onClick={() => setBasis('warehouse')}
+            onClick={() => { setBasis('warehouse'); setUserPrice(null); }}
           >
             🏬 Склад продавца (Волгоград, EXW без НДС)
           </button>
           <button
             type="button"
             className={`basis-btn ${basis === 'moscow' ? 'active' : ''}`}
-            onClick={() => setBasis('moscow')}
+            onClick={() => { setBasis('moscow'); setUserPrice(null); }}
           >
             🏢 Опт Москва (с доставкой, с НДС 10%)
           </button>
@@ -278,6 +334,81 @@ export default function Forecast({ onNavigateToImport }) {
       {/* ── Subtab: Forecast Table View ── */}
       {activeTab === 'forecast' && (
         <div>
+          {/* Interactive Manual Price Bar */}
+          <div style={{ padding: '10px 14px', background: 'var(--surface2)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, fontSize: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 600 }}>
+                {basis === 'warehouse'
+                  ? `Цена отгрузки (${selectedCrop.label} · склад Волгоград EXW):`
+                  : `Оптовая цена (${selectedCrop.label} · Москва DAP):`}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="1"
+                  max="1000"
+                  value={displayPrice}
+                  onChange={e => setUserPrice(e.target.value)}
+                  style={{
+                    width: 78,
+                    padding: '4px 8px',
+                    borderRadius: 4,
+                    border: '1px solid var(--border)',
+                    fontFamily: 'var(--mono)',
+                    fontWeight: 600,
+                    fontSize: 12,
+                    background: 'var(--surface)',
+                    color: 'var(--txt)',
+                  }}
+                />
+                <span style={{ color: 'var(--txt2)', fontFamily: 'var(--mono)', fontSize: 11 }}>₽/кг</span>
+              </div>
+
+              <button
+                type="button"
+                className="btn"
+                onClick={handleSavePrice}
+                disabled={savingPrice || Math.abs(parseFloat(displayPrice) - currentActualPrice) < 0.05}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: 11,
+                  background: Math.abs(parseFloat(displayPrice) - currentActualPrice) >= 0.05 ? 'var(--blue)' : 'var(--surface)',
+                  color: Math.abs(parseFloat(displayPrice) - currentActualPrice) >= 0.05 ? '#fff' : 'var(--txt2)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 4,
+                  cursor: Math.abs(parseFloat(displayPrice) - currentActualPrice) >= 0.05 ? 'pointer' : 'default',
+                }}
+              >
+                {savingPrice ? 'Сохранение...' : '💾 Сохранить цену'}
+              </button>
+
+              {hasSavedCustomPrice && (
+                <button
+                  type="button"
+                  className="cash-reset-btn"
+                  onClick={handleResetPrice}
+                  style={{ padding: '3px 8px', fontSize: 11 }}
+                  title={`Сбросить к базовой цене (${defaultBenchmarkPrice.toFixed(1)} ₽)`}
+                >
+                  ↺ К норме ({defaultBenchmarkPrice.toFixed(1)} ₽)
+                </button>
+              )}
+            </div>
+
+            <div style={{ fontSize: 11 }}>
+              {hasSavedCustomPrice ? (
+                <span className="badge info" style={{ fontSize: 10 }}>
+                  Вручную: прогноз рассчитан от {savedPriceVal.toFixed(1)} ₽/кг (сохранено в модели)
+                </span>
+              ) : (
+                <span style={{ color: 'var(--txt3)' }}>
+                  Базовая цена: {defaultBenchmarkPrice.toFixed(1)} ₽/кг (ретроспективная база 6 лет)
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* Summary Compare Cards */}
           <div className="row-4" style={{ padding: '14px 14px 0', gap: 10 }}>
             <div className="panel" style={{ padding: '10px 14px', background: 'var(--surface2)' }}>
@@ -468,7 +599,7 @@ export default function Forecast({ onNavigateToImport }) {
 
                   <div style={{ borderTop: '1px dashed var(--border)', marginTop: 8, paddingTop: 6, fontSize: 10, color: 'var(--txt3)', lineHeight: 1.5 }}>
                     <strong>Справочные региональные агрономические окна (ориентиры):</strong><br />
-                    • <strong>Волгоградская обл.:</strong> уборка на капельном поливе — август–сентябрь; окончание закладки в хранилища — октябрь.<br />
+                    • <strong>Волгоградская обл.:</strong> уборка на капельном поливе — август–сентябрь; окончание закладки в хранилища и сброс некондиции с полей — октябрь; ноябрь — реализация из необорудованных складов до заморозков и старт плановых отгрузок кондиционного фонда.<br />
                     • <strong>Казахстан (Жамбылская обл.):</strong> сезон массового экспорта — август–октябрь.<br />
                     • <strong>Узбекистан:</strong> ранний лук нового урожая — апрель–май.<br />
                     <em>* Сила сезонного давления в модели определяется по датированным сводкам (ход уборки, запасы, качество), загружаемым через CSV.</em>

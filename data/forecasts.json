@@ -184,5 +184,2522 @@
     ],
     "status": "baseline_unvalidated",
     "id": "fc-76105afc"
+  },
+  {
+    "schema": 1,
+    "mode": "observed",
+    "basis": "warehouse",
+    "issueDate": "2026-10-24",
+    "issuedAt": "2026-10-29T09:46:20.492Z",
+    "unit": "RUB/kg",
+    "target": {
+      "id": "onion-volgograd-warehouse",
+      "label": "Лук репчатый · склад продавца, Волгоградская обл.",
+      "market": "warehouse_volgograd",
+      "deliveryBasis": [
+        "EXW",
+        "FCA"
+      ],
+      "vat": "excl",
+      "kind": "transaction"
+    },
+    "modelVersion": "baselines-1.0.0",
+    "provenance": {
+      "seriesKey": "warehouse_volgograd|transaction",
+      "nObservations": 315,
+      "nWeeks": 313,
+      "firstWeek": "2020-10-26",
+      "lastWeek": "2026-10-19",
+      "sources": [
+        "Агросервер",
+        "Ретроспективный мониторинг АПК (2020–2026)"
+      ],
+      "excluded": {
+        "notAvailableYet": 0,
+        "vatUnknown": 0,
+        "basisMismatch": 0,
+        "outlier": 0,
+        "specMismatch": 0,
+        "otherMarketOrKind": 313,
+        "specUnknown": 0
+      },
+      "inputHash": "4b7dd488"
+    },
+    "inputCutoff": "2026-10-19",
+    "horizons": [
+      {
+        "h": 1,
+        "targetWeekStart": "2026-10-26",
+        "targetDate": "2026-10-26",
+        "point": 15.89,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 209,
+          "lo80": 14.617461184761268,
+          "hi80": 17.170798470156896,
+          "lo95": 10.870595174678325,
+          "hi95": 20.91766448023984
+        },
+        "note": null
+      },
+      {
+        "h": 2,
+        "targetWeekStart": "2026-11-02",
+        "targetDate": "2026-11-02",
+        "point": 17.33,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 208,
+          "lo80": 15.342209745624665,
+          "hi80": 19.30898998788802,
+          "lo95": 11.730931466525522,
+          "hi95": 22.92026826698716
+        },
+        "note": null
+      },
+      {
+        "h": 3,
+        "targetWeekStart": "2026-11-09",
+        "targetDate": "2026-11-09",
+        "point": 17.34,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 207,
+          "lo80": 14.15145519309483,
+          "hi80": 20.5352736013109,
+          "lo95": 10.3677087747548,
+          "hi95": 24.31902001965093
+        },
+        "note": null
+      },
+      {
+        "h": 4,
+        "targetWeekStart": "2026-11-16",
+        "targetDate": "2026-11-16",
+        "point": 17.34,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 206,
+          "lo80": 13.92855530718347,
+          "hi80": 20.744213146373877,
+          "lo95": 6.436019975372554,
+          "hi95": 28.236748478184793
+        },
+        "note": null
+      },
+      {
+        "h": 5,
+        "targetWeekStart": "2026-11-23",
+        "targetDate": "2026-11-23",
+        "point": 17.31,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 205,
+          "lo80": 13.368681438958436,
+          "hi80": 21.25444799190908,
+          "lo95": 5.843444129371072,
+          "hi95": 28.779685301496443
+        },
+        "note": null
+      },
+      {
+        "h": 6,
+        "targetWeekStart": "2026-11-30",
+        "targetDate": "2026-11-30",
+        "point": 19.87,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 204,
+          "lo80": 14.902062473150497,
+          "hi80": 24.82801796642079,
+          "lo95": 8.371754205827845,
+          "hi95": 31.358326233743444
+        },
+        "note": null
+      },
+      {
+        "h": 7,
+        "targetWeekStart": "2026-12-07",
+        "targetDate": "2026-12-07",
+        "point": 19.85,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 203,
+          "lo80": 14.004008675322758,
+          "hi80": 25.698767046446797,
+          "lo95": 8.301129362522499,
+          "hi95": 31.401646359247056
+        },
+        "note": null
+      },
+      {
+        "h": 8,
+        "targetWeekStart": "2026-12-14",
+        "targetDate": "2026-12-14",
+        "point": 19.86,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 202,
+          "lo80": 13.772883915644801,
+          "hi80": 25.952456312610312,
+          "lo95": 8.279016157911945,
+          "hi95": 31.446324070343167
+        },
+        "note": null
+      },
+      {
+        "h": 9,
+        "targetWeekStart": "2026-12-21",
+        "targetDate": "2026-12-21",
+        "point": 19.87,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 201,
+          "lo80": 13.75095937232917,
+          "hi80": 25.986864447205853,
+          "lo95": 8.149741428129598,
+          "hi95": 31.588082391405425
+        },
+        "note": null
+      },
+      {
+        "h": 10,
+        "targetWeekStart": "2026-12-28",
+        "targetDate": "2026-12-28",
+        "point": 19.56,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 200,
+          "lo80": 12.897197973729178,
+          "hi80": 26.222775236600143,
+          "lo95": 7.930361619159221,
+          "hi95": 31.1896115911701
+        },
+        "note": null
+      },
+      {
+        "h": 11,
+        "targetWeekStart": "2027-01-04",
+        "targetDate": "2027-01-04",
+        "point": 21.05,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 199,
+          "lo80": 13.688539907721022,
+          "hi80": 28.41911109637544,
+          "lo95": 8.712718804858723,
+          "hi95": 33.394932199237736
+        },
+        "note": null
+      },
+      {
+        "h": 12,
+        "targetWeekStart": "2027-01-11",
+        "targetDate": "2027-01-11",
+        "point": 23.1,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 198,
+          "lo80": 15.457239962916205,
+          "hi80": 30.75084076699531,
+          "lo95": 9.919770875449593,
+          "hi95": 36.28830985446192
+        },
+        "note": null
+      },
+      {
+        "h": 13,
+        "targetWeekStart": "2027-01-18",
+        "targetDate": "2027-01-18",
+        "point": 23.07,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 197,
+          "lo80": 15.442871941344816,
+          "hi80": 30.70107925565787,
+          "lo95": 10.21346641883025,
+          "hi95": 35.930484778172435
+        },
+        "note": null
+      },
+      {
+        "h": 14,
+        "targetWeekStart": "2027-01-25",
+        "targetDate": "2027-01-25",
+        "point": 23.08,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 196,
+          "lo80": 15.01344071388775,
+          "hi80": 31.15456014173242,
+          "lo95": 8.991140578376879,
+          "hi95": 37.17686027724329
+        },
+        "note": null
+      },
+      {
+        "h": 15,
+        "targetWeekStart": "2027-02-01",
+        "targetDate": "2027-02-01",
+        "point": 27.63,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 195,
+          "lo80": 19.625676775508225,
+          "hi80": 35.62756184686155,
+          "lo95": 13.58271001112488,
+          "hi95": 41.6705286112449
+        },
+        "note": null
+      },
+      {
+        "h": 16,
+        "targetWeekStart": "2027-02-08",
+        "targetDate": "2027-02-08",
+        "point": 27.63,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 194,
+          "lo80": 19.338729489701727,
+          "hi80": 35.9222362698828,
+          "lo95": 13.544211600984159,
+          "hi95": 41.71675415860037
+        },
+        "note": null
+      },
+      {
+        "h": 17,
+        "targetWeekStart": "2027-02-15",
+        "targetDate": "2027-02-15",
+        "point": 27.64,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 193,
+          "lo80": 18.87115651922501,
+          "hi80": 36.411623156712785,
+          "lo95": 12.761398421293645,
+          "hi95": 42.521381254644155
+        },
+        "note": null
+      },
+      {
+        "h": 18,
+        "targetWeekStart": "2027-02-22",
+        "targetDate": "2027-02-22",
+        "point": 27.63,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 192,
+          "lo80": 18.479916189916544,
+          "hi80": 36.775445317774206,
+          "lo95": 10.990824415463536,
+          "hi95": 44.264537092227215
+        },
+        "note": null
+      },
+      {
+        "h": 19,
+        "targetWeekStart": "2027-03-01",
+        "targetDate": "2027-03-01",
+        "point": 33.03,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 191,
+          "lo80": 23.03675148586804,
+          "hi80": 43.01869481881015,
+          "lo95": 15.991497650820321,
+          "hi95": 50.063948653857864
+        },
+        "note": null
+      },
+      {
+        "h": 20,
+        "targetWeekStart": "2027-03-08",
+        "targetDate": "2027-03-08",
+        "point": 33.02,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 190,
+          "lo80": 21.92931410984928,
+          "hi80": 44.106138454703206,
+          "lo95": 15.676015044520533,
+          "hi95": 50.35943752003195
+        },
+        "note": null
+      },
+      {
+        "h": 21,
+        "targetWeekStart": "2027-03-15",
+        "targetDate": "2027-03-15",
+        "point": 33.05,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 189,
+          "lo80": 21.922944825108775,
+          "hi80": 44.184492636725224,
+          "lo95": 14.305992540165057,
+          "hi95": 51.80144492166894
+        },
+        "note": null
+      },
+      {
+        "h": 22,
+        "targetWeekStart": "2027-03-22",
+        "targetDate": "2027-03-22",
+        "point": 33.04,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 188,
+          "lo80": 22.213950133175377,
+          "hi80": 43.86749599456478,
+          "lo95": 12.22534801389521,
+          "hi95": 53.856098113844936
+        },
+        "note": null
+      },
+      {
+        "h": 23,
+        "targetWeekStart": "2027-03-29",
+        "targetDate": "2027-03-29",
+        "point": 36.03,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 187,
+          "lo80": 25.535835730486685,
+          "hi80": 46.51776900595698,
+          "lo95": 15.38152314315293,
+          "hi95": 56.67208159329073
+        },
+        "note": null
+      },
+      {
+        "h": 24,
+        "targetWeekStart": "2027-04-05",
+        "targetDate": "2027-04-05",
+        "point": 39.34,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 186,
+          "lo80": 29.19538917118342,
+          "hi80": 49.48625972267628,
+          "lo95": 18.85978918518736,
+          "hi95": 59.82185970867234
+        },
+        "note": null
+      },
+      {
+        "h": 25,
+        "targetWeekStart": "2027-04-12",
+        "targetDate": "2027-04-12",
+        "point": 39.31,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 185,
+          "lo80": 29.282683402437453,
+          "hi80": 49.339776114367666,
+          "lo95": 18.473013492217614,
+          "hi95": 60.149446024587505
+        },
+        "note": null
+      },
+      {
+        "h": 26,
+        "targetWeekStart": "2027-04-19",
+        "targetDate": "2027-04-19",
+        "point": 39.31,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 184,
+          "lo80": 29.819892929378035,
+          "hi80": 48.7962587631611,
+          "lo95": 18.273041894406088,
+          "hi95": 60.34310979813304
+        },
+        "note": null
+      }
+    ],
+    "validation": {
+      "method": "rolling-origin, purged tuning/final split, out-of-sample conformal intervals",
+      "params": {
+        "finalFraction": 0.4,
+        "minFinal": 20,
+        "minTune": 10,
+        "selectionMargin": 0.05
+      },
+      "split": {
+        "finalStartOrigin": "2024-05-27",
+        "firstOrigin": "2020-10-26",
+        "lastOrigin": "2026-10-19"
+      },
+      "byHorizon": {
+        "1": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 84,
+          "tuneMae": {
+            "naive": 1.580952380952381,
+            "seasonal_ratio": 1.2247237172335026
+          },
+          "final": {
+            "n": 125,
+            "period": {
+              "firstTarget": "2024-06-03",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 0.901918942978368,
+            "bias": -0.048826775470608,
+            "naiveMae": 0.9968,
+            "skillVsNaive": 0.09518565110516852,
+            "coverage80": {
+              "n": 125,
+              "rate": 0.784
+            },
+            "coverage95": {
+              "n": 125,
+              "rate": 0.952
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "2": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 83,
+          "tuneMae": {
+            "naive": 3.0759036144578307,
+            "seasonal_ratio": 2.138119807038698
+          },
+          "final": {
+            "n": 124,
+            "period": {
+              "firstTarget": "2024-06-10",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 1.1380898209796102,
+            "bias": -0.057751266027957764,
+            "naiveMae": 1.8375000000000001,
+            "skillVsNaive": 0.38063138994306933,
+            "coverage80": {
+              "n": 124,
+              "rate": 0.8709677419354839
+            },
+            "coverage95": {
+              "n": 124,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "3": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 82,
+          "tuneMae": {
+            "naive": 4.4731707317073175,
+            "seasonal_ratio": 2.912577868695398
+          },
+          "final": {
+            "n": 123,
+            "period": {
+              "firstTarget": "2024-06-17",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 1.3139277183757188,
+            "bias": -0.06456902856179367,
+            "naiveMae": 2.5752032520325208,
+            "skillVsNaive": 0.48977708173571155,
+            "coverage80": {
+              "n": 123,
+              "rate": 0.9024390243902439
+            },
+            "coverage95": {
+              "n": 123,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "4": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 81,
+          "tuneMae": {
+            "naive": 5.797530864197529,
+            "seasonal_ratio": 3.616208283917529
+          },
+          "final": {
+            "n": 122,
+            "period": {
+              "firstTarget": "2024-06-24",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 1.4654828916571425,
+            "bias": -0.0773923320527346,
+            "naiveMae": 3.248770491803279,
+            "skillVsNaive": 0.5489115358088271,
+            "coverage80": {
+              "n": 122,
+              "rate": 0.9262295081967213
+            },
+            "coverage95": {
+              "n": 122,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "5": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 80,
+          "tuneMae": {
+            "naive": 7.136249999999999,
+            "seasonal_ratio": 4.2758387389707275
+          },
+          "final": {
+            "n": 121,
+            "period": {
+              "firstTarget": "2024-07-01",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 1.6837776455597582,
+            "bias": -0.08601868844908589,
+            "naiveMae": 3.9574380165289247,
+            "skillVsNaive": 0.5745283593761495,
+            "coverage80": {
+              "n": 121,
+              "rate": 0.9338842975206612
+            },
+            "coverage95": {
+              "n": 121,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "6": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 79,
+          "tuneMae": {
+            "naive": 8.444303797468354,
+            "seasonal_ratio": 4.895589610010281
+          },
+          "final": {
+            "n": 120,
+            "period": {
+              "firstTarget": "2024-07-08",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 1.8597881552835605,
+            "bias": -0.07531062620280868,
+            "naiveMae": 4.67375,
+            "skillVsNaive": 0.6020779555424316,
+            "coverage80": {
+              "n": 120,
+              "rate": 0.9333333333333333
+            },
+            "coverage95": {
+              "n": 120,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "7": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 78,
+          "tuneMae": {
+            "naive": 9.765384615384614,
+            "seasonal_ratio": 5.331863263523605
+          },
+          "final": {
+            "n": 119,
+            "period": {
+              "firstTarget": "2024-07-15",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 1.9703182301298439,
+            "bias": -0.06909455958382539,
+            "naiveMae": 5.381932773109244,
+            "skillVsNaive": 0.6339013671864293,
+            "coverage80": {
+              "n": 119,
+              "rate": 0.9663865546218487
+            },
+            "coverage95": {
+              "n": 119,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "8": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 77,
+          "tuneMae": {
+            "naive": 11.061038961038964,
+            "seasonal_ratio": 5.648643093060553
+          },
+          "final": {
+            "n": 118,
+            "period": {
+              "firstTarget": "2024-07-22",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.056684980972269,
+            "bias": -0.058164274286102775,
+            "naiveMae": 6.095338983050845,
+            "skillVsNaive": 0.6625807052419495,
+            "coverage80": {
+              "n": 118,
+              "rate": 0.9830508474576272
+            },
+            "coverage95": {
+              "n": 118,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "9": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 76,
+          "tuneMae": {
+            "naive": 12.310526315789472,
+            "seasonal_ratio": 5.789685866313922
+          },
+          "final": {
+            "n": 117,
+            "period": {
+              "firstTarget": "2024-07-29",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.0705103189748657,
+            "bias": -0.0197555128378012,
+            "naiveMae": 6.627777777777778,
+            "skillVsNaive": 0.6876011253851837,
+            "coverage80": {
+              "n": 117,
+              "rate": 0.9829059829059829
+            },
+            "coverage95": {
+              "n": 117,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "10": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 75,
+          "tuneMae": {
+            "naive": 13.280000000000001,
+            "seasonal_ratio": 6.090183065515714
+          },
+          "final": {
+            "n": 116,
+            "period": {
+              "firstTarget": "2024-08-05",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.127859453689438,
+            "bias": 0.03212018576949207,
+            "naiveMae": 7.170258620689655,
+            "skillVsNaive": 0.7032381164677188,
+            "coverage80": {
+              "n": 116,
+              "rate": 0.9741379310344828
+            },
+            "coverage95": {
+              "n": 116,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "11": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 74,
+          "tuneMae": {
+            "naive": 14.247297297297303,
+            "seasonal_ratio": 6.400502179107963
+          },
+          "final": {
+            "n": 115,
+            "period": {
+              "firstTarget": "2024-08-12",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.166193710172233,
+            "bias": 0.06086839458964188,
+            "naiveMae": 7.69,
+            "skillVsNaive": 0.7183103107708411,
+            "coverage80": {
+              "n": 115,
+              "rate": 0.9739130434782609
+            },
+            "coverage95": {
+              "n": 115,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "12": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 73,
+          "tuneMae": {
+            "naive": 15.161643835616434,
+            "seasonal_ratio": 6.625808040538369
+          },
+          "final": {
+            "n": 114,
+            "period": {
+              "firstTarget": "2024-08-19",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.1974593573892562,
+            "bias": 0.09320764467738471,
+            "naiveMae": 8.222368421052629,
+            "skillVsNaive": 0.7327461815305112,
+            "coverage80": {
+              "n": 114,
+              "rate": 0.9736842105263158
+            },
+            "coverage95": {
+              "n": 114,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "13": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 72,
+          "tuneMae": {
+            "naive": 16.1,
+            "seasonal_ratio": 6.848757582897947
+          },
+          "final": {
+            "n": 113,
+            "period": {
+              "firstTarget": "2024-08-26",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.222730977177619,
+            "bias": 0.12555539416651806,
+            "naiveMae": 8.73230088495575,
+            "skillVsNaive": 0.7454587277212353,
+            "coverage80": {
+              "n": 113,
+              "rate": 0.9823008849557522
+            },
+            "coverage95": {
+              "n": 113,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "14": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 71,
+          "tuneMae": {
+            "naive": 16.645070422535213,
+            "seasonal_ratio": 7.1279267646951725
+          },
+          "final": {
+            "n": 112,
+            "period": {
+              "firstTarget": "2024-09-02",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.2927609940433764,
+            "bias": 0.1626588335735515,
+            "naiveMae": 9.129910714285716,
+            "skillVsNaive": 0.7488736674657883,
+            "coverage80": {
+              "n": 112,
+              "rate": 0.9732142857142857
+            },
+            "coverage95": {
+              "n": 112,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "15": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 70,
+          "tuneMae": {
+            "naive": 17.211428571428577,
+            "seasonal_ratio": 7.781118951952651
+          },
+          "final": {
+            "n": 111,
+            "period": {
+              "firstTarget": "2024-09-09",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.3443261589756554,
+            "bias": 0.196776375111111,
+            "naiveMae": 9.524774774774773,
+            "skillVsNaive": 0.7538706988448354,
+            "coverage80": {
+              "n": 111,
+              "rate": 0.990990990990991
+            },
+            "coverage95": {
+              "n": 111,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "16": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 69,
+          "tuneMae": {
+            "naive": 17.82173913043478,
+            "seasonal_ratio": 8.480383179180054
+          },
+          "final": {
+            "n": 110,
+            "period": {
+              "firstTarget": "2024-09-16",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.456345374795015,
+            "bias": 0.22872706309931035,
+            "naiveMae": 9.924999999999997,
+            "skillVsNaive": 0.7525092821365224,
+            "coverage80": {
+              "n": 110,
+              "rate": 0.990909090909091
+            },
+            "coverage95": {
+              "n": 110,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "17": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 68,
+          "tuneMae": {
+            "naive": 18.40735294117647,
+            "seasonal_ratio": 9.126170082585016
+          },
+          "final": {
+            "n": 109,
+            "period": {
+              "firstTarget": "2024-09-23",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.512992592662208,
+            "bias": 0.24216017396846742,
+            "naiveMae": 10.271100917431193,
+            "skillVsNaive": 0.7553336674555128,
+            "coverage80": {
+              "n": 109,
+              "rate": 0.9908256880733946
+            },
+            "coverage95": {
+              "n": 109,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "18": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 67,
+          "tuneMae": {
+            "naive": 18.89104477611941,
+            "seasonal_ratio": 9.883800332775083
+          },
+          "final": {
+            "n": 108,
+            "period": {
+              "firstTarget": "2024-09-30",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.578778086832495,
+            "bias": 0.2804979832800157,
+            "naiveMae": 10.536574074074077,
+            "skillVsNaive": 0.755254595212523,
+            "coverage80": {
+              "n": 108,
+              "rate": 0.9907407407407407
+            },
+            "coverage95": {
+              "n": 108,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "19": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 66,
+          "tuneMae": {
+            "naive": 19.434848484848498,
+            "seasonal_ratio": 10.657659375394642
+          },
+          "final": {
+            "n": 107,
+            "period": {
+              "firstTarget": "2024-10-07",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.6818443789423956,
+            "bias": 0.3061091471775056,
+            "naiveMae": 10.723831775700937,
+            "skillVsNaive": 0.7499173397125485,
+            "coverage80": {
+              "n": 107,
+              "rate": 1
+            },
+            "coverage95": {
+              "n": 107,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "20": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 65,
+          "tuneMae": {
+            "naive": 20.01384615384616,
+            "seasonal_ratio": 11.38802559684252
+          },
+          "final": {
+            "n": 106,
+            "period": {
+              "firstTarget": "2024-10-14",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.721514616858415,
+            "bias": 0.3230552930311815,
+            "naiveMae": 10.927830188679245,
+            "skillVsNaive": 0.7509556270669556,
+            "coverage80": {
+              "n": 106,
+              "rate": 1
+            },
+            "coverage95": {
+              "n": 106,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "21": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 64,
+          "tuneMae": {
+            "naive": 20.29218749999999,
+            "seasonal_ratio": 11.799046828837488
+          },
+          "final": {
+            "n": 105,
+            "period": {
+              "firstTarget": "2024-10-21",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.7428749924001505,
+            "bias": 0.336026561916917,
+            "naiveMae": 11.140476190476193,
+            "skillVsNaive": 0.7537919434049876,
+            "coverage80": {
+              "n": 105,
+              "rate": 1
+            },
+            "coverage95": {
+              "n": 105,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "22": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 63,
+          "tuneMae": {
+            "naive": 20.566666666666666,
+            "seasonal_ratio": 12.204550322818005
+          },
+          "final": {
+            "n": 104,
+            "period": {
+              "firstTarget": "2024-10-28",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.8599841779592743,
+            "bias": 0.39033442089749404,
+            "naiveMae": 11.254326923076924,
+            "skillVsNaive": 0.7458769238260801,
+            "coverage80": {
+              "n": 104,
+              "rate": 1
+            },
+            "coverage95": {
+              "n": 104,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "23": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 62,
+          "tuneMae": {
+            "naive": 20.790322580645164,
+            "seasonal_ratio": 12.415365077144656
+          },
+          "final": {
+            "n": 103,
+            "period": {
+              "firstTarget": "2024-11-04",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.8348880847590885,
+            "bias": 0.4078009088573283,
+            "naiveMae": 11.224757281553396,
+            "skillVsNaive": 0.74744326192087,
+            "coverage80": {
+              "n": 103,
+              "rate": 1
+            },
+            "coverage95": {
+              "n": 103,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "24": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 61,
+          "tuneMae": {
+            "naive": 21.009836065573772,
+            "seasonal_ratio": 12.610523093844694
+          },
+          "final": {
+            "n": 102,
+            "period": {
+              "firstTarget": "2024-11-11",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.8327172421895317,
+            "bias": 0.43449045704521544,
+            "naiveMae": 11.216176470588243,
+            "skillVsNaive": 0.747443591885554,
+            "coverage80": {
+              "n": 102,
+              "rate": 1
+            },
+            "coverage95": {
+              "n": 102,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "25": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 60,
+          "tuneMae": {
+            "naive": 20.93166666666666,
+            "seasonal_ratio": 12.774234630001224
+          },
+          "final": {
+            "n": 101,
+            "period": {
+              "firstTarget": "2024-11-18",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.7469001176219683,
+            "bias": 0.4516687609792253,
+            "naiveMae": 11.217326732673268,
+            "skillVsNaive": 0.7551198977185059,
+            "coverage80": {
+              "n": 101,
+              "rate": 1
+            },
+            "coverage95": {
+              "n": 101,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "26": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 59,
+          "tuneMae": {
+            "naive": 20.833898305084748,
+            "seasonal_ratio": 12.894582881543917
+          },
+          "final": {
+            "n": 100,
+            "period": {
+              "firstTarget": "2024-11-25",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.735424029853462,
+            "bias": 0.4769316834001755,
+            "naiveMae": 11.235500000000004,
+            "skillVsNaive": 0.7565374011077868,
+            "coverage80": {
+              "n": 100,
+              "rate": 1
+            },
+            "coverage95": {
+              "n": 100,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        }
+      }
+    },
+    "reasons": [],
+    "status": "validated",
+    "id": "fc-5e5a90d8"
+  },
+  {
+    "schema": 1,
+    "mode": "observed",
+    "basis": "moscow",
+    "issueDate": "2026-10-24",
+    "issuedAt": null,
+    "unit": "RUB/kg",
+    "target": {
+      "id": "onion-moscow-wholesale",
+      "label": "Лук репчатый · опт Москва (с доставкой)",
+      "market": "moscow_wholesale",
+      "deliveryBasis": [
+        "DAP",
+        "DDP"
+      ],
+      "vat": "excl",
+      "kind": "transaction"
+    },
+    "modelVersion": "baselines-1.0.0",
+    "provenance": {
+      "seriesKey": "moscow_wholesale|transaction",
+      "nObservations": 313,
+      "nWeeks": 313,
+      "firstWeek": "2020-10-26",
+      "lastWeek": "2026-10-19",
+      "sources": [
+        "Фуд Сити / Мониторинг оптовых рынков Москвы"
+      ],
+      "excluded": {
+        "notAvailableYet": 0,
+        "vatUnknown": 0,
+        "basisMismatch": 0,
+        "outlier": 0,
+        "specMismatch": 0,
+        "otherMarketOrKind": 315,
+        "specUnknown": 0
+      },
+      "inputHash": "0245fdad"
+    },
+    "inputCutoff": "2026-10-19",
+    "horizons": [
+      {
+        "h": 1,
+        "targetWeekStart": "2026-10-26",
+        "targetDate": "2026-10-26",
+        "point": 28.34,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 209,
+          "lo80": 26.89761824332293,
+          "hi80": 29.775092207930605,
+          "lo95": 23.197805504049263,
+          "hi95": 33.47490494720427
+        },
+        "note": null
+      },
+      {
+        "h": 2,
+        "targetWeekStart": "2026-11-02",
+        "targetDate": "2026-11-02",
+        "point": 29.75,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 208,
+          "lo80": 27.372469309709942,
+          "hi80": 32.130465925466694,
+          "lo95": 24.05092436976618,
+          "hi95": 35.45201086541046
+        },
+        "note": null
+      },
+      {
+        "h": 3,
+        "targetWeekStart": "2026-11-09",
+        "targetDate": "2026-11-09",
+        "point": 29.81,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 207,
+          "lo80": 26.34348433408828,
+          "hi80": 33.28326187300673,
+          "lo95": 23.10885448315059,
+          "hi95": 36.517891723944416
+        },
+        "note": null
+      },
+      {
+        "h": 4,
+        "targetWeekStart": "2026-11-16",
+        "targetDate": "2026-11-16",
+        "point": 29.79,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 206,
+          "lo80": 25.96429702233112,
+          "hi80": 33.60794332264041,
+          "lo95": 18.526987396259454,
+          "hi95": 41.045252948712076
+        },
+        "note": null
+      },
+      {
+        "h": 5,
+        "targetWeekStart": "2026-11-23",
+        "targetDate": "2026-11-23",
+        "point": 29.76,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 205,
+          "lo80": 25.357332335639455,
+          "hi80": 34.171185234673466,
+          "lo95": 17.434032104767123,
+          "hi95": 42.0944854655458
+        },
+        "note": null
+      },
+      {
+        "h": 6,
+        "targetWeekStart": "2026-11-30",
+        "targetDate": "2026-11-30",
+        "point": 32.29,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 204,
+          "lo80": 26.900222271215405,
+          "hi80": 37.68657142549281,
+          "lo95": 19.6622066735752,
+          "hi95": 44.924587023133014
+        },
+        "note": null
+      },
+      {
+        "h": 7,
+        "targetWeekStart": "2026-12-07",
+        "targetDate": "2026-12-07",
+        "point": 32.26,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 203,
+          "lo80": 25.909377643807623,
+          "hi80": 38.603537303069,
+          "lo95": 18.942504721571915,
+          "hi95": 45.570410225304705
+        },
+        "note": null
+      },
+      {
+        "h": 8,
+        "targetWeekStart": "2026-12-14",
+        "targetDate": "2026-12-14",
+        "point": 32.29,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 202,
+          "lo80": 25.587128896973923,
+          "hi80": 38.98941609684603,
+          "lo95": 19.24352761772313,
+          "hi95": 45.33301737609682
+        },
+        "note": null
+      },
+      {
+        "h": 9,
+        "targetWeekStart": "2026-12-21",
+        "targetDate": "2026-12-21",
+        "point": 32.29,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 201,
+          "lo80": 25.14776600022695,
+          "hi80": 39.437710697572015,
+          "lo95": 19.27071339187932,
+          "hi95": 45.31476330591965
+        },
+        "note": null
+      },
+      {
+        "h": 10,
+        "targetWeekStart": "2026-12-28",
+        "targetDate": "2026-12-28",
+        "point": 32.26,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 200,
+          "lo80": 24.715644132226508,
+          "hi80": 39.796339123623675,
+          "lo95": 19.50758361759499,
+          "hi95": 45.004399638255194
+        },
+        "note": null
+      },
+      {
+        "h": 11,
+        "targetWeekStart": "2027-01-04",
+        "targetDate": "2027-01-04",
+        "point": 33.93,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 199,
+          "lo80": 25.34499389323487,
+          "hi80": 42.51782500080755,
+          "lo95": 21.03396481555098,
+          "hi95": 46.82885407849144
+        },
+        "note": null
+      },
+      {
+        "h": 12,
+        "targetWeekStart": "2027-01-11",
+        "targetDate": "2027-01-11",
+        "point": 36.26,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 198,
+          "lo80": 27.12703977884192,
+          "hi80": 45.40246505205427,
+          "lo95": 22.773843970653765,
+          "hi95": 49.75566086024242
+        },
+        "note": null
+      },
+      {
+        "h": 13,
+        "targetWeekStart": "2027-01-18",
+        "targetDate": "2027-01-18",
+        "point": 36.21,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 197,
+          "lo80": 26.93442857898259,
+          "hi80": 45.494860454467855,
+          "lo95": 22.713040281205572,
+          "hi95": 49.71624875224487
+        },
+        "note": null
+      },
+      {
+        "h": 14,
+        "targetWeekStart": "2027-01-25",
+        "targetDate": "2027-01-25",
+        "point": 36.23,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 196,
+          "lo80": 26.671695341716564,
+          "hi80": 45.78582351691116,
+          "lo95": 21.516995907002382,
+          "hi95": 50.94052295162534
+        },
+        "note": null
+      },
+      {
+        "h": 15,
+        "targetWeekStart": "2027-02-01",
+        "targetDate": "2027-02-01",
+        "point": 40.62,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 195,
+          "lo80": 31.071245941463353,
+          "hi80": 50.173005364681124,
+          "lo95": 25.433910380402892,
+          "hi95": 55.810340925741585
+        },
+        "note": null
+      },
+      {
+        "h": 16,
+        "targetWeekStart": "2027-02-08",
+        "targetDate": "2027-02-08",
+        "point": 40.59,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 194,
+          "lo80": 31.06396672301927,
+          "hi80": 50.11036199662342,
+          "lo95": 24.509369044387782,
+          "hi95": 56.664959675254906
+        },
+        "note": null
+      },
+      {
+        "h": 17,
+        "targetWeekStart": "2027-02-15",
+        "targetDate": "2027-02-15",
+        "point": 40.59,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 193,
+          "lo80": 30.464174502951927,
+          "hi80": 50.71176124394055,
+          "lo95": 24.539731034332252,
+          "hi95": 56.63620471256023
+        },
+        "note": null
+      },
+      {
+        "h": 18,
+        "targetWeekStart": "2027-02-22",
+        "targetDate": "2027-02-22",
+        "point": 40.57,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 192,
+          "lo80": 30.198601078135972,
+          "hi80": 50.933785874773484,
+          "lo95": 24.161028188939632,
+          "hi95": 56.971358763969825
+        },
+        "note": null
+      },
+      {
+        "h": 19,
+        "targetWeekStart": "2027-03-01",
+        "targetDate": "2027-03-01",
+        "point": 45.95,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 191,
+          "lo80": 33.679809500906224,
+          "hi80": 58.213585518480336,
+          "lo95": 28.739665100628777,
+          "hi95": 63.15372991875778
+        },
+        "note": null
+      },
+      {
+        "h": 20,
+        "targetWeekStart": "2027-03-08",
+        "targetDate": "2027-03-08",
+        "point": 45.94,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 190,
+          "lo80": 33.436783697628414,
+          "hi80": 58.443515329953144,
+          "lo95": 26.56436089958182,
+          "hi95": 65.31593812799974
+        },
+        "note": null
+      },
+      {
+        "h": 21,
+        "targetWeekStart": "2027-03-15",
+        "targetDate": "2027-03-15",
+        "point": 45.95,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 189,
+          "lo80": 33.21578504444686,
+          "hi80": 58.68024929229759,
+          "lo95": 25.57778345074224,
+          "hi95": 66.3182508860022
+        },
+        "note": null
+      },
+      {
+        "h": 22,
+        "targetWeekStart": "2027-03-22",
+        "targetDate": "2027-03-22",
+        "point": 45.98,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 188,
+          "lo80": 32.71219283376569,
+          "hi80": 59.241291636932054,
+          "lo95": 25.121742862428924,
+          "hi95": 66.83174160826883
+        },
+        "note": null
+      },
+      {
+        "h": 23,
+        "targetWeekStart": "2027-03-29",
+        "targetDate": "2027-03-29",
+        "point": 49.08,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 187,
+          "lo80": 35.94240208068321,
+          "hi80": 62.225867323133414,
+          "lo95": 28.454466388734136,
+          "hi95": 69.71380301508249
+        },
+        "note": null
+      },
+      {
+        "h": 24,
+        "targetWeekStart": "2027-04-05",
+        "targetDate": "2027-04-05",
+        "point": 52.27,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 186,
+          "lo80": 39.2502648775939,
+          "hi80": 65.29574513770422,
+          "lo95": 32.373802152067505,
+          "hi95": 72.17220786323062
+        },
+        "note": null
+      },
+      {
+        "h": 25,
+        "targetWeekStart": "2027-04-12",
+        "targetDate": "2027-04-12",
+        "point": 52.26,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 185,
+          "lo80": 38.9733353380302,
+          "hi80": 65.54102335106296,
+          "lo95": 32.06203514109035,
+          "hi95": 72.45232354800282
+        },
+        "note": null
+      },
+      {
+        "h": 26,
+        "targetWeekStart": "2027-04-19",
+        "targetDate": "2027-04-19",
+        "point": 52.28,
+        "modelId": "seasonal_ratio",
+        "validated": true,
+        "interval": {
+          "nCalibration": 184,
+          "lo80": 39.41170788115933,
+          "hi80": 65.15139122823199,
+          "lo95": 31.596098538379806,
+          "hi95": 72.96700057101151
+        },
+        "note": null
+      }
+    ],
+    "validation": {
+      "method": "rolling-origin, purged tuning/final split, out-of-sample conformal intervals",
+      "params": {
+        "finalFraction": 0.4,
+        "minFinal": 20,
+        "minTune": 10,
+        "selectionMargin": 0.05
+      },
+      "split": {
+        "finalStartOrigin": "2024-05-27",
+        "firstOrigin": "2020-10-26",
+        "lastOrigin": "2026-10-19"
+      },
+      "byHorizon": {
+        "1": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 84,
+          "tuneMae": {
+            "naive": 1.6331168831168845,
+            "seasonal_ratio": 1.289938267785724
+          },
+          "final": {
+            "n": 125,
+            "period": {
+              "firstTarget": "2024-06-03",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 0.9828331260043293,
+            "bias": -0.04542123733809552,
+            "naiveMae": 1.0370909090909093,
+            "skillVsNaive": 0.05231728733804175,
+            "coverage80": {
+              "n": 125,
+              "rate": 0.792
+            },
+            "coverage95": {
+              "n": 125,
+              "rate": 0.944
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "2": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 83,
+          "tuneMae": {
+            "naive": 3.182913472070099,
+            "seasonal_ratio": 2.2327105204456967
+          },
+          "final": {
+            "n": 124,
+            "period": {
+              "firstTarget": "2024-06-10",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 1.2203153945422514,
+            "bias": -0.0611359754099689,
+            "naiveMae": 1.8944281524926698,
+            "skillVsNaive": 0.3558397065961185,
+            "coverage80": {
+              "n": 124,
+              "rate": 0.8951612903225806
+            },
+            "coverage95": {
+              "n": 124,
+              "rate": 0.9919354838709677
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "3": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 82,
+          "tuneMae": {
+            "naive": 4.617516629711753,
+            "seasonal_ratio": 3.0786870512621896
+          },
+          "final": {
+            "n": 123,
+            "period": {
+              "firstTarget": "2024-06-17",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 1.4343465268594568,
+            "bias": -0.06948907352418802,
+            "naiveMae": 2.6733185513673328,
+            "skillVsNaive": 0.46345843217007343,
+            "coverage80": {
+              "n": 123,
+              "rate": 0.9024390243902439
+            },
+            "coverage95": {
+              "n": 123,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "4": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 81,
+          "tuneMae": {
+            "naive": 5.980920314253648,
+            "seasonal_ratio": 3.843594937679682
+          },
+          "final": {
+            "n": 122,
+            "period": {
+              "firstTarget": "2024-06-24",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 1.6193244048752375,
+            "bias": -0.08324391740801645,
+            "naiveMae": 3.3777943368107293,
+            "skillVsNaive": 0.520597098755224,
+            "coverage80": {
+              "n": 122,
+              "rate": 0.9262295081967213
+            },
+            "coverage95": {
+              "n": 122,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "5": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 80,
+          "tuneMae": {
+            "naive": 7.363636363636362,
+            "seasonal_ratio": 4.545993283120064
+          },
+          "final": {
+            "n": 121,
+            "period": {
+              "firstTarget": "2024-07-01",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 1.8731761468258608,
+            "bias": -0.09005258158876385,
+            "naiveMae": 4.112697220135237,
+            "skillVsNaive": 0.544538280704198,
+            "coverage80": {
+              "n": 121,
+              "rate": 0.9256198347107438
+            },
+            "coverage95": {
+              "n": 121,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "6": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 79,
+          "tuneMae": {
+            "naive": 8.72151898734177,
+            "seasonal_ratio": 5.1698747021431
+          },
+          "final": {
+            "n": 120,
+            "period": {
+              "firstTarget": "2024-07-08",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.0650496191475267,
+            "bias": -0.08361683109070149,
+            "naiveMae": 4.857575757575757,
+            "skillVsNaive": 0.5748806148978891,
+            "coverage80": {
+              "n": 120,
+              "rate": 0.925
+            },
+            "coverage95": {
+              "n": 120,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "7": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 78,
+          "tuneMae": {
+            "naive": 10.095571095571097,
+            "seasonal_ratio": 5.609221454474783
+          },
+          "final": {
+            "n": 119,
+            "period": {
+              "firstTarget": "2024-07-15",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.202124094530845,
+            "bias": -0.08156716934077624,
+            "naiveMae": 5.592055003819711,
+            "skillVsNaive": 0.6062048579588968,
+            "coverage80": {
+              "n": 119,
+              "rate": 0.9327731092436975
+            },
+            "coverage95": {
+              "n": 119,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "8": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 77,
+          "tuneMae": {
+            "naive": 11.438016528925619,
+            "seasonal_ratio": 5.9603795588590405
+          },
+          "final": {
+            "n": 118,
+            "period": {
+              "firstTarget": "2024-07-22",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.32297577065616,
+            "bias": -0.07712102646419125,
+            "naiveMae": 6.333590138674887,
+            "skillVsNaive": 0.6332292239007792,
+            "coverage80": {
+              "n": 118,
+              "rate": 0.9661016949152542
+            },
+            "coverage95": {
+              "n": 118,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "9": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 76,
+          "tuneMae": {
+            "naive": 12.735645933014354,
+            "seasonal_ratio": 6.1332913121030845
+          },
+          "final": {
+            "n": 117,
+            "period": {
+              "firstTarget": "2024-07-29",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.364460116981977,
+            "bias": -0.0456563845306083,
+            "naiveMae": 6.890442890442891,
+            "skillVsNaive": 0.6568493267302882,
+            "coverage80": {
+              "n": 117,
+              "rate": 0.9743589743589743
+            },
+            "coverage95": {
+              "n": 117,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "10": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 75,
+          "tuneMae": {
+            "naive": 13.744242424242426,
+            "seasonal_ratio": 6.459281652011504
+          },
+          "final": {
+            "n": 116,
+            "period": {
+              "firstTarget": "2024-08-05",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.466907135866821,
+            "bias": -0.00024945441242160406,
+            "naiveMae": 7.457680250783699,
+            "skillVsNaive": 0.6692125362162606,
+            "coverage80": {
+              "n": 116,
+              "rate": 0.9827586206896551
+            },
+            "coverage95": {
+              "n": 116,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "11": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 74,
+          "tuneMae": {
+            "naive": 14.749385749385747,
+            "seasonal_ratio": 6.775739656036531
+          },
+          "final": {
+            "n": 115,
+            "period": {
+              "firstTarget": "2024-08-12",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.533930194394575,
+            "bias": 0.022719640794434625,
+            "naiveMae": 7.998418972332013,
+            "skillVsNaive": 0.6831961162374839,
+            "coverage80": {
+              "n": 115,
+              "rate": 0.9826086956521739
+            },
+            "coverage95": {
+              "n": 115,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "12": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 73,
+          "tuneMae": {
+            "naive": 15.69613947696139,
+            "seasonal_ratio": 7.203965350050252
+          },
+          "final": {
+            "n": 114,
+            "period": {
+              "firstTarget": "2024-08-19",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.610390476017163,
+            "bias": 0.046858960761492575,
+            "naiveMae": 8.553429027113237,
+            "skillVsNaive": 0.6948135691846427,
+            "coverage80": {
+              "n": 114,
+              "rate": 0.9736842105263158
+            },
+            "coverage95": {
+              "n": 114,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "13": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 72,
+          "tuneMae": {
+            "naive": 16.66919191919191,
+            "seasonal_ratio": 7.6386362826706256
+          },
+          "final": {
+            "n": 113,
+            "period": {
+              "firstTarget": "2024-08-26",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.683796309794533,
+            "bias": 0.07001951645934643,
+            "naiveMae": 9.085277554304103,
+            "skillVsNaive": 0.7045994144094037,
+            "coverage80": {
+              "n": 113,
+              "rate": 0.9823008849557522
+            },
+            "coverage95": {
+              "n": 113,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "14": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 71,
+          "tuneMae": {
+            "naive": 17.245838668373878,
+            "seasonal_ratio": 8.046565699247546
+          },
+          "final": {
+            "n": 112,
+            "period": {
+              "firstTarget": "2024-09-02",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.787978584174596,
+            "bias": 0.10222989758322831,
+            "naiveMae": 9.502435064935066,
+            "skillVsNaive": 0.7066037741775772,
+            "coverage80": {
+              "n": 112,
+              "rate": 0.9910714285714286
+            },
+            "coverage95": {
+              "n": 112,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "15": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 70,
+          "tuneMae": {
+            "naive": 17.845454545454547,
+            "seasonal_ratio": 8.712905298529014
+          },
+          "final": {
+            "n": 111,
+            "period": {
+              "firstTarget": "2024-09-09",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 2.871348172919698,
+            "bias": 0.13405822276140464,
+            "naiveMae": 9.914823914823915,
+            "skillVsNaive": 0.7103984702515322,
+            "coverage80": {
+              "n": 111,
+              "rate": 0.990990990990991
+            },
+            "coverage95": {
+              "n": 111,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "16": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 69,
+          "tuneMae": {
+            "naive": 18.48616600790514,
+            "seasonal_ratio": 9.464732721074155
+          },
+          "final": {
+            "n": 110,
+            "period": {
+              "firstTarget": "2024-09-16",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 3.0017045011461176,
+            "bias": 0.16156054371981532,
+            "naiveMae": 10.333057851239671,
+            "skillVsNaive": 0.7095047231554985,
+            "coverage80": {
+              "n": 110,
+              "rate": 0.990909090909091
+            },
+            "coverage95": {
+              "n": 110,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "17": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 68,
+          "tuneMae": {
+            "naive": 19.09358288770053,
+            "seasonal_ratio": 10.250603641855847
+          },
+          "final": {
+            "n": 109,
+            "period": {
+              "firstTarget": "2024-09-23",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 3.0917345387691517,
+            "bias": 0.1651728939114071,
+            "naiveMae": 10.695579649708092,
+            "skillVsNaive": 0.7109334285726596,
+            "coverage80": {
+              "n": 109,
+              "rate": 0.9908256880733946
+            },
+            "coverage95": {
+              "n": 109,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "18": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 67,
+          "tuneMae": {
+            "naive": 19.598371777476245,
+            "seasonal_ratio": 10.89690398917217
+          },
+          "final": {
+            "n": 108,
+            "period": {
+              "firstTarget": "2024-09-30",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 3.162904872948076,
+            "bias": 0.20103656919021448,
+            "naiveMae": 10.977272727272725,
+            "skillVsNaive": 0.7118678790689122,
+            "coverage80": {
+              "n": 108,
+              "rate": 1
+            },
+            "coverage95": {
+              "n": 108,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "19": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 66,
+          "tuneMae": {
+            "naive": 20.15289256198346,
+            "seasonal_ratio": 11.641666198356502
+          },
+          "final": {
+            "n": 107,
+            "period": {
+              "firstTarget": "2024-10-07",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 3.2638542553948056,
+            "bias": 0.2257392848175797,
+            "naiveMae": 11.178419711129992,
+            "skillVsNaive": 0.7080218546325389,
+            "coverage80": {
+              "n": 107,
+              "rate": 1
+            },
+            "coverage95": {
+              "n": 107,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "20": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 65,
+          "tuneMae": {
+            "naive": 20.75524475524475,
+            "seasonal_ratio": 12.428566335096725
+          },
+          "final": {
+            "n": 106,
+            "period": {
+              "firstTarget": "2024-10-14",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 3.32662517264194,
+            "bias": 0.24193667048875878,
+            "naiveMae": 11.397084048027441,
+            "skillVsNaive": 0.7081161147339528,
+            "coverage80": {
+              "n": 106,
+              "rate": 1
+            },
+            "coverage95": {
+              "n": 106,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "21": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 64,
+          "tuneMae": {
+            "naive": 21.044034090909093,
+            "seasonal_ratio": 12.865384299739318
+          },
+          "final": {
+            "n": 105,
+            "period": {
+              "firstTarget": "2024-10-21",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 3.337745694683064,
+            "bias": 0.2622697482010116,
+            "naiveMae": 11.622510822510826,
+            "skillVsNaive": 0.7128205991240362,
+            "coverage80": {
+              "n": 105,
+              "rate": 1
+            },
+            "coverage95": {
+              "n": 105,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "22": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 63,
+          "tuneMae": {
+            "naive": 21.33044733044732,
+            "seasonal_ratio": 13.322753274441316
+          },
+          "final": {
+            "n": 104,
+            "period": {
+              "firstTarget": "2024-10-28",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 3.4853710383848835,
+            "bias": 0.32475987858480254,
+            "naiveMae": 11.748251748251743,
+            "skillVsNaive": 0.7033285366136675,
+            "coverage80": {
+              "n": 104,
+              "rate": 1
+            },
+            "coverage95": {
+              "n": 104,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "23": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 62,
+          "tuneMae": {
+            "naive": 21.56304985337244,
+            "seasonal_ratio": 13.5342791864877
+          },
+          "final": {
+            "n": 103,
+            "period": {
+              "firstTarget": "2024-11-04",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 3.4704400323919318,
+            "bias": 0.35714786304544877,
+            "naiveMae": 11.726390114739631,
+            "skillVsNaive": 0.7040487312434098,
+            "coverage80": {
+              "n": 103,
+              "rate": 1
+            },
+            "coverage95": {
+              "n": 103,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "24": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 61,
+          "tuneMae": {
+            "naive": 21.792846497764533,
+            "seasonal_ratio": 13.726637313547041
+          },
+          "final": {
+            "n": 102,
+            "period": {
+              "firstTarget": "2024-11-11",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 3.4901843381872335,
+            "bias": 0.3968168328219162,
+            "naiveMae": 11.723707664884136,
+            "skillVsNaive": 0.7022968809908716,
+            "coverage80": {
+              "n": 102,
+              "rate": 1
+            },
+            "coverage95": {
+              "n": 102,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "25": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 60,
+          "tuneMae": {
+            "naive": 21.715151515151504,
+            "seasonal_ratio": 13.867277224633906
+          },
+          "final": {
+            "n": 101,
+            "period": {
+              "firstTarget": "2024-11-18",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 3.4230338526073334,
+            "bias": 0.43860335889576774,
+            "naiveMae": 11.73267326732673,
+            "skillVsNaive": 0.7082477475836787,
+            "coverage80": {
+              "n": 101,
+              "rate": 1
+            },
+            "coverage95": {
+              "n": 101,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        },
+        "26": {
+          "status": "ok",
+          "reason": null,
+          "selected": "seasonal_ratio",
+          "nTune": 59,
+          "tuneMae": {
+            "naive": 21.614791987673335,
+            "seasonal_ratio": 13.972091089057143
+          },
+          "final": {
+            "n": 100,
+            "period": {
+              "firstTarget": "2024-11-25",
+              "lastTarget": "2026-10-19"
+            },
+            "mae": 3.431152531042753,
+            "bias": 0.48971893413576745,
+            "naiveMae": 11.759090909090906,
+            "skillVsNaive": 0.7082127727756452,
+            "coverage80": {
+              "n": 100,
+              "rate": 1
+            },
+            "coverage95": {
+              "n": 100,
+              "rate": 1
+            }
+          },
+          "confirmedInHoldout": true
+        }
+      }
+    },
+    "reasons": [],
+    "status": "validated",
+    "id": "fc-eecc9f4e"
   }
 ]
