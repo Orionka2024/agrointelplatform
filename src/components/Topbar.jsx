@@ -1,12 +1,20 @@
 import { useMarket } from '../context/useMarket';
 
 export default function Topbar() {
-  const { model, demo, setDemo, refresh, loading } = useMarket();
+  const { model, demo, setDemo, refresh, loading, today } = useMarket();
 
   const whPrice = model.prices.warehouse;
   const mskPrice = model.prices.moscow;
   const usd = model.macro.usdRub;
   const keyRate = model.macro.keyRate;
+
+  const dateStr = model.today || today;
+  const formattedDate = (() => {
+    if (!dateStr) return '';
+    const parts = String(dateStr).split('-');
+    if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    return dateStr;
+  })();
 
   const fmtPrice = (p) => {
     if (p.exVat !== null && p.exVat !== undefined) {
@@ -56,6 +64,13 @@ export default function Topbar() {
       </div>
 
       <div className="topbar-right" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {formattedDate && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 2 }}>
+            <div className="live-dot" />
+            <span className="live-label">LIVE · {formattedDate}</span>
+          </div>
+        )}
+
         {/* Mode Toggle Button */}
         <button
           type="button"
