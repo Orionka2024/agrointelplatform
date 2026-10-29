@@ -1,36 +1,38 @@
 import { useState } from 'react';
 import './index.css';
+import { MarketProvider } from './context/MarketContext';
 import Topbar from './components/Topbar';
 import Dashboard from './components/Dashboard';
 import Forecast from './components/Forecast';
 import Deficit from './components/Deficit';
 import Profit from './components/Profit';
 import Cycle from './components/Cycle';
+import DataImport from './components/DataImport';
 import AIAdvisor from './components/AIAdvisor';
 
 const TABS = [
-  { id: 'dashboard',     label: 'Обзор' },
-  { id: 'forecast',      label: 'Прогноз (Москва опт)' },
-  { id: 'cash_forecast', label: 'Прогноз (Из хранилища / Нал)' },
-  { id: 'deficit',       label: 'Индексы' },
-  { id: 'profit',        label: 'Прибыльность' },
-  { id: 'cycle',         label: 'Цикл рынка' },
-  { id: 'ai',            label: 'AI-советник' },
+  { id: 'dashboard',   label: 'Обзор' },
+  { id: 'forecast',    label: 'Прогноз цен' },
+  { id: 'deficit',     label: 'Баланс и дефицит' },
+  { id: 'profit',      label: 'Экономика хранения' },
+  { id: 'cycle',       label: 'Цикл рынка' },
+  { id: 'data_import', label: 'Импорт данных (CSV)' },
+  { id: 'ai',          label: 'AI-советник' },
 ];
 
-export default function App() {
+function AppContent() {
   const [tab, setTab] = useState('dashboard');
 
   function renderTab() {
     switch (tab) {
-      case 'dashboard':     return <Dashboard />;
-      case 'forecast':      return <Forecast key="wholesale_fc" basis="wholesale" onSwitchBasis={b => setTab(b === 'wholesale' ? 'forecast' : 'cash_forecast')} />;
-      case 'cash_forecast': return <Forecast key="storage_fc" basis="storage" onSwitchBasis={b => setTab(b === 'wholesale' ? 'forecast' : 'cash_forecast')} />;
-      case 'deficit':       return <Deficit />;
-      case 'profit':        return <Profit />;
-      case 'cycle':         return <Cycle />;
-      case 'ai':            return <AIAdvisor />;
-      default:              return <Dashboard />;
+      case 'dashboard':   return <Dashboard />;
+      case 'forecast':    return <Forecast onNavigateToImport={() => setTab('data_import')} />;
+      case 'deficit':     return <Deficit />;
+      case 'profit':      return <Profit />;
+      case 'cycle':       return <Cycle />;
+      case 'data_import': return <DataImport />;
+      case 'ai':          return <AIAdvisor />;
+      default:            return <Dashboard />;
     }
   }
 
@@ -56,5 +58,13 @@ export default function App() {
         {renderTab()}
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <MarketProvider>
+      <AppContent />
+    </MarketProvider>
   );
 }

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "407527e2",
+    "naturalKey": "1378887e",
+    "kind": "transaction",
+    "market": "warehouse_volgograd",
+    "geography": "Волгоградская обл.",
+    "observationDate": "2026-10-15",
+    "retrievedDate": "2026-10-24",
+    "retrievedDateAssumed": true,
+    "publishedDate": null,
+    "priceRubKg": 14.5,
+    "priceExVatRubKg": 14.5,
+    "originalPrice": 14.5,
+    "originalUnit": "RUB/kg",
+    "vat": "excl",
+    "vatRate": 0.1,
+    "deliveryBasis": "EXW",
+    "spec": {
+      "grade": null,
+      "sizeMm": null,
+      "packaging": null,
+      "lotSizeT": null,
+      "paymentTerms": null
+    },
+    "volumeT": null,
+    "source": "Агросервер",
+    "sourceRef": null,
+    "notes": null,
+    "quality": {
+      "outlier": false,
+      "warnings": [
+        "retrieved_date отсутствует — принята дата импорта",
+        "спецификация (grade/packaging) не указана"
+      ]
+    }
+  },
+  {
+    "id": "8d86fc42",
+    "naturalKey": "74a83370",
+    "kind": "transaction",
+    "market": "warehouse_volgograd",
+    "geography": "Волгоградская обл.",
+    "observationDate": "2026-10-22",
+    "retrievedDate": "2026-10-24",
+    "retrievedDateAssumed": true,
+    "publishedDate": null,
+    "priceRubKg": 15.2,
+    "priceExVatRubKg": 15.2,
+    "originalPrice": 15.2,
+    "originalUnit": "RUB/kg",
+    "vat": "excl",
+    "vatRate": 0.1,
+    "deliveryBasis": "EXW",
+    "spec": {
+      "grade": null,
+      "sizeMm": null,
+      "packaging": null,
+      "lotSizeT": null,
+      "paymentTerms": null
+    },
+    "volumeT": null,
+    "source": "Агросервер",
+    "sourceRef": null,
+    "notes": null,
+    "quality": {
+      "outlier": false,
+      "warnings": [
+        "retrieved_date отсутствует — принята дата импорта",
+        "спецификация (grade/packaging) не указана"
+      ]
+    }
+  }
+]

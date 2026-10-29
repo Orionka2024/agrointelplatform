@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "bridge": {
+    "truckCostRub": null,
+    "truckPayloadKg": null,
+    "packagingRubKg": null,
+    "handlingRubKg": null,
+    "lossPct": null,
+    "marginRubKg": null,
+    "vatRate": 0.1,
+    "freightRubKg": 7.5
+  },
+  "manualPrices": {
+    "warehouse": null,
+    "moscow": null
+  },
+  "storage": {
+    "months": null,
+    "shrinkPct": null,
+    "rotPct": 5.5,
+    "downgradeSharePct": null,
+    "downgradeDiscountPct": null,
+    "energyRubKgMonth": null,
+    "handlingRubKg": null,
+    "sortingRubKgSold": null,
+    "financingRatePctYear": null,
+    "sellNowCostRubKg": null,
+    "acquisitionCostRubKg": null
+  },
+  "scenarios": {
+    "base": {
+      "id": "base",
+      "label": "Базовый",
+      "importScope": "total",
+      "importDeltaPct": 0,
+      "domesticSupplyDeltaPct": 0,
+      "fxDeltaPct": 0
+    },
+    "surplus": {
+      "id": "surplus",
+      "label": "Избыток предложения",
+      "importScope": "total",
+      "importDeltaPct": 20,
+      "domesticSupplyDeltaPct": 10,
+      "fxDeltaPct": 0
+    },
+    "tight": {
+      "id": "tight",
+      "label": "Дефицит предложения",
+      "importScope": "total",
+      "importDeltaPct": -20,
+      "domesticSupplyDeltaPct": -10,
+      "fxDeltaPct": 0
+    }
+  },
+  "sensitivities": {
+    "importVolume": {
+      "pctPerPct": null,
+      "scope": "total",
+      "source": null,
+      "note": ""
+    },
+    "domesticSupply": {
+      "pctPerPct": null,
+      "source": null,
+      "note": ""
+    },
+    "fx": {
+      "pctPerPct": null,
+      "source": null,
+      "note": ""
+    }
+  },
+  "balance": {}
+}

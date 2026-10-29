@@ -1,250 +1,399 @@
 import { useState } from 'react';
+import { useMarket } from '../context/useMarket';
+import { evaluateStorage, lossSensitivity, priceSensitivity } from '../../shared/storageEconomics.js';
 import { CROPS, CROP_DEFAULTS } from '../data/marketData';
-import { useStoragePrices } from '../hooks/useStoragePrices';
 
 function fmt(n) {
+  if (n === null || n === undefined) return '—';
   const a = Math.abs(n), s = n < 0 ? '−' : '';
   if (a >= 1e6) return s + (a / 1e6).toFixed(1) + 'M ₽';
   if (a >= 1e3) return s + Math.round(a / 1e3) + 'K ₽';
-  return s + a + ' ₽';
-}
-
-const NORMS = [
-  { id: 'garlic',     yRange: '8–12',  pRange: '135–220', cost: '540', pill: 'up',   profitRange: '1.5–1.9M' },
-  { id: 'onion',      yRange: '50–60', pRange: '28–45',   cost: '780', pill: 'up',   profitRange: '650K–1.1M' },
-  { id: 'carrot',     yRange: '40–55', pRange: '22–36',   cost: '630', pill: 'up',   profitRange: '450–950K' },
-  { id: 'melon',      yRange: '15–25', pRange: '35–65',   cost: '420', pill: 'info', profitRange: '350K–650K' },
-  { id: 'watermalon', yRange: '30–50', pRange: '14–28',   cost: '320', pill: 'up',   profitRange: '250K–450K' },
-  { id: 'beet',       yRange: '35–50', pRange: '17–28',   cost: '430', pill: 'info', profitRange: '320–640K' },
-  { id: 'potato',     yRange: '25–35', pRange: '19–29',   cost: '580', pill: 'info', profitRange: '280–580K' },
-  { id: 'cabbage',    yRange: '30–45', pRange: '12–20',   cost: '380', pill: 'warn', profitRange: '80–280K' },
-];
-
-function getCropParams(id, storagePrices) {
-  try {
-    const saved = localStorage.getItem(`farm_params_${id}`);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return {
-        area: parsed.area ?? 10,
-        yld: parsed.yld ?? 55,
-        price: parsed.price ?? (storagePrices?.[id] ?? 31),
-        cost: parsed.cost ?? 780,
-        isSaved: true,
-      };
-    }
-  } catch (e) {
-    console.error("Failed to parse saved farm params", e);
-  }
-  const d = CROP_DEFAULTS[id] || { yield: 55, price: 31, cost: 780 };
-  const defaultPrice = storagePrices?.[id] ?? d.price;
-  return {
-    area: 10,
-    yld: d.yield,
-    price: defaultPrice,
-    cost: d.cost,
-    isSaved: false,
-  };
+  return s + Math.round(a) + ' ₽';
 }
 
 export default function Profit() {
-  const { storagePrices, isCustom } = useStoragePrices();
-  const [cropId, setCropId] = useState('onion');
-  const [area,   setArea]   = useState(() => getCropParams('onion', storagePrices).area);
-  const [yld,    setYld]    = useState(() => getCropParams('onion', storagePrices).yld);
-  const [price,  setPrice]  = useState(() => getCropParams('onion', storagePrices).price);
-  const [cost,   setCost]   = useState(() => getCropParams('onion', storagePrices).cost);
-  const [isSaved, setIsSaved] = useState(() => getCropParams('onion', storagePrices).isSaved);
+  const { model, demo, updateAssumptions } = useMarket();
 
-  function handleCropChange(id) {
-    setCropId(id);
-    const p = getCropParams(id, storagePrices);
-    setArea(p.area);
-    setYld(p.yld);
-    setPrice(p.price);
-    setCost(p.cost);
-    setIsSaved(p.isSaved);
-  }
+  const [activeTab, setActiveTab] = useState('storage'); // 'storage' | 'field'
 
-  function handleSave() {
-    const data = { area, yld, price, cost };
-    localStorage.setItem(`farm_params_${cropId}`, JSON.stringify(data));
-    setIsSaved(true);
-  }
+  // Storage Economics state
+  const whPrice = model.prices.warehouse.exVat ?? 15.0;
+  const storageParams = model.storage.params;
 
-  function handleReset() {
-    localStorage.removeItem(`farm_params_${cropId}`);
-    const d = CROP_DEFAULTS[cropId] || { yield: 55, price: 31, cost: 780 };
-    setArea(10);
-    setYld(d.yield);
-    setPrice(storagePrices[cropId] ?? d.price);
-    setCost(d.cost);
-    setIsSaved(false);
-  }
+  const [pNow, setPNow] = useState(whPrice);
+  const [pFuture, setPFuture] = useState(24.0);
+  const [months, setMonths] = useState(storageParams.months ?? 4);
+  const [shrinkPct, setShrinkPct] = useState(storageParams.shrinkPct ?? 6);
+  const [rotPct, setRotPct] = useState(storageParams.rotPct ?? 4);
+  const [downgradeSharePct, setDowngradeSharePct] = useState(storageParams.downgradeSharePct ?? 10);
+  const [downgradeDiscountPct, setDowngradeDiscountPct] = useState(storageParams.downgradeDiscountPct ?? 15);
+  const [energyRubKgMonth, setEnergyRubKgMonth] = useState(storageParams.energyRubKgMonth ?? 0.35);
+  const [handlingRubKg, setHandlingRubKg] = useState(storageParams.handlingRubKg ?? 0.5);
+  const [sortingRubKgSold, setSortingRubKgSold] = useState(storageParams.sortingRubKgSold ?? 0.6);
+  const [financingRatePctYear, setFinancingRatePctYear] = useState(storageParams.financingRatePctYear ?? 20);
+  const [sellNowCostRubKg, setSellNowCostRubKg] = useState(storageParams.sellNowCostRubKg ?? 0.2);
+  const [acquisitionCostRubKg, setAcquisitionCostRubKg] = useState(storageParams.acquisitionCostRubKg ?? 12.0);
 
+  const currentParams = {
+    months,
+    shrinkPct,
+    rotPct,
+    downgradeSharePct,
+    downgradeDiscountPct,
+    energyRubKgMonth,
+    handlingRubKg,
+    sortingRubKgSold,
+    financingRatePctYear,
+    sellNowCostRubKg,
+    acquisitionCostRubKg,
+  };
+
+  const storageResult = evaluateStorage(pNow, pFuture, currentParams);
+  const lossSens = lossSensitivity(pNow, pFuture, currentParams);
+  const priceSens = priceSensitivity(pNow, pFuture, currentParams);
+
+  // Field economics state
+  const [fieldCrop, setFieldCrop] = useState('onion');
+  const [area, setArea] = useState(10);
+  const [yld, setYld] = useState(55);
+  const [price, setPrice] = useState(whPrice);
+  const [costPerHa, setCostPerHa] = useState(780);
 
   const revenue = area * yld * price * 1000;
-  const costs   = area * cost * 1000;
-  const profit  = revenue - costs;
-  const roi     = costs > 0 ? Math.round((profit / costs) * 100) : 0;
-  const perHa   = area > 0 ? Math.round(profit / area) : 0;
+  const costs = area * costPerHa * 1000;
+  const fieldProfit = revenue - costs;
+  const roi = costs > 0 ? Math.round((fieldProfit / costs) * 100) : 0;
+  const perHa = area > 0 ? Math.round(fieldProfit / area) : 0;
+
+  async function handleSaveStorageParams() {
+    await updateAssumptions({
+      storage: currentParams,
+    });
+  }
 
   return (
-    <div className="row-2">
-      {/* Calculator */}
-      <div className="panel">
-        <div className="panel-hd">
-          <span className="panel-title">Калькулятор прибыли</span>
-          <code className="inline">Profit = (Yield × Price) − Cost</code>
-        </div>
-        <div className="panel-body">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 10 }}>
-            <select 
-              value={cropId} 
-              onChange={e => handleCropChange(e.target.value)} 
-              style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--txt)', fontSize: 13 }}
-            >
-              {Object.values(CROPS).filter(c => CROP_DEFAULTS[c.id]).map(c => (
-                <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>
-              ))}
-            </select>
-            <span className={`badge ${isSaved ? 'up' : 'warn'}`} style={{ fontSize: 11, padding: '5px 8px', whiteSpace: 'nowrap', textTransform: 'uppercase', fontWeight: 600 }}>
-              {isSaved ? '💼 Моё хозяйство' : '📋 Демо-нормы'}
-            </span>
-          </div>
+    <div>
+      {/* Subnavigation */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+        <button
+          type="button"
+          className={`basis-btn ${activeTab === 'storage' ? 'active' : ''}`}
+          onClick={() => setActiveTab('storage')}
+          style={{ fontSize: 12, padding: '5px 12px' }}
+        >
+          🏬 Экономика хранения: Продать сейчас vs Хранить до весны
+        </button>
+        <button
+          type="button"
+          className={`basis-btn ${activeTab === 'field' ? 'active' : ''}`}
+          onClick={() => setActiveTab('field')}
+          style={{ fontSize: 12, padding: '5px 12px' }}
+        >
+          🚜 Калькулятор поля: Себестоимость и рентабельность гектара
+        </button>
+      </div>
 
-          <div className="inp-row">
-            <span className="inp-label">Площадь (га)</span>
-            <input type="range" min="1" max="500" step="1" value={area} onChange={e => setArea(+e.target.value)} />
-            <span className="inp-val">{area}</span>
-          </div>
-          <div className="inp-row">
-            <span className="inp-label">Урожайность (т/га)</span>
-            <input type="range" min="5" max="80" step="1" value={yld} onChange={e => setYld(+e.target.value)} />
-            <span className="inp-val">{yld}</span>
-          </div>
-          <div className="inp-row">
-            <span className="inp-label">Цена продажи (₽/кг)</span>
-            <input type="range" min="5" max="200" step="0.5" value={price} onChange={e => setPrice(+e.target.value)} />
-            <span className="inp-val">{price}</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6, marginBottom: 12, paddingLeft: 4, flexWrap: 'wrap', gap: 6 }}>
-            <div style={{ fontSize: 11, color: 'var(--txt2)' }}>
-              Цена со склада: <strong style={{ color: isCustom(cropId) ? 'var(--blue)' : 'var(--txt)', fontFamily: 'var(--mono)' }}>{storagePrices[cropId]} ₽</strong>
-              {isCustom(cropId) && <span className="badge info" style={{ fontSize: 9, marginLeft: 6 }}>своя цена</span>}
+      {activeTab === 'storage' && (
+        <div className="row-2">
+          {/* Storage Inputs */}
+          <div className="panel">
+            <div className="panel-hd" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span className="panel-title">Параметры хранения и издержек</span>
+              {demo && <span className="badge amber" style={{ fontSize: 10 }}>ДЕМО-ПАРАМЕТРЫ</span>}
             </div>
-            {price !== storagePrices[cropId] && (
+            <div className="panel-body">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 11 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                  <span>Цена «продать сейчас» (₽/кг EXW):</span>
+                  <input type="number" step="0.5" value={pNow} onChange={e => setPNow(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                  <span>Издержки сбыта сейчас (₽/кг EXW):</span>
+                  <input type="number" step="0.05" value={sellNowCostRubKg} onChange={e => setSellNowCostRubKg(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                  <span>Ожидаемая будущая цена (₽/кг EXW):</span>
+                  <input type="number" step="0.5" value={pFuture} onChange={e => setPFuture(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                  <span>Срок хранения (месяцев):</span>
+                  <input type="number" step="0.5" min="0.5" max="10" value={months} onChange={e => setMonths(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                  <span>Усушка / естественная убыль (%):</span>
+                  <input type="number" step="0.5" value={shrinkPct} onChange={e => setShrinkPct(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                  <span>Гниль / отход при хранении (%):</span>
+                  <input type="number" step="0.5" value={rotPct} onChange={e => setRotPct(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                  <span>Доля нестандарта / 2 сорт (%):</span>
+                  <input type="number" step="1" min="0" max="100" value={downgradeSharePct} onChange={e => setDowngradeSharePct(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                  <span>Скидка на нестандарт (% к цене):</span>
+                  <input type="number" step="1" min="0" max="100" value={downgradeDiscountPct} onChange={e => setDowngradeDiscountPct(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                  <span>Энергия и охлаждение (₽/кг заложенного/мес):</span>
+                  <input type="number" step="0.05" value={energyRubKgMonth} onChange={e => setEnergyRubKgMonth(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                  <span>Закладка и выгрузка (₽/кг заложенного):</span>
+                  <input type="number" step="0.1" value={handlingRubKg} onChange={e => setHandlingRubKg(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                  <span>Сортировка перед продажей (₽/кг проданного):</span>
+                  <input type="number" step="0.1" value={sortingRubKgSold} onChange={e => setSortingRubKgSold(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                  <span>Стоимость денег (альтернативная доходность, % год):</span>
+                  <input type="number" step="1" value={financingRatePctYear} onChange={e => setFinancingRatePctYear(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                  <span>Себестоимость выращенного (₽/кг, sunk cost):</span>
+                  <input type="number" step="0.5" value={acquisitionCostRubKg} onChange={e => setAcquisitionCostRubKg(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                </div>
+              </div>
+
               <button
                 type="button"
-                className="cash-reset-btn"
-                style={{ fontSize: 10, padding: '3px 8px', borderRadius: 4 }}
-                onClick={() => setPrice(storagePrices[cropId])}
+                onClick={handleSaveStorageParams}
+                className="basis-btn active"
+                style={{ fontSize: 11, padding: '4px 10px', marginTop: 14 }}
               >
-                🏬 Подставить цену склада ({storagePrices[cropId]} ₽)
+                💾 Сохранить параметры хранения в модели
               </button>
-            )}
-          </div>
-          <div className="inp-row" style={{ marginBottom: 16 }}>
-            <span className="inp-label">Затраты (тыс. ₽/га)</span>
-            <input type="range" min="100" max="2000" step="50" value={cost} onChange={e => setCost(+e.target.value)} />
-            <span className="inp-val">{cost}</span>
-          </div>
-
-          <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-            <button 
-              onClick={handleSave} 
-              className="reset-live-btn" 
-              style={{ margin: 0, background: 'var(--green-bg)', color: 'var(--green)', border: '1px solid var(--green-border)', borderRadius: 4, height: 32, cursor: 'pointer', fontWeight: 500 }}
-            >
-              💾 Сохранить параметры хозяйства
-            </button>
-            {isSaved && (
-              <button 
-                onClick={handleReset} 
-                className="reset-live-btn" 
-                style={{ margin: 0, flex: 0.5, border: '1px solid var(--border)', color: 'var(--txt2)', borderRadius: 4, height: 32, cursor: 'pointer' }}
-              >
-                ↺ Сбросить к демо
-              </button>
-            )}
-          </div>
-
-          <div className="result-panel">
-            <div className="result-grid">
-              <div>
-                <div className="result-lbl">Выручка</div>
-                <div className="result-num">{fmt(revenue)}</div>
-              </div>
-              <div>
-                <div className="result-lbl">Затраты</div>
-                <div className="result-num cost">{fmt(costs)}</div>
-              </div>
-              <div>
-                <div className="result-lbl">Прибыль</div>
-                <div className="result-num profit" style={{ color: profit >= 0 ? 'var(--green)' : 'var(--red)' }}>{fmt(profit)}</div>
-              </div>
-            </div>
-            <div className="divider" />
-            <div className="col-pair">
-              <div>
-                <div className="result-lbl">Рентабельность</div>
-                <div className="result-num profit" style={{ color: roi >= 0 ? 'var(--green)' : 'var(--red)' }}>{roi}%</div>
-              </div>
-              <div>
-                <div className="result-lbl">Прибыль / га</div>
-                <div className="result-num profit" style={{ color: perHa >= 0 ? 'var(--green)' : 'var(--red)' }}>{fmt(perHa)}</div>
-              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Norms table */}
-      <div className="panel">
-        <div className="panel-hd"><span className="panel-title">Нормативы по культурам</span></div>
-        <div className="panel-body" style={{ padding: 0 }}>
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th className="pl">Культура</th>
-                <th>Урожай т/га</th>
-                <th>Цена ₽/кг</th>
-                <th>Затраты К₽</th>
-                <th>Прибыль/га</th>
-              </tr>
-            </thead>
-            <tbody>
-              {NORMS.map(n => {
-                const c = CROPS[n.id];
-                const storPrice = storagePrices[n.id];
-                const custom = isCustom(n.id);
-                return (
-                  <tr key={n.id}>
-                    <td className="pl fw">{c.emoji} {c.label}</td>
-                    <td className="mono">{n.yRange}</td>
-                    <td className="mono">
-                      {n.pRange}
-                      <span style={{ fontSize: 10, color: custom ? 'var(--blue)' : 'var(--txt3)', marginLeft: 4 }} title="Текущая цена отгрузки со склада">
-                        (скл {storPrice} ₽{custom ? ' ✏️' : ''})
+          {/* Storage Decision Card & Loss Sensitivity */}
+          <div className="col-stack">
+            <div className="panel">
+              <div className="panel-hd">
+                <span className="panel-title">Экономический результат решения</span>
+              </div>
+              <div className="panel-body">
+                {storageResult.status === 'ok' ? (
+                  <div>
+                    {/* Gain Metric */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 }}>
+                      <div>
+                        <div className="stat-label">Эффект от хранения (на 1 кг заложенного)</div>
+                        <div className={`big-num ${storageResult.gain >= 0 ? 'up' : 'dn'}`}>
+                          {storageResult.gain >= 0 ? `+${storageResult.gain.toFixed(2)}` : storageResult.gain.toFixed(2)} ₽/кг
+                        </div>
+                      </div>
+                      <span className={`badge ${storageResult.gain >= 0 ? 'up' : 'dn'}`} style={{ fontSize: 12 }}>
+                        {storageResult.gain >= 0 ? 'ХРАНЕНИЕ ВЫГОДНО' : 'ПРОДАТЬ СЕЙЧАС'}
                       </span>
-                    </td>
-                    <td className="mono">{n.cost}</td>
-                    <td><span className={`pill ${n.pill}`}>{n.profitRange}</span></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border)' }}>
-          <div className="signal-box info">
-            <div className="signal-label info">Модель прогноза урожая</div>
-            <div className="signal-text info" style={{ marginTop: 4 }}>
-              Второй уровень системы. Вход: спутники (NDVI), погода, история региона. Выход: урожайность с точностью ±8%. Пример: лук 52 т/га ± 8%.
+                    </div>
+
+                    <div className="result-grid" style={{ marginBottom: 12 }}>
+                      <div>
+                        <div className="result-lbl">Выход товарного лука</div>
+                        <div className="result-num">{(storageResult.saleableYield * 100).toFixed(1)}%</div>
+                      </div>
+                      <div>
+                        <div className="result-lbl">Издержки хранения</div>
+                        <div className="result-num cost">{storageResult.costsLater.toFixed(2)} ₽/кг</div>
+                      </div>
+                      <div>
+                        <div className="result-lbl">Точка безубыточности</div>
+                        <div className="result-num" style={{ color: 'var(--amber)' }}>
+                          {storageResult.breakEvenFuturePrice.toFixed(1)} ₽/кг
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ background: 'var(--surface2)', padding: '10px 12px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, lineHeight: 1.55 }}>
+                      <div>• Чистая выручка сейчас (за вычетом сбыта): <strong>{storageResult.netNowPerKgStored.toFixed(2)} ₽/кг</strong></div>
+                      <div>• Чистая выручка позже на 1 кг заложенного: <strong>{storageResult.netLaterPerKgStored.toFixed(2)} ₽/кг</strong></div>
+                      <div>• Чистая выручка позже на 1 кг фактически проданного: <strong>{storageResult.netLaterPerKgSold?.toFixed(2)} ₽/кг</strong></div>
+                      <div style={{ borderTop: '1px dashed var(--border)', paddingTop: 6, marginTop: 4, color: 'var(--txt2)' }}>
+                        Для окупаемости хранения будущая цена должна быть не ниже <strong>{storageResult.breakEvenFuturePrice.toFixed(1)} ₽/кг</strong> (рост от текущей на +{storageResult.breakEvenMarkupPct.toFixed(0)}%).
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ color: 'var(--red)', fontSize: 12 }}>{storageResult.reason}</div>
+                )}
+              </div>
+            </div>
+
+            {/* Sensitivity Grid */}
+            <div className="panel">
+              <div className="panel-hd">
+                <span className="panel-title">Чувствительность к потерям (усушка + гниль)</span>
+              </div>
+              <div className="panel-body" style={{ padding: 0 }}>
+                <table className="tbl">
+                  <thead>
+                    <tr>
+                      <th>Суммарные потери</th>
+                      <th>Эффект на 1 кг заложенного</th>
+                      <th>Безубыточная цена продажи</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lossSens.map((ls, idx) => (
+                      <tr key={idx}>
+                        <td className="fw">{ls.totalLossPct}% потерь</td>
+                        <td className={`mono ${ls.gain >= 0 ? 'up' : 'dn'}`}>
+                          {ls.gain >= 0 ? `+${ls.gain.toFixed(2)}` : ls.gain.toFixed(2)} ₽/кг
+                        </td>
+                        <td className="mono">
+                          {ls.breakEvenFuturePrice ? `${ls.breakEvenFuturePrice.toFixed(1)} ₽/кг` : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Price Uncertainty Sensitivity */}
+            <div className="panel" style={{ marginTop: 12 }}>
+              <div className="panel-hd">
+                <span className="panel-title">Чувствительность к будущей цене продажи</span>
+              </div>
+              <div className="panel-body" style={{ padding: 0 }}>
+                <table className="tbl">
+                  <thead>
+                    <tr>
+                      <th>Сценарий цены</th>
+                      <th>Цена продажи</th>
+                      <th>Эффект на 1 кг заложенного</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {priceSens.map((ps, idx) => (
+                      <tr key={idx}>
+                        <td className="fw">{ps.label}</td>
+                        <td className="mono">{ps.price.toFixed(1)} ₽/кг</td>
+                        <td className={`mono ${ps.gain != null && ps.gain >= 0 ? 'up' : 'dn'}`}>
+                          {ps.gain != null ? (ps.gain >= 0 ? `+${ps.gain.toFixed(2)}` : ps.gain.toFixed(2)) : '—'} ₽/кг
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {activeTab === 'field' && (
+        <div className="row-2">
+          {/* Field Calculator */}
+          <div className="panel">
+            <div className="panel-hd">
+              <span className="panel-title">Калькулятор гектара и валового сбора</span>
+            </div>
+            <div className="panel-body">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="inp-row">
+                  <span className="inp-label">Культура:</span>
+                  <select
+                    value={fieldCrop}
+                    onChange={e => {
+                      const id = e.target.value;
+                      setFieldCrop(id);
+                      const d = CROP_DEFAULTS[id] || { yield: 55, price: 15, cost: 780 };
+                      setYld(d.yield);
+                      setCostPerHa(d.cost);
+                      setPrice(id === 'onion' ? whPrice : d.price);
+                    }}
+                    style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--txt)' }}
+                  >
+                    {Object.values(CROPS).map(c => (
+                      <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="inp-row">
+                  <span className="inp-label">Площадь посева (га):</span>
+                  <input type="range" min="1" max="500" step="1" value={area} onChange={e => setArea(Number(e.target.value))} />
+                  <span className="inp-val">{area} га</span>
+                </div>
+
+                <div className="inp-row">
+                  <span className="inp-label">Урожайность (т/га):</span>
+                  <input type="range" min="5" max="80" step="1" value={yld} onChange={e => setYld(Number(e.target.value))} />
+                  <span className="inp-val">{yld} т/га</span>
+                </div>
+
+                <div className="inp-row">
+                  <span className="inp-label">Цена реализации (₽/кг):</span>
+                  <input type="range" min="5" max="150" step="0.5" value={price} onChange={e => setPrice(Number(e.target.value))} />
+                  <span className="inp-val">{price.toFixed(1)} ₽</span>
+                </div>
+
+                <div className="inp-row">
+                  <span className="inp-label">Затраты на гектар (тыс. ₽/га):</span>
+                  <input type="range" min="100" max="1500" step="20" value={costPerHa} onChange={e => setCostPerHa(Number(e.target.value))} />
+                  <span className="inp-val">{costPerHa} тыс. ₽</span>
+                </div>
+              </div>
+
+              <div className="result-panel" style={{ marginTop: 16 }}>
+                <div className="result-grid">
+                  <div>
+                    <div className="result-lbl">Выручка</div>
+                    <div className="result-num">{fmt(revenue)}</div>
+                  </div>
+                  <div>
+                    <div className="result-lbl">Затраты поля</div>
+                    <div className="result-num cost">{fmt(costs)}</div>
+                  </div>
+                  <div>
+                    <div className="result-lbl">Прибыль поля</div>
+                    <div className={`result-num ${fieldProfit >= 0 ? 'up' : 'dn'}`}>{fmt(fieldProfit)}</div>
+                  </div>
+                </div>
+
+                <div className="divider" />
+
+                <div className="col-pair">
+                  <div>
+                    <div className="result-lbl">Рентабельность (ROI)</div>
+                    <div className={`result-num ${roi >= 0 ? 'up' : 'dn'}`}>{roi}%</div>
+                  </div>
+                  <div>
+                    <div className="result-lbl">Прибыль на 1 гектар</div>
+                    <div className={`result-num ${perHa >= 0 ? 'up' : 'dn'}`}>{fmt(perHa)}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-hd"><span className="panel-title">Справочные нормативы</span></div>
+            <div className="panel-body" style={{ fontSize: 11, color: 'var(--txt2)', lineHeight: 1.6 }}>
+              <div>Показатели урожайности и полевых затрат являются базовыми региональными нормативами и могут быть скорректированы под агротехнологию конкретного хозяйства.</div>
+              <div style={{ marginTop: 10, padding: '8px 10px', background: 'var(--surface2)', borderRadius: 4, border: '1px solid var(--border)' }}>
+                💡 <strong>Важное различие:</strong> Полевые затраты (себестоимость) являются невозвратными издержками (sunk cost) при принятии решения об отгрузке. Решение продать сейчас или заложить в хранилище принимается сравнением чистой выручки сегодня с чистой будущей выручкой с учетом усушки, порчи и стоимости денег.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

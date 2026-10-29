@@ -1,0 +1,188 @@
+[
+  {
+    "schema": 1,
+    "mode": "observed",
+    "basis": "warehouse",
+    "issueDate": "2026-10-24",
+    "issuedAt": "2026-10-29T08:47:21.179Z",
+    "unit": "RUB/kg",
+    "target": {
+      "id": "onion-volgograd-warehouse",
+      "label": "Лук репчатый · склад продавца, Волгоградская обл.",
+      "market": "warehouse_volgograd",
+      "deliveryBasis": [
+        "EXW",
+        "FCA"
+      ],
+      "vat": "excl",
+      "kind": "transaction"
+    },
+    "modelVersion": "baselines-1.0.0",
+    "provenance": {
+      "seriesKey": "warehouse_volgograd|transaction",
+      "nObservations": 0,
+      "nWeeks": 0,
+      "firstWeek": null,
+      "lastWeek": null,
+      "sources": [],
+      "excluded": {
+        "notAvailableYet": 0,
+        "vatUnknown": 0,
+        "basisMismatch": 0,
+        "outlier": 0,
+        "specMismatch": 0,
+        "otherMarketOrKind": 0,
+        "specUnknown": 0
+      },
+      "inputHash": "811c9dc5"
+    },
+    "inputCutoff": null,
+    "horizons": [],
+    "validation": null,
+    "reasons": [
+      "Нет наблюдений по этому ряду (рынок/тип цены/базис/НДС)."
+    ],
+    "status": "insufficient_data",
+    "id": "fc-95a790ab"
+  },
+  {
+    "schema": 1,
+    "mode": "observed",
+    "basis": "warehouse",
+    "issueDate": "2026-10-24",
+    "issuedAt": "2026-10-29T08:51:18.745Z",
+    "unit": "RUB/kg",
+    "target": {
+      "id": "onion-volgograd-warehouse",
+      "label": "Лук репчатый · склад продавца, Волгоградская обл.",
+      "market": "warehouse_volgograd",
+      "deliveryBasis": [
+        "EXW",
+        "FCA"
+      ],
+      "vat": "excl",
+      "kind": "transaction"
+    },
+    "modelVersion": "baselines-1.0.0",
+    "provenance": {
+      "seriesKey": "warehouse_volgograd|transaction",
+      "nObservations": 2,
+      "nWeeks": 2,
+      "firstWeek": "2026-10-12",
+      "lastWeek": "2026-10-19",
+      "sources": [
+        "Агросервер"
+      ],
+      "excluded": {
+        "notAvailableYet": 0,
+        "vatUnknown": 0,
+        "basisMismatch": 0,
+        "outlier": 0,
+        "specMismatch": 0,
+        "otherMarketOrKind": 0,
+        "specUnknown": 0
+      },
+      "inputHash": "88c583d4"
+    },
+    "inputCutoff": "2026-10-19",
+    "horizons": [
+      {
+        "h": 1,
+        "targetWeekStart": "2026-10-26",
+        "targetDate": "2026-10-26",
+        "point": 15.2,
+        "modelId": "naive",
+        "validated": false,
+        "interval": null,
+        "note": "Слишком короткий ряд для бэктеста"
+      },
+      {
+        "h": 4,
+        "targetWeekStart": "2026-11-16",
+        "targetDate": "2026-11-16",
+        "point": 15.2,
+        "modelId": "naive",
+        "validated": false,
+        "interval": null,
+        "note": "Слишком короткий ряд для бэктеста"
+      },
+      {
+        "h": 8,
+        "targetWeekStart": "2026-12-14",
+        "targetDate": "2026-12-14",
+        "point": 15.2,
+        "modelId": "naive",
+        "validated": false,
+        "interval": null,
+        "note": "Слишком короткий ряд для бэктеста"
+      },
+      {
+        "h": 13,
+        "targetWeekStart": "2027-01-18",
+        "targetDate": "2027-01-18",
+        "point": 15.2,
+        "modelId": "naive",
+        "validated": false,
+        "interval": null,
+        "note": "Слишком короткий ряд для бэктеста"
+      },
+      {
+        "h": 26,
+        "targetWeekStart": "2027-04-19",
+        "targetDate": "2027-04-19",
+        "point": 15.2,
+        "modelId": "naive",
+        "validated": false,
+        "interval": null,
+        "note": "Слишком короткий ряд для бэктеста"
+      }
+    ],
+    "validation": {
+      "method": "rolling-origin, purged tuning/final split, out-of-sample conformal intervals",
+      "params": {
+        "finalFraction": 0.4,
+        "minFinal": 20,
+        "minTune": 10,
+        "selectionMargin": 0.05
+      },
+      "split": null,
+      "byHorizon": {
+        "1": {
+          "status": "insufficient",
+          "reason": "Слишком короткий ряд для бэктеста",
+          "final": null,
+          "nTune": 0
+        },
+        "4": {
+          "status": "insufficient",
+          "reason": "Слишком короткий ряд для бэктеста",
+          "final": null,
+          "nTune": 0
+        },
+        "8": {
+          "status": "insufficient",
+          "reason": "Слишком короткий ряд для бэктеста",
+          "final": null,
+          "nTune": 0
+        },
+        "13": {
+          "status": "insufficient",
+          "reason": "Слишком короткий ряд для бэктеста",
+          "final": null,
+          "nTune": 0
+        },
+        "26": {
+          "status": "insufficient",
+          "reason": "Слишком короткий ряд для бэктеста",
+          "final": null,
+          "nTune": 0
+        }
+      }
+    },
+    "reasons": [
+      "История недостаточна для валидации: показана только цена «без изменений», интервалы недоступны."
+    ],
+    "status": "baseline_unvalidated",
+    "id": "fc-76105afc"
+  }
+]

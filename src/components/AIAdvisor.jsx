@@ -1,35 +1,53 @@
 import { useState } from 'react';
-import { DATA_SOURCES } from '../data/marketData';
-
-const SYSTEM_PROMPT = `Ты аналитик Agro Intelligence Platform — профессиональной торговой системы для российского агрорынка (Октябрь 2026). Отвечай кратко, конкретно, с числами. Данные платформы:
-
-КУЛЬТУРЫ (Октябрь 2026):
-- Лук: 31.2 ₽/кг, дефицит-индекс 1.21, прогноз роста +60–75% к весне 2027 (пик 55.1 ₽ на W+22), урожайность 55 т/га, затраты 780K ₽/га, прибыль ~936K ₽/га. BUY — закладка в хранилища.
-- Чеснок: 158 ₽/кг, острый дефицит 1.31, прогноз до 278 ₽/кг на W+19, прибыль 1.5–1.9M ₽/га. BUY — максимальные озимые посевы в октябре.
-- Морковь: 24.8 ₽/кг, индекс 1.07, прогноз роста до 39.5 ₽/кг к марту, прибыль 740K ₽/га. BUY — хранение до весны.
-- Арбуз: 24.5 ₽/кг (завершение сезона), индекс 1.14, прибыль 360K ₽/га. План посевов +15% на 2027.
-- Дыня: 52.0 ₽/кг (межсезонье), индекс 1.08, прибыль 540K ₽/га. HOLD.
-- Свекла: 19.5 ₽/кг, баланс 1.03, прогноз до 28.3 ₽/кг весной, прибыль 510K ₽/га. HOLD.
-- Картофель: 21.4 ₽/кг, баланс 0.96, рост с ноября до 29.2 ₽/кг к марту. HOLD — реализация с февраля.
-- Капуста: 13.8 ₽/кг, избыток 0.87, высокий валовой сбор поздней капусты. SELL — сбыт с поля.
-
-МАКРО: USD/RUB 94.6, ключевая ставка ЦБ 19%, дизель 67.8 ₽/л (+12.5%), заполненность хранилищ 78% нормы.
-ИМПОРТ: Казахстан 39%, Узбекистан 28%, Египет 18%, Китай 15%.
-МОДЕЛЬ: CatBoost v2.6 (Октябрь 2026), R²=0.80–0.89, горизонт 26 недель (Октябрь 2026 – Апрель 2027).
-
-Формат: максимум 6 предложений. Структурируй ответ. Пиши на русском.`;
+import { useMarket } from '../context/useMarket';
+import { parseSafeMarkdown } from '../../shared/safeMarkdown.js';
+import { buildSnapshot } from '../../shared/snapshot.js';
 
 const QUICK_QUESTIONS = [
-  'Что закладывать на зимнее хранение в октябре 2026?',
-  'Прогноз цены на лук и морковь к весне 2027',
-  'Экономика озимого сева чеснока под урожай 2027',
-  'Риски импорта из Казахстана и Узбекистана зимой 2026/27',
+  'Какова текущая цена лука на складе в Волгограде и оптом в Москве?',
+  'Выгодно ли хранить лук до марта или продать сейчас со склада?',
+  'Как повлияет возможное ограничение импорта из Казахстана?',
+  'Каковы результаты валидации модели прогноза и доверительные интервалы?',
 ];
 
+function SafeMarkdownView({ text }) {
+  const blocks = parseSafeMarkdown(text);
+  return (
+    <div className="safe-markdown-content" style={{ fontSize: 12, lineHeight: 1.6 }}>
+      {blocks.map((block, idx) => {
+        if (block.type === 'ul') {
+          return (
+            <ul key={idx} style={{ margin: '6px 0 8px 18px', paddingLeft: 0 }}>
+              {block.items.map((item, iIdx) => (
+                <li key={iIdx} style={{ marginBottom: 4 }}>
+                  {item.map((t, tIdx) => (
+                    t.t === 'bold' ? <strong key={tIdx}>{t.v}</strong> : <span key={tIdx}>{t.v}</span>
+                  ))}
+                </li>
+              ))}
+            </ul>
+          );
+        }
+        return (
+          <p key={idx} style={{ margin: '6px 0' }}>
+            {block.children.map((t, tIdx) => (
+              t.t === 'bold' ? <strong key={tIdx}>{t.v}</strong> : <span key={tIdx}>{t.v}</span>
+            ))}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AIAdvisor() {
+  const { model, basis, scenario, demo } = useMarket();
+
   const [question, setQuestion] = useState('');
-  const [answer,   setAnswer]   = useState('');
-  const [loading,  setLoading]  = useState(false);
+  const [answer, setAnswer] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [modelName, setModelName] = useState('AI Advisor');
 
   async function ask(q) {
     const query = q || question.trim();
@@ -37,53 +55,61 @@ export default function AIAdvisor() {
     setQuestion(query);
     setLoading(true);
     setAnswer('');
+    setError(null);
+
+    // Build structured snapshot of the CURRENT market state
+    const snapshot = buildSnapshot(model, {
+      selectedBasis: basis,
+      selectedScenario: scenario,
+    });
+
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const res = await fetch('/api/advisor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 800,
-          system: SYSTEM_PROMPT,
-          messages: [{ role: 'user', content: query }],
+          message: query,
+          snapshot,
+          demo,
         }),
       });
+
       const data = await res.json();
-      const text = data.content?.map(b => b.text || '').join('\n') || 'Ошибка ответа.';
-      setAnswer(text);
-    } catch {
-      setAnswer('Ошибка подключения к AI-сервису.');
+
+      if (!res.ok || data.error) {
+        throw new Error(data.message || data.error || `HTTP ${res.status}`);
+      }
+
+      if (data.model) {
+        setModelName(data.model);
+      }
+
+      setAnswer(data.answer || 'Ответ не получен.');
+    } catch (err) {
+      setError(err.message || 'Ошибка подключения к AI-сервису.');
     } finally {
       setLoading(false);
     }
   }
 
-  function renderAnswer() {
-    if (loading) return <span className="ai-hint">Анализирую данные платформы...</span>;
-    if (!answer) return <span className="ai-hint">Задайте вопрос — AI-советник работает на данных платформы.</span>;
-    return (
-      <span dangerouslySetInnerHTML={{
-        __html: answer
-          .replace(/\n/g, '<br>')
-          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      }} />
-    );
-  }
-
   return (
     <div className="row-2">
-      {/* AI Chat */}
+      {/* AI Chat Panel */}
       <div className="panel">
-        <div className="panel-hd">
-          <span className="panel-title">AI-советник · агрорынок РФ</span>
-          <span className="badge info">claude-sonnet-4</span>
+        <div className="panel-hd" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span className="panel-title">AI-советник · анализ рынка и экономики</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {demo && <span className="badge warn" style={{ fontSize: 10 }}>ДЕМО-КОНТЕКСТ</span>}
+            <span className="badge info">{modelName}</span>
+          </div>
         </div>
+
         <div className="panel-body">
           <div className="ask-wrap">
             <input
               className="ask-inp"
               type="text"
-              placeholder="Вопрос по рынку, ценам, культурам..."
+              placeholder="Задайте вопрос по ценам, хранению или сценариям..."
               value={question}
               onChange={e => setQuestion(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && ask()}
@@ -99,47 +125,76 @@ export default function AIAdvisor() {
             ))}
           </div>
 
-          <div className="ai-box">{renderAnswer()}</div>
+          <div className="ai-box">
+            {loading && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className="live-dot" style={{ animation: 'pulse 1.2s infinite' }} />
+                <span className="ai-hint">Анализирую текущий срез данных и рассчитываю ответ...</span>
+              </div>
+            )}
+
+            {error && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ color: 'var(--red)', fontWeight: 600, fontSize: 12 }}>
+                  ⚠️ Ошибка AI-сервиса
+                </div>
+                <div style={{ color: 'var(--txt2)', fontSize: 11, lineHeight: 1.5 }}>
+                  {error}
+                </div>
+                {error.includes('API_KEY') && (
+                  <div style={{ padding: '8px 10px', background: 'var(--amber-bg)', border: '1px solid var(--amber-border)', borderRadius: 4, color: 'var(--amber)', fontSize: 11 }}>
+                    Добавьте <code>GEMINI_API_KEY</code>, <code>OPENAI_API_KEY</code> или <code>ANTHROPIC_API_KEY</code> в файл <code>.env.local</code>.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!loading && !error && !answer && (
+              <span className="ai-hint">Задайте вопрос — AI-советник работает на структурированном срезе текущих данных платформы.</span>
+            )}
+
+            {!loading && !error && answer && (
+              <SafeMarkdownView text={answer} />
+            )}
+          </div>
 
           <div style={{ marginTop: 10, padding: '8px 10px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 4 }}>
             <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--txt3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>
-              Контекст модели
+              Контекст модели (Snapshot Security)
             </div>
             <div style={{ fontSize: 11, color: 'var(--txt2)', lineHeight: 1.55 }}>
-              AI имеет доступ к текущим ценам, индексам дефицита, 26-недельным прогнозам CatBoost, макропоказателям и данным импорта по состоянию на Октябрь 2026.
+              AI получает структурированный срез текущего состояния: статус цен ({model.prices.warehouse.provenance.status} / {model.prices.moscow.provenance.status}), валидацию бэктеста, параметры моста издержек и сценарий <em>{scenario}</em>. Текст ответа рендерится через безопасный токенизатор без выполнения произвольного HTML.
             </div>
           </div>
         </div>
       </div>
 
-      {/* Data Sources */}
+      {/* Right Column: Context Information */}
       <div className="panel">
-        <div className="panel-hd"><span className="panel-title">Источники данных · {DATA_SOURCES.length} источников</span></div>
+        <div className="panel-hd"><span className="panel-title">Срез данных в контексте AI</span></div>
         <div className="panel-body">
-          <div className="src-grid">
-            {DATA_SOURCES.map(s => (
-              <div key={s.name} className="src-item">
-                <div className="src-name">{s.name}</div>
-                <div className="src-cat">{s.cat}</div>
-              </div>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11 }}>
+            <div style={{ background: 'var(--surface2)', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border)' }}>
+              <strong>Режим работы:</strong> {demo ? 'Демонстрационный (иллюстративные данные)' : 'Реальные наблюдения'}
+            </div>
+            <div style={{ background: 'var(--surface2)', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border)' }}>
+              <strong>Базис цен:</strong> {basis === 'warehouse' ? 'Склад (Волгоград, EXW без НДС)' : 'Москва (DAP с доставкой, с НДС)'}
+            </div>
+            <div style={{ background: 'var(--surface2)', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border)' }}>
+              <strong>Статус прогноза:</strong> {model.forecasts[basis]?.status || 'не выпущен'}
+            </div>
+            <div style={{ background: 'var(--surface2)', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border)' }}>
+              <strong>Мост доставки:</strong> {model.bridgeResult.status === 'ok' ? `Фрахт ${(model.bridgeResult.components.freight).toFixed(2)} ₽/кг + потери` : 'неполная смета'}
+            </div>
+            <div style={{ background: 'var(--surface2)', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border)' }}>
+              <strong>Активный сценарий:</strong> {model.scenarios.results.find(s => s.id === scenario)?.label}
+            </div>
           </div>
 
           <div className="divider" />
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div className="signal-box info">
-              <div className="signal-label info">База данных</div>
-              <div className="signal-text info" style={{ marginTop: 4 }}>
-                PostgreSQL · Таблицы: commodity_prices, weather, imports, production. Обновление: цены — ежедневно, NDVI — каждые 5 дней, погода — ежечасно.
-              </div>
-            </div>
-            <div className="signal-box hold">
-              <div className="signal-label hold">Модель · CatBoost</div>
-              <div className="signal-text hold" style={{ marginTop: 4 }}>
-                Уровень 1: прогноз цены 1–26 нед. Уровень 2: прогноз урожая по NDVI + погоде. Уровень 3: прогноз прибыли культуры до посадки.
-              </div>
-            </div>
+          <div style={{ fontSize: 10, color: 'var(--txt3)', lineHeight: 1.5 }}>
+            🔒 <strong>Безопасность:</strong> Все импортированные текстовые строки (источники, примечания) экранируются и передаются в модель как пассивные данные. Инструкции пользователя изолированы от системного промпта.
           </div>
         </div>
       </div>

@@ -1,657 +1,545 @@
 import { useState } from 'react';
-import {
-  CROPS,
-  FORECAST_CONFIDENCE,
-  FEATURE_IMPORTANCE,
-  CASH_DEFAULTS,
-  IMPORT_SCENARIOS,
-  MACRO,
-} from '../data/marketData';
-import { useLiveData } from '../hooks/useLiveData';
-import { useStoragePrices } from '../hooks/useStoragePrices';
+import { useMarket } from '../context/useMarket';
+import { TARGET_SPECS } from '../../shared/spec.js';
 
-const FC_CROPS = Object.keys(CROPS);
+export default function Forecast({ onNavigateToImport }) {
+  const { model, demo, setDemo, basis, setBasis, scenario, setScenario, updateAssumptions, issueNewForecast } = useMarket();
 
-function getWeekDateLabel(weeksAhead) {
-  const d = new Date();
-  d.setDate(d.getDate() + weeksAhead * 7);
-  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' }).replace('.', '');
-}
+  const [activeTab, setActiveTab] = useState('forecast'); // 'forecast' | 'bridge' | 'scenarios' | 'validation'
+  const [editingBridge, setEditingBridge] = useState(false);
+  const [bridgeDraft, setBridgeDraft] = useState(() => ({ ...model.bridge }));
+  const [issuing, setIssuing] = useState(false);
 
-function getSeasonPhase(weekIdx) {
-  if (weekIdx <= 3) {
-    return { tag: 'Ноябрь · Сброс с полей', desc: 'Давление свежего урожая и сброс с необорудованных складов' };
-  }
-  if (weekIdx <= 6) {
-    return { tag: 'Декабрь · Склады', desc: 'Переход на отапливаемые хранилища, начало зимнего спроса' };
-  }
-  if (weekIdx <= 8) {
-    return { tag: 'Предновогодний пик', desc: 'Ажиотажный выкуп сетями к новогоднему столу' };
-  }
-  if (weekIdx <= 12) {
-    return { tag: 'Январское затишье', desc: 'Постновогодний спад розничного потребления и коррекция' };
-  }
-  if (weekIdx <= 16) {
-    return { tag: 'Февраль · Морозы', desc: 'Холода (-20°C..-30°C), срыв погрузок, дефицит рефрижераторов' };
-  }
-  if (weekIdx <= 21) {
-    return { tag: 'Весенний дефицит', desc: 'Истощение запасов РФ и ЕАЭС, годовой пик котировок' };
-  }
-  return { tag: 'Апрель · Ранний юг', desc: 'Обвал цен старого урожая с приходом свежих овощей из ЦА/Египта' };
-}
+  const fc = model.forecasts[basis] || model.forecasts.warehouse;
+  const targetSpec = TARGET_SPECS[basis];
 
-export default function Forecast({ basis = 'wholesale', initialBasis, onSwitchBasis }) {
-  const { liveData } = useLiveData();
-  const { storagePrices, setStoragePrice, resetStoragePrice, isCustom } = useStoragePrices();
-  const [activeCrop, setActiveCrop] = useState('onion');
-  
-  const resolvedBasis = basis || initialBasis || 'wholesale';
-  const [prevBasis, setPrevBasis] = useState(resolvedBasis);
-  const [priceBasis, setPriceBasis] = useState(resolvedBasis);
-  const [importScenario, setImportScenario] = useState('base');
-  const [customImportDelta, setCustomImportDelta] = useState(0);
-
-  if (basis && basis !== prevBasis) {
-    setPrevBasis(basis);
-    setPriceBasis(basis);
+  // Save updated cost bridge
+  async function handleSaveBridge() {
+    await updateAssumptions({ bridge: bridgeDraft });
+    setEditingBridge(false);
   }
 
-  function handleBasisChange(newBasis) {
-    setPriceBasis(newBasis);
-    if (onSwitchBasis) onSwitchBasis(newBasis);
+  // Handle re-issuing forecast
+  async function handleIssue() {
+    setIssuing(true);
+    try {
+      await issueNewForecast(basis);
+    } finally {
+      setIssuing(false);
+    }
   }
 
-  function handleCashPriceChange(val) {
-    const num = isNaN(val) ? 0 : val;
-    setStoragePrice(activeCrop, num);
-  }
-
-  const crop = CROPS[activeCrop];
-  const isStorage = priceBasis === 'storage';
-  const isField = priceBasis === 'field';
-  const isWholesale = priceBasis === 'wholesale';
-
-  const currentCashStart = storagePrices[activeCrop] ?? CASH_DEFAULTS[activeCrop] ?? 15.0;
-  const baseWholesale = crop.price;
-  const currentActualPrice = isWholesale ? baseWholesale : currentCashStart;
-
-  // Import Scenario Simulation Parameters
-  const activeScenario = IMPORT_SCENARIOS[importScenario] || IMPORT_SCENARIOS.base;
-  const deltaPct = importScenario === 'custom' ? customImportDelta : activeScenario.deltaPct;
-  const liveUsd = liveData.usdRub ?? MACRO.usdRub;
-  const liveKzt = liveData.kztRub ?? MACRO.kztRub;
-  const shapWeight = (crop.importDetail?.shapWeight ?? 23) / 100;
-
-  // Helper: calculate total impact % for any week
-  function getWeekImpactPct(i) {
-    let elasticity = 0.35;
-    if (i >= 4 && i <= 8) elasticity = 0.70;        // Предновогодний разгон
-    else if (i >= 9 && i <= 12) elasticity = 0.50;  // Январское затишье
-    else if (i >= 13 && i <= 16) elasticity = 1.10; // Февральские морозы и логистика
-    else if (i >= 17 && i <= 21) elasticity = 1.45; // Весенний пик дефицита
-    else if (i >= 22) elasticity = 0.85;            // Апрельский слом рынка
-
-    const volumeImpactPct = (-deltaPct * shapWeight * elasticity);
-    const fxImpactPct = ((liveUsd - 94.6) / 94.6) * 12 * elasticity;
-    return volumeImpactPct + fxImpactPct;
-  }
-
-  // 1. Base Forecast Curve (CatBoost baseline for the ACTIVE basis)
-  const fcBase = (isStorage || isField)
-    ? crop.forecast.map(wp => +(currentCashStart * (wp / baseWholesale)).toFixed(1))
-    : crop.forecast;
-
-  // 2. Active Forecast with Import Curve
-  const fcImport = fcBase.map((basePrice, i) => {
-    const totalImpactPct = getWeekImpactPct(i);
-    return +(basePrice * (1 + totalImpactPct / 100)).toFixed(1);
-  });
-
-  // 3. Moscow Wholesale Forecast Curve (for side-by-side comparison)
-  const mskImport = crop.forecast.map((baseMsk, i) => {
-    const totalImpactPct = getWeekImpactPct(i);
-    return +(baseMsk * (1 + totalImpactPct / 100)).toFixed(1);
-  });
-
-  // 4. Storage Cash Forecast Curve (for side-by-side comparison)
-  const storageImport = crop.forecast.map((baseMsk, i) => {
-    const totalImpactPct = getWeekImpactPct(i);
-    return +(currentCashStart * (baseMsk / baseWholesale) * (1 + totalImpactPct / 100)).toFixed(1);
-  });
-
-  // Storage cost and shrinkage loss models per week
-  const storageMetrics = storageImport.map((p, i) => {
-    const months = (i + 1) / 4.33;
-    const lossPct = +(Math.min(13.5, 1.5 + months * 1.6)).toFixed(1); // shrinkage + rot
-    const opex = +(0.5 + months * 0.35).toFixed(2); // cooling electricity, ventilation, sorting
-    const netPerKg = +(p * (1 - lossPct / 100) - opex).toFixed(1);
-    const netProfitPerKg = +(netPerKg - currentCashStart).toFixed(1);
-    return { lossPct, opex, netPerKg, netProfitPerKg };
-  });
-
-  const max = Math.max(...fcImport);
-  const min = Math.min(...fcImport);
-  const features = crop.features || FEATURE_IMPORTANCE;
-  const trendCls = crop.trendSignal || 'hold';
-
-  // Peak Statistics
-  const peakBasePrice = Math.max(...fcBase);
-  const peakImportPrice = Math.max(...fcImport);
-  const peakWeekIdx = fcImport.indexOf(peakImportPrice);
-  const importDeltaAtPeak = +(peakImportPrice - peakBasePrice).toFixed(1);
-
-  const startPrice = isWholesale ? baseWholesale : currentCashStart;
-  const totalGrowthPct = startPrice > 0 ? Math.round(((peakImportPrice - startPrice) / startPrice) * 100) : 0;
-  const baseGrowthPct = startPrice > 0 ? Math.round(((peakBasePrice - startPrice) / startPrice) * 100) : 0;
+  const activeScenarioResult = model.scenarios.results.find(s => s.id === scenario) || model.scenarios.results[0];
+  const scenarioRows = model.scenarios.rows?.[basis]?.[scenario] || fc?.horizons || [];
 
   return (
     <div className="panel">
-      {/* ── Basis Switcher Header ── */}
+      {/* ── Header & Basis Switcher ── */}
       <div className="basis-switcher-wrap">
         <div className="basis-switcher">
           <button
             type="button"
-            className={`basis-btn ${priceBasis === 'wholesale' ? 'active' : ''}`}
-            onClick={() => handleBasisChange('wholesale')}
+            className={`basis-btn ${basis === 'warehouse' ? 'active' : ''}`}
+            onClick={() => setBasis('warehouse')}
           >
-            🏢 Опт Москва · с НДС ({baseWholesale.toFixed(1)} ₽)
+            🏬 Склад продавца (Волгоград, EXW без НДС)
           </button>
           <button
             type="button"
-            className={`basis-btn ${priceBasis === 'storage' ? 'active' : ''}`}
-            onClick={() => handleBasisChange('storage')}
+            className={`basis-btn ${basis === 'moscow' ? 'active' : ''}`}
+            onClick={() => setBasis('moscow')}
           >
-            🏬 Из хранилища · Нал ({currentCashStart.toFixed(1)} ₽){isCustom(activeCrop) ? ' ✏️' : ''}
-          </button>
-          <button
-            type="button"
-            className={`basis-btn ${priceBasis === 'field' ? 'active' : ''}`}
-            onClick={() => handleBasisChange('field')}
-          >
-            🚜 С поля · Нал ({currentCashStart.toFixed(1)} ₽){isCustom(activeCrop) ? ' ✏️' : ''}
+            🏢 Опт Москва (с доставкой, с НДС 10%)
           </button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span className="badge neu" style={{ fontSize: 11 }}>
-            {isWholesale
-              ? 'Базис: Опт Москва (РЦ сетей / Овощебазы, с НДС 10%)'
-              : isStorage
-              ? 'Базис: Со склада / Овощехранилище (Волгоград, нал без НДС)'
-              : 'Базис: С поля / ex-farm (сырец, нал без НДС)'}
-          </span>
-          {isCustom(activeCrop) && (
-            <span className="badge info" style={{ fontSize: 10 }}>Своя цена</span>
-          )}
-          <span className="badge info">CatBoost v2.6</span>
-        </div>
-      </div>
-
-      {/* ── Actual vs Forecast Comparison Grid (KPI Cards) ── */}
-      <div className="actual-vs-fc-grid">
-        <div className="compare-card">
-          <span className="compare-lbl">
-            {isWholesale ? 'Оптовая цена в Москве сейчас (W+1)' : 'Фактическая цена со склада (W+1)'}
-          </span>
-          <div className="compare-val">
-            {currentActualPrice.toFixed(1)} ₽/кг
-            {(!isWholesale && isCustom(activeCrop)) && (
-              <span className="badge info" style={{ fontSize: 10, marginLeft: 6 }}>вручную</span>
-            )}
-          </div>
-          <span className="compare-sub">
-            {isWholesale ? 'Опт Москва с НДС 10% (РЦ / Базы)' : 'Отгрузка со склада (нал без НДС)'}
-          </span>
-        </div>
-
-        <div className="compare-card">
-          <span className="compare-lbl">
-            {isWholesale ? `Базовый опт (пик W+${fcBase.indexOf(peakBasePrice) + 1})` : `Базовый склад (пик W+${fcBase.indexOf(peakBasePrice) + 1})`}
-          </span>
-          <div className="compare-val up">
-            {peakBasePrice.toFixed(1)} ₽/кг
-            <span style={{ fontSize: 11, fontWeight: 500 }}>(+{baseGrowthPct}%)</span>
-          </div>
-          <span className="compare-sub">
-            {isWholesale ? 'Оптовый пик без шоков импорта' : 'Складской пик без шоков импорта'}
-          </span>
-        </div>
-
-        <div className={`compare-card ${importDeltaAtPeak > 0 ? 'danger' : importDeltaAtPeak < 0 ? 'highlight' : ''}`}>
-          <span className="compare-lbl">
-            {isWholesale ? `Опт со сценарием (пик W+${peakWeekIdx + 1})` : `Склад со сценарием (пик W+${peakWeekIdx + 1})`}
-          </span>
-          <div className={`compare-val ${importDeltaAtPeak > 0 ? 'up' : importDeltaAtPeak < 0 ? 'dn' : ''}`}>
-            {peakImportPrice.toFixed(1)} ₽/кг
-            <span style={{ fontSize: 11, fontWeight: 500 }}>(+{totalGrowthPct}%)</span>
-          </div>
-          <span className="compare-sub">
-            {importDeltaAtPeak !== 0 ? (
-              <span>Влияние импорта: <strong>{importDeltaAtPeak > 0 ? `+${importDeltaAtPeak}` : importDeltaAtPeak} ₽/кг</strong></span>
-            ) : (
-              'Совпадает с базовым прогнозом'
-            )}
-          </span>
-        </div>
-
-        <div className="compare-card">
-          <span className="compare-lbl">Спред цен Москва vs Склад</span>
-          <div className="compare-val warn">
-            +{(baseWholesale - currentCashStart).toFixed(1)} ₽/кг
-          </div>
-          <span className="compare-sub">
-            Доставка фурой (~6.75 ₽) + НДС 10% + фасовка
-          </span>
-        </div>
-      </div>
-
-      {/* ── Storage Cash Control Input ── */}
-      {(isStorage || isField) && (
-        <div className="cash-control-card">
-          <div className="cash-control-left">
-            <span className="cash-control-label">
-              Текущая фактическая цена отгрузки со склада ({crop.label}, нал без НДС):
+          {demo ? (
+            <span className="badge warn" style={{ fontSize: 11, fontWeight: 600 }}>
+              ДЕМО-ПРОГНОЗ (иллюстративный ряд)
             </span>
-            <div className="cash-input-row">
-              <div className="cash-inp-wrap">
-                <input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  max="1000"
-                  value={currentCashStart}
-                  onChange={e => handleCashPriceChange(parseFloat(e.target.value))}
-                  className="cash-inp"
-                />
-                <span className="cash-inp-unit">₽/кг</span>
+          ) : fc?.status === 'validated' ? (
+            <span className="badge up" style={{ fontSize: 11 }}>
+              Валидирован бэктестом ({fc.modelVersion})
+            </span>
+          ) : fc?.status === 'baseline_unvalidated' ? (
+            <span className="badge info" style={{ fontSize: 11 }}>
+              Базовый прогноз ({fc.modelVersion})
+            </span>
+          ) : (
+            <span className="badge dn" style={{ fontSize: 11 }}>
+              Недостаточно данных
+            </span>
+          )}
+
+          <div className="basis-switcher" style={{ margin: 0 }}>
+            <button
+              type="button"
+              className={`basis-btn ${activeTab === 'forecast' ? 'active' : ''}`}
+              onClick={() => setActiveTab('forecast')}
+              style={{ fontSize: 11, padding: '3px 8px' }}
+            >
+              Прогноз
+            </button>
+            <button
+              type="button"
+              className={`basis-btn ${activeTab === 'bridge' ? 'active' : ''}`}
+              onClick={() => setActiveTab('bridge')}
+              style={{ fontSize: 11, padding: '3px 8px' }}
+            >
+              Мост издержек
+            </button>
+            <button
+              type="button"
+              className={`basis-btn ${activeTab === 'scenarios' ? 'active' : ''}`}
+              onClick={() => setActiveTab('scenarios')}
+              style={{ fontSize: 11, padding: '3px 8px' }}
+            >
+              Сценарии
+            </button>
+            <button
+              type="button"
+              className={`basis-btn ${activeTab === 'validation' ? 'active' : ''}`}
+              onClick={() => setActiveTab('validation')}
+              style={{ fontSize: 11, padding: '3px 8px' }}
+            >
+              Валидация
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Metadata and Provenance Bar ── */}
+      <div style={{ padding: '8px 14px', background: 'var(--surface2)', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: 11 }}>
+        <div>
+          <strong>Базис поставки:</strong> {targetSpec.label} ({targetSpec.deliveryBasis.join('/')}, {basis === 'moscow' ? 'с НДС 10%' : 'без НДС'})
+          <span style={{ color: 'var(--txt3)', marginLeft: 8 }}>
+            · Спецификация: {targetSpec.fields.grade.value || 'сорт не зафиксирован'} · {targetSpec.fields.packaging.value || 'навалом/сетка'}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {fc && (
+            <span>
+              Дата выпуска: <strong className="mono">{fc.issueDate}</strong>
+              {fc.inputCutoff && <> · Срез данных: <strong className="mono">{fc.inputCutoff}</strong></>}
+              {fc.ageDays !== null && fc.ageDays !== undefined && <> ({fc.ageDays} дн. назад)</>}
+            </span>
+          )}
+          {!demo && (
+            <button
+              type="button"
+              onClick={handleIssue}
+              disabled={issuing}
+              className="cash-reset-btn"
+              style={{ fontSize: 10, padding: '2px 7px' }}
+            >
+              {issuing ? 'Перерасчет...' : '↻ Перевыпустить прогноз'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Subtab: Forecast Table View ── */}
+      {activeTab === 'forecast' && (
+        <div style={{ padding: '14px' }}>
+          {/* If No Forecast Available */}
+          {!fc || fc.status === 'insufficient_data' || scenarioRows.length === 0 ? (
+            <div style={{ padding: '30px', textAlign: 'center', background: 'var(--surface2)', borderRadius: 6, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>📉</div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
+                Недостаточно наблюдений для построения прогноза цен
               </div>
-              {isCustom(activeCrop) && (
+              <div style={{ fontSize: 12, color: 'var(--txt2)', maxWidth: 560, margin: '0 auto 16px', lineHeight: 1.5 }}>
+                {fc?.reasons?.[0] || 'В базе данных нет достаточного количества фактических сделок по данному базису. Система не строит вымышленные прогнозы без проверенных исторических данных.'}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
+                {onNavigateToImport && (
+                  <button
+                    type="button"
+                    onClick={onNavigateToImport}
+                    className="basis-btn active"
+                    style={{ fontSize: 12, padding: '6px 14px' }}
+                  >
+                    📥 Импортировать сделки (CSV)
+                  </button>
+                )}
                 <button
                   type="button"
-                  className="cash-reset-btn"
-                  onClick={() => resetStoragePrice(activeCrop)}
+                  onClick={() => setDemo(true)}
+                  className="basis-btn"
+                  style={{ fontSize: 12, padding: '6px 14px', border: '1px solid var(--amber-border)', color: 'var(--amber)' }}
                 >
-                  ↺ Сбросить к норме ({CASH_DEFAULTS[activeCrop]} ₽)
+                  Включить ДЕМО-режим
                 </button>
-              )}
+              </div>
+            </div>
+          ) : (
+            <div>
+              {/* Scenario selector bar */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {model.scenarios.results.map(sc => (
+                    <button
+                      key={sc.id}
+                      type="button"
+                      className={`basis-btn ${scenario === sc.id ? 'active' : ''}`}
+                      onClick={() => setScenario(sc.id)}
+                      style={{ fontSize: 11, padding: '4px 10px' }}
+                    >
+                      {sc.label}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--txt2)' }}>
+                  Эффект сценария: <strong>{activeScenarioResult.complete ? `${activeScenarioResult.totalPct > 0 ? '+' : ''}${activeScenarioResult.totalPct.toFixed(1)}%` : 'не оценён количественно'}</strong>
+                  {demo && <span className="badge warn" style={{ marginLeft: 6, fontSize: 9 }}>ДЕМО</span>}
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="fc-table-head">
+                <span style={{ minWidth: 80 }}>Горизонт</span>
+                <span style={{ minWidth: 100 }}>Целевая дата</span>
+                <span style={{ flex: 1 }}>{basis === 'moscow' ? 'Опт Москва (с НДС)' : 'Склад продавца (без НДС)'}</span>
+                <span style={{ minWidth: 130, textAlign: 'center' }}>Интервал 80%</span>
+                <span style={{ minWidth: 130, textAlign: 'center' }}>Интервал 95%</span>
+                <span style={{ minWidth: 100, textAlign: 'center' }}>Модель</span>
+                <span style={{ minWidth: 90, textAlign: 'right' }}>Валидация</span>
+              </div>
+
+              <div className="fc-body">
+                {scenarioRows.map((r) => {
+                  const pt = r.scenarioPoint ?? r.point;
+                  const int = r.interval;
+                  return (
+                    <div className="fc-row" key={r.h}>
+                      <span className="wk" style={{ minWidth: 80, fontWeight: 600 }}>
+                        W+{r.h}
+                      </span>
+                      <span style={{ minWidth: 100, fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--txt2)' }}>
+                        {r.targetDate}
+                      </span>
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, fontSize: 13, color: 'var(--blue)' }}>
+                          {pt !== null ? `${pt.toFixed(1)} ₽/кг` : '—'}
+                        </span>
+                        {r.scenarioShiftPct !== undefined && r.scenarioShiftPct !== 0 && (
+                          <span className={`fc-delta-pill ${r.scenarioShiftPct > 0 ? 'up' : 'dn'}`} style={{ fontSize: 10 }}>
+                            {r.scenarioShiftPct > 0 ? `+${r.scenarioShiftPct.toFixed(1)}%` : `${r.scenarioShiftPct.toFixed(1)}%`}
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ minWidth: 130, textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--txt2)' }}>
+                        {int?.lo80 !== null && int?.hi80 !== null && int?.lo80 !== undefined
+                          ? `${int.lo80.toFixed(1)} – ${int.hi80.toFixed(1)} ₽`
+                          : '—'}
+                      </span>
+                      <span style={{ minWidth: 130, textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--txt3)' }}>
+                        {int?.lo95 !== null && int?.hi95 !== null && int?.lo95 !== undefined
+                          ? `${int.lo95.toFixed(1)} – ${int.hi95.toFixed(1)} ₽`
+                          : '—'}
+                      </span>
+                      <span style={{ minWidth: 100, textAlign: 'center', fontSize: 11 }}>
+                        <span className="badge neu">{r.modelId}</span>
+                      </span>
+                      <span style={{ minWidth: 90, textAlign: 'right' }}>
+                        {demo ? (
+                          <span className="badge warn" style={{ fontSize: 10 }}>демо</span>
+                        ) : r.validated ? (
+                          <span className="badge up" style={{ fontSize: 10 }}>проверен</span>
+                        ) : (
+                          <span className="badge neu" style={{ fontSize: 10 }}>базовый</span>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Seasonal Factors Note */}
+              <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--surface2)', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11 }}>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>🌿 Сезонное давление предложения:</div>
+                {model.seasonal.pressures.length > 0 ? (
+                  model.seasonal.pressures.map((p, idx) => (
+                    <div key={idx} style={{ marginTop: 4 }}>
+                      • <strong>{p.label}:</strong> {p.reason}
+                      {p.priceImpactNote && <span style={{ color: 'var(--txt3)', marginLeft: 6 }}>({p.priceImpactNote})</span>}
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ color: 'var(--txt2)' }}>
+                    Наблюдений сезонных индикаторов на дату среза нет. Сезонные факторы не привязаны к жестким номерам строк прогноза.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Subtab: Cost Bridge ── */}
+      {activeTab === 'bridge' && (
+        <div style={{ padding: '14px' }}>
+          <div style={{ marginBottom: 12 }}>
+            <h3 style={{ fontSize: 14, margin: '0 0 6px' }}>
+              Мост издержек: Склад (Волгоград) ↔ Опт Москва
+            </h3>
+            <div style={{ fontSize: 11, color: 'var(--txt2)' }}>
+              Вместо фиксированного множителя 2.08 разница между складом в Волгоградской области и Москвой рассчитывается из прозрачных издержек доставки, потерь, фасовки и маржи посредника.
             </div>
           </div>
 
-          <div className="cash-spread-metrics">
-            <div className="spread-item">
-              <span className="spread-label">Спред к опту Москва</span>
-              <span className="spread-val warn">+{(baseWholesale - currentCashStart).toFixed(1)} ₽</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16 }}>
+            {/* Left: Component inputs */}
+            <div style={{ background: 'var(--surface2)', padding: '12px', borderRadius: 6, border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontWeight: 600, fontSize: 12 }}>Параметры моста издержек</span>
+                {!editingBridge ? (
+                  <button type="button" onClick={() => { setBridgeDraft({ ...model.bridge }); setEditingBridge(true); }} className="cash-reset-btn" style={{ fontSize: 10 }}>
+                    ✏️ Редактировать
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button type="button" onClick={handleSaveBridge} className="basis-btn active" style={{ fontSize: 10, padding: '2px 8px' }}>
+                      Сохранить
+                    </button>
+                    <button type="button" onClick={() => setEditingBridge(false)} className="cash-reset-btn" style={{ fontSize: 10 }}>
+                      Отмена
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Фура Волгоград–Москва (₽ за рейс):</span>
+                  {editingBridge ? (
+                    <input type="number" value={bridgeDraft.truckCostRub ?? ''} onChange={e => setBridgeDraft({ ...bridgeDraft, truckCostRub: Number(e.target.value) })} style={{ width: 90, padding: 3 }} />
+                  ) : (
+                    <strong className="mono">{model.bridge.truckCostRub ?? '—'} ₽</strong>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Загрузка фуры (кг):</span>
+                  {editingBridge ? (
+                    <input type="number" value={bridgeDraft.truckPayloadKg ?? ''} onChange={e => setBridgeDraft({ ...bridgeDraft, truckPayloadKg: Number(e.target.value) })} style={{ width: 90, padding: 3 }} />
+                  ) : (
+                    <strong className="mono">{model.bridge.truckPayloadKg ?? '—'} кг</strong>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Фасовка / упаковка (₽/кг):</span>
+                  {editingBridge ? (
+                    <input type="number" step="0.1" value={bridgeDraft.packagingRubKg ?? ''} onChange={e => setBridgeDraft({ ...bridgeDraft, packagingRubKg: Number(e.target.value) })} style={{ width: 90, padding: 3 }} />
+                  ) : (
+                    <strong className="mono">{model.bridge.packagingRubKg ?? '—'} ₽/кг</strong>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Погрузка / сортировка (₽/кг):</span>
+                  {editingBridge ? (
+                    <input type="number" step="0.1" value={bridgeDraft.handlingRubKg ?? ''} onChange={e => setBridgeDraft({ ...bridgeDraft, handlingRubKg: Number(e.target.value) })} style={{ width: 90, padding: 3 }} />
+                  ) : (
+                    <strong className="mono">{model.bridge.handlingRubKg ?? '—'} ₽/кг</strong>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Потери / отбраковка в пути (%):</span>
+                  {editingBridge ? (
+                    <input type="number" step="0.5" value={bridgeDraft.lossPct ?? ''} onChange={e => setBridgeDraft({ ...bridgeDraft, lossPct: Number(e.target.value) })} style={{ width: 90, padding: 3 }} />
+                  ) : (
+                    <strong className="mono">{model.bridge.lossPct ?? '—'} %</strong>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Маржа посредника (₽/кг):</span>
+                  {editingBridge ? (
+                    <input type="number" step="0.5" value={bridgeDraft.marginRubKg ?? ''} onChange={e => setBridgeDraft({ ...bridgeDraft, marginRubKg: Number(e.target.value) })} style={{ width: 90, padding: 3 }} />
+                  ) : (
+                    <strong className="mono">{model.bridge.marginRubKg ?? '—'} ₽/кг</strong>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Ставка НДС (доля, овощи 10% = 0.10):</span>
+                  {editingBridge ? (
+                    <input type="number" step="0.01" value={bridgeDraft.vatRate ?? ''} onChange={e => setBridgeDraft({ ...bridgeDraft, vatRate: Number(e.target.value) })} style={{ width: 90, padding: 3 }} />
+                  ) : (
+                    <strong className="mono">{model.bridge.vatRate ?? '—'}</strong>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="spread-divider">|</div>
-            <div className="spread-item">
-              <span className="spread-label">Пик со склада (W+{peakWeekIdx + 1} · {getWeekDateLabel(peakWeekIdx + 1)})</span>
-              <span className="spread-val up">{peakImportPrice.toFixed(1)} ₽/кг</span>
-            </div>
-            <div className="spread-divider">|</div>
-            <div className="spread-item">
-              <span className="spread-label">Окно максимальной цены</span>
-              <span className="spread-val up">W+{Math.max(1, peakWeekIdx)} – W+{Math.min(26, peakWeekIdx + 2)}</span>
+
+            {/* Right: Bridge Calculation Results */}
+            <div style={{ background: 'var(--surface2)', padding: '12px', borderRadius: 6, border: '1px solid var(--border)' }}>
+              <span style={{ fontWeight: 600, fontSize: 12, display: 'block', marginBottom: 10 }}>
+                Результаты расчета (при цене склада {model.prices.warehouse.exVat ? `${model.prices.warehouse.exVat.toFixed(1)} ₽` : '15.0 ₽'})
+              </span>
+
+              {model.bridgeResult.status === 'ok' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 11 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--txt2)' }}>Цена склада EXW (без НДС):</span>
+                    <span className="mono">{model.bridgeResult.components.warehousePrice.toFixed(2)} ₽/кг</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--txt2)' }}>Учет потерь (на 1 кг проданного):</span>
+                    <span className="mono">+{model.bridgeResult.components.lossAllowance.toFixed(2)} ₽/кг</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--txt2)' }}>Фрахт фуры ({model.bridgeResult.components.freight.toFixed(2)} ₽/кг):</span>
+                    <span className="mono">+{model.bridgeResult.components.freight.toFixed(2)} ₽/кг</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--txt2)' }}>Фасовка + погрузка:</span>
+                    <span className="mono">+{(model.bridgeResult.components.packaging + model.bridgeResult.components.handling).toFixed(2)} ₽/кг</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--txt2)' }}>Маржа посредника:</span>
+                    <span className="mono">+{model.bridgeResult.components.margin.toFixed(2)} ₽/кг</span>
+                  </div>
+                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 6, display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                    <span>Москва опт без НДС:</span>
+                    <span className="mono">{model.bridgeResult.moscowExVat.toFixed(2)} ₽/кг</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, color: 'var(--blue)' }}>
+                    <span>Москва опт с НДС 10%:</span>
+                    <span className="mono">{model.bridgeResult.moscowInclVat.toFixed(2)} ₽/кг</span>
+                  </div>
+                  <div style={{ borderTop: '1px dashed var(--border)', paddingTop: 6, fontSize: 10, color: 'var(--txt3)' }}>
+                    Валовая географическая разница без НДС: <strong>+{model.bridgeResult.grossDifferenceExVat.toFixed(2)} ₽/кг</strong>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ color: 'var(--amber)', fontSize: 11 }}>
+                  Смета не полна. Отсутствуют: {model.bridgeResult.missing?.join(', ')}
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Interactive Import Scenario Simulator Bar ── */}
-      <div className="import-sim-panel">
-        <div className="import-sim-header">
-          <div className="import-sim-title">
-            <span>🚢 Влияние импорта (Казахстан 39% · Узбекистан 28%):</span>
-            <span className="badge info" style={{ fontSize: 10 }}>Симуляция 26 недель</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--txt2)' }}>
-            <span>ЦБ РФ:</span>
-            <span className="mono" style={{ fontWeight: 600, color: 'var(--txt)' }}>USD {liveUsd.toFixed(2)} ₽</span>
-            <span>·</span>
-            <span className="mono" style={{ fontWeight: 600, color: 'var(--txt)' }}>KZT {liveKzt.toFixed(3)} ₽</span>
-          </div>
-        </div>
-
-        <div className="import-scenarios-row">
-          {Object.values(IMPORT_SCENARIOS).map(sc => (
-            <button
-              key={sc.id}
-              type="button"
-              className={`scenario-btn ${importScenario === sc.id ? `active ${sc.badgeCls}` : ''}`}
-              onClick={() => setImportScenario(sc.id)}
-            >
-              {sc.label}
-            </button>
-          ))}
-        </div>
-
-        {importScenario === 'custom' && (
-          <div style={{ background: 'var(--surface)', padding: '10px 14px', borderRadius: 6, border: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--txt)' }}>
-                Ручное отклонение объема импорта из Казахстана и ЕАЭС:
-              </span>
-              <span className="mono" style={{ fontWeight: 600, color: customImportDelta > 0 ? 'var(--amber)' : customImportDelta < 0 ? 'var(--red)' : 'var(--txt)' }}>
-                {customImportDelta > 0 ? `+${customImportDelta}% (избыток)` : customImportDelta < 0 ? `${customImportDelta}% (дефицит)` : '0% (базовый)'}
-              </span>
-            </div>
-            <input
-              type="range"
-              min="-50"
-              max="50"
-              step="5"
-              value={customImportDelta}
-              onChange={e => setCustomImportDelta(parseInt(e.target.value, 10))}
-              style={{ width: '100%' }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--txt3)', marginTop: 4 }}>
-              <span>-50% (Жёсткое эмбарго)</span>
-              <span>0% (Норма Росстат/ФТС)</span>
-              <span>+50% (Массивный демпинг)</span>
-            </div>
-          </div>
-        )}
-
-        <div className="import-desc-box">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 14 }}>ℹ️</span>
-            <span>{activeScenario.desc}</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-            <span style={{ fontSize: 10, color: 'var(--txt3)' }}>Статус границы РК:</span>
-            <span className="badge warn" style={{ fontSize: 10 }}>{activeScenario.kzStatus}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Crop Tabs ── */}
-      <div className="crop-tabs">
-        {FC_CROPS.map(id => (
-          <div
-            key={id}
-            className={`ctab${activeCrop === id ? ' active' : ''}`}
-            onClick={() => setActiveCrop(id)}
-          >
-            {CROPS[id].emoji} {CROPS[id].label}
-          </div>
-        ))}
-      </div>
-
-      {/* ── Main Split View ── */}
-      <div className="fc-split">
-        {/* Left: 26-Week Detailed Comparison Table */}
-        <div className="fc-left">
-          <div className="fc-section-hd">
-            <span className="panel-title">
-              26-недельный прогноз · {isWholesale ? 'Опт Москва (с НДС)' : isStorage ? 'Отгрузка из хранилища (нал)' : 'С поля (нал)'}
-            </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="badge info">R² = {(crop.r2 ?? 0.85).toFixed(2)}</span>
-              <span className={`pill ${activeScenario.badgeCls}`}>{activeScenario.shortLabel}</span>
+      {/* ── Subtab: Validation Metrics ── */}
+      {activeTab === 'validation' && (
+        <div style={{ padding: '14px' }}>
+          <div style={{ marginBottom: 12 }}>
+            <h3 style={{ fontSize: 14, margin: '0 0 6px' }}>
+              Результаты валидации модели (Rolling-Origin Backtest)
+            </h3>
+            <div style={{ fontSize: 11, color: 'var(--txt2)' }}>
+              Оценка точности на исторических срезах без заглядывания в будущее (out-of-sample). Модель выбирается на обучающем срезе и подтверждается на независимом финальном периоде.
             </div>
           </div>
 
-          <div style={{ padding: '0 14px' }}>
-            {/* Table Header showing BOTH prices */}
-            <div className="fc-table-head">
-              <span style={{ minWidth: 78 }}>Неделя · Дата</span>
-              <span style={{ flex: 1 }}>Тренд</span>
-              <span style={{ minWidth: 72, textAlign: 'right' }}>
-                {isWholesale ? 'Опт Москва' : 'Цена склада'}
-              </span>
-              {importScenario !== 'base' && (
-                <span style={{ minWidth: 55, textAlign: 'right' }}>Эффект КЗ</span>
-              )}
-              {isStorage && (
-                <span style={{ minWidth: 85, textAlign: 'right' }}>Чистыми</span>
-              )}
-              <span style={{ minWidth: 78, textAlign: 'right' }}>
-                {isWholesale ? 'Склад (нал)' : 'Опт Москва'}
-              </span>
-              <span style={{ minWidth: 55, textAlign: 'right' }}>Спред</span>
-              <span style={{ minWidth: 100, textAlign: 'center' }}>Фаза сезона</span>
-              <span style={{ minWidth: 32, textAlign: 'right' }}>Conf.</span>
+          {demo ? (
+            <div style={{ padding: '20px', background: 'var(--surface2)', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11 }}>
+              <div className="badge warn" style={{ marginBottom: 8 }}>ДЕМО-РЕЖИМ</div>
+              <div>В демо-режиме отображаются иллюстративные данные. Валидация бэктестом доступна при наличии реальных исторических рядов наблюдений.</div>
             </div>
-
-            {/* Table Body */}
-            <div className="fc-body">
-              {fcImport.map((p, i) => {
-                const prev = i === 0 ? p : fcImport[i - 1];
-                const up = p >= prev;
-                const span = max - min || 1;
-                const pct = Math.max(6, Math.round(((p - min) / span) * 100));
-                const baseP = fcBase[i];
-                const deltaP = +(p - baseP).toFixed(1);
-                const metrics = storageMetrics[i];
-                const phase = getSeasonPhase(i);
-
-                // Both prices for side-by-side comparison
-                const mskP = mskImport[i];
-                const storageP = storageImport[i];
-                const spread = +(mskP - storageP).toFixed(1);
-
-                return (
-                  <div className="fc-row" key={i}>
-                    <span className="wk" style={{ minWidth: 78 }}>
-                      W+{i + 1} <span style={{ color: 'var(--txt2)', opacity: 0.75 }}>({getWeekDateLabel(i + 1)})</span>
-                    </span>
-
-                    <div className="bar-wrap">
-                      <div
-                        className="bar-fill"
-                        style={{
-                          width: `${pct}%`,
-                          background: up ? 'var(--green)' : 'var(--red)',
-                        }}
-                      />
-                    </div>
-
-                    {/* Primary Price for this tab */}
-                    <span className="fc-price" style={{ minWidth: 72, color: up ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>
-                      {up ? '▲' : '▼'} {p.toFixed(1)} ₽
-                    </span>
-
-                    {/* Import Delta Badge */}
-                    {importScenario !== 'base' && (
-                      <span
-                        className={`fc-delta-pill ${deltaP > 0 ? 'up' : deltaP < 0 ? 'dn' : 'neu'}`}
-                        style={{ minWidth: 55, textAlign: 'center' }}
-                        title={`Отклонение от базового прогноза (${baseP.toFixed(1)} ₽) из-за фактора импорта`}
-                      >
-                        {deltaP > 0 ? `+${deltaP}` : deltaP < 0 ? `${deltaP}` : '0'} ₽
+          ) : fc?.validation?.byHorizon ? (
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Горизонт</th>
+                  <th>Статус</th>
+                  <th>Выборка n</th>
+                  <th>Период оценки</th>
+                  <th>MAE (₽/кг)</th>
+                  <th>Смещение (bias)</th>
+                  <th>MAE базовой модели</th>
+                  <th>Покрытие 80%</th>
+                  <th>Покрытие 95%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(fc.validation.byHorizon).map(([h, v]) => (
+                  <tr key={h}>
+                    <td className="fw">W+{h}</td>
+                    <td>
+                      <span className={`pill ${v?.status === 'ok' ? 'up' : 'warn'}`}>
+                        {v?.status === 'ok' ? 'валидирован' : 'недостаточно n'}
                       </span>
-                    )}
-
-                    {/* Net Realization (in storage mode) */}
-                    {isStorage && (
-                      <span
-                        className="storage-net-tag"
-                        style={{ minWidth: 85 }}
-                        title={`Чистая выручка со склада за вычетом потерь (${metrics.lossPct}%) и OPEX (${metrics.opex} ₽/кг)`}
-                      >
-                        {metrics.netPerKg} ₽
-                      </span>
-                    )}
-
-                    {/* Secondary Comparative Price */}
-                    <span
-                      style={{
-                        minWidth: 78,
-                        textAlign: 'right',
-                        fontFamily: 'var(--mono)',
-                        fontSize: 11,
-                        color: 'var(--txt2)',
-                      }}
-                      title={isWholesale ? 'Справочно: отгрузка со склада в Волгограде (нал)' : 'Справочно: оптовая цена в Москве (с НДС)'}
-                    >
-                      {isWholesale ? `${storageP.toFixed(1)} ₽` : `${mskP.toFixed(1)} ₽`}
-                    </span>
-
-                    {/* Price Spread */}
-                    <span
-                      style={{
-                        minWidth: 55,
-                        textAlign: 'right',
-                        fontFamily: 'var(--mono)',
-                        fontSize: 10,
-                        color: 'var(--amber)',
-                      }}
-                      title="Спред Москва — Склад (логистика + фасовка + НДС)"
-                    >
-                      +{spread.toFixed(1)}
-                    </span>
-
-                    <span className="fc-phase-tag" style={{ minWidth: 100, textAlign: 'center' }} title={phase.desc}>
-                      {phase.tag}
-                    </span>
-
-                    <span className="fc-conf" style={{ minWidth: 32 }}>{FORECAST_CONFIDENCE[i]}%</span>
-                  </div>
-                );
-              })}
+                    </td>
+                    <td className="mono">{v?.n ?? '—'}</td>
+                    <td className="mono" style={{ fontSize: 10 }}>
+                      {v?.period ? `${v.period.firstTarget} .. ${v.period.lastTarget}` : '—'}
+                    </td>
+                    <td className="mono fw" style={{ color: 'var(--blue)' }}>
+                      {v?.maeRubKg !== null && v?.maeRubKg !== undefined ? `${v.maeRubKg.toFixed(2)} ₽` : '—'}
+                    </td>
+                    <td className="mono">
+                      {v?.biasRubKg !== null && v?.biasRubKg !== undefined ? `${v.biasRubKg.toFixed(2)} ₽` : '—'}
+                    </td>
+                    <td className="mono">
+                      {v?.naiveMaeRubKg !== null && v?.naiveMaeRubKg !== undefined ? `${v.naiveMaeRubKg.toFixed(2)} ₽` : '—'}
+                    </td>
+                    <td className="mono">
+                      {v?.coverage80?.rate !== null && v?.coverage80?.rate !== undefined ? `${(v.coverage80.rate * 100).toFixed(0)}%` : '—'}
+                    </td>
+                    <td className="mono">
+                      {v?.coverage95?.rate !== null && v?.coverage95?.rate !== undefined ? `${(v.coverage95.rate * 100).toFixed(0)}%` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div style={{ padding: '20px', background: 'var(--surface2)', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, color: 'var(--txt2)' }}>
+              Для валидации необходимо накопить историю еженедельных цен (минимум 20+ недель в финальном срезе).
             </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Subtab: Scenarios ── */}
+      {activeTab === 'scenarios' && (
+        <div style={{ padding: '14px' }}>
+          <div style={{ marginBottom: 12 }}>
+            <h3 style={{ fontSize: 14, margin: '0 0 6px' }}>
+              Сценарный анализ предложения и курса
+            </h3>
+            <div style={{ fontSize: 11, color: 'var(--txt2)' }}>
+              Сценарии определяются явными входными параметрами (отклонение импорта, урожая и валюты). Эффекты не выдумываются: если эмпирическая эластичность не оценена, эффект честно маркируется как "не оценён".
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+            {model.scenarios.results.map(sc => (
+              <div
+                key={sc.id}
+                style={{
+                  background: 'var(--surface2)',
+                  borderRadius: 6,
+                  padding: 12,
+                  border: scenario === sc.id ? '2px solid var(--blue)' : '1px solid var(--border)',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setScenario(sc.id)}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <strong style={{ fontSize: 12 }}>{sc.label}</strong>
+                  {scenario === sc.id && <span className="badge info" style={{ fontSize: 9 }}>АКТИВЕН</span>}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--txt2)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div>• Импорт ({sc.inputs.importScope === 'kz_only' ? 'только КЗ' : 'весь'}): <strong>{sc.inputs.importDeltaPct > 0 ? `+${sc.inputs.importDeltaPct}%` : `${sc.inputs.importDeltaPct}%`}</strong></div>
+                  <div>• Внутреннее предложение: <strong>{sc.inputs.domesticSupplyDeltaPct > 0 ? `+${sc.inputs.domesticSupplyDeltaPct}%` : `${sc.inputs.domesticSupplyDeltaPct}%`}</strong></div>
+                  <div>• Курс валют: <strong>{sc.inputs.fxDeltaPct > 0 ? `+${sc.inputs.fxDeltaPct}%` : `${sc.inputs.fxDeltaPct}%`}</strong></div>
+                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 6, marginTop: 4, fontWeight: 600, color: sc.complete ? 'var(--blue)' : 'var(--amber)' }}>
+                    Сдвиг цены: {sc.complete ? `${sc.totalPct > 0 ? '+' : ''}${sc.totalPct.toFixed(1)}%` : 'не оценён'}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-
-        {/* Right: Feature Importance + Import Breakdown */}
-        <div>
-          <div className="fc-section-hd">
-            <span className="panel-title">Важность факторов · SHAP ({crop.label})</span>
-            <span className={`pill ${crop.signal === 'BUY' ? 'up' : crop.signal === 'SELL' ? 'dn' : 'warn'}`}>
-              {crop.signal}
-            </span>
-          </div>
-
-          <div style={{ padding: '12px 14px' }}>
-            {features.map(f => {
-              const isImport = f.label.includes('Импорт');
-              return (
-                <div key={f.label} className={`shap-item ${isImport ? 'highlight' : ''}`}>
-                  <div className="shap-item-head">
-                    <span style={{ fontWeight: 600, color: 'var(--txt)' }}>
-                      {f.label} {isImport ? '⭐ (КЗ/УЗ)' : ''}
-                    </span>
-                    <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: isImport ? 'var(--blue)' : 'var(--txt)' }}>
-                      {f.pct}%
-                    </span>
-                  </div>
-
-                  <div className="progress" style={{ height: 4, marginBottom: f.currentVal ? 6 : 0 }}>
-                    <div
-                      className="progress-fill"
-                      style={{
-                        width: `${f.pct}%`,
-                        background: isImport ? 'var(--blue)' : f.color,
-                      }}
-                    />
-                  </div>
-
-                  {f.currentVal && (
-                    <div className="shap-meta-row">
-                      <div>
-                        <span style={{ color: 'var(--txt3)' }}>Факт: </span>
-                        <strong style={{ color: 'var(--txt)', fontFamily: 'var(--mono)' }}>{f.currentVal}</strong>
-                      </div>
-                      <span className="shap-source-badge" title={`Источник: ${f.source}`}>
-                        {f.asOf}
-                      </span>
-                    </div>
-                  )}
-
-                  {f.trend && (
-                    <div className="shap-trend-desc" style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                      <span style={{ color: 'var(--txt3)' }}>Динамика:</span>
-                      <span style={{ color: 'var(--txt2)' }}>{f.trend}</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            <div className="divider" />
-
-            {/* Import Seasonal Mechanics Card */}
-            <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--txt3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                Механизм влияния импорта из Казахстана (39%)
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 11 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
-                  <span style={{ color: 'var(--txt2)' }}>🍂 Ноябрь (W+1..W+4):</span>
-                  <span style={{ fontWeight: 500, color: 'var(--amber)' }}>Сдерживание цен (-1.8 ₽)</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
-                  <span style={{ color: 'var(--txt2)' }}>🎄 Декабрь (W+5..W+9):</span>
-                  <span style={{ fontWeight: 500, color: 'var(--green)' }}>Новогодний всплеск (+4.2 ₽)</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
-                  <span style={{ color: 'var(--txt2)' }}>❄️ Янв–Фев (W+10..W+17):</span>
-                  <span style={{ fontWeight: 500, color: 'var(--red)' }}>Морозы и риски квот (+5.8 ₽)</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
-                  <span style={{ color: 'var(--txt2)' }}>🌱 Март (W+18..W+22):</span>
-                  <span style={{ fontWeight: 600, color: 'var(--green)' }}>Пик дефицита (+7.4 ₽)</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--txt2)' }}>☀️ Апрель (W+23..W+26):</span>
-                  <span style={{ fontWeight: 500, color: 'var(--blue)' }}>Ранний юг / обвал (-11.2 ₽)</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Deficit / Crash Probabilities */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-              <div className="signal-box buy">
-                <div className="signal-label buy">Вероятность дефицита</div>
-                <div className="signal-text buy" style={{ fontFamily: 'var(--mono)', fontSize: 20 }}>
-                  {crop.deficitProb ?? 74}%
-                </div>
-              </div>
-              <div className="signal-box sell">
-                <div className="signal-label sell">Вероятность обвала</div>
-                <div className="signal-text sell" style={{ fontFamily: 'var(--mono)', fontSize: 20 }}>
-                  {crop.crashProb ?? 9}%
-                </div>
-              </div>
-            </div>
-
-            {/* Trend interpretation */}
-            <div className={`signal-box ${trendCls}`}>
-              <div className={`signal-label ${trendCls}`}>
-                Оценка динамики · {crop.label} {isWholesale ? '(Опт Москва)' : isStorage ? '(Хранилище / Нал)' : '(С поля)'}
-              </div>
-              <div className={`signal-text ${trendCls}`} style={{ marginTop: 4 }}>
-                {isWholesale ? (
-                  <>
-                    Оптовая цена в Москве стартует с <strong>{baseWholesale.toFixed(1)} ₽/кг</strong>. При сценарии <em>«{activeScenario.shortLabel}»</em> прогнозируется сезонная волна с предновогодним подъёмом, январской паузой и выходом на годовой пик <strong>{peakImportPrice.toFixed(1)} ₽/кг (+{totalGrowthPct}%)</strong> на W+{peakWeekIdx + 1} ({getWeekDateLabel(peakWeekIdx + 1)}), с последующим апрельским снижением под давлением нового урожая.
-                  </>
-                ) : isStorage ? (
-                  <>
-                    При стартовой цене отгрузки со склада <strong>{currentCashStart.toFixed(1)} ₽/кг</strong> модель прогнозирует сезонный пик <strong>{peakImportPrice.toFixed(1)} ₽/кг (+{totalGrowthPct}%)</strong> на W+{peakWeekIdx + 1} ({getWeekDateLabel(peakWeekIdx + 1)}).
-                    {importDeltaAtPeak > 0 && ` Ограничение экспорта из Казахстана добавляет +${importDeltaAtPeak} ₽/кг к пиковой выручке на хранении.`}
-                    {importDeltaAtPeak < 0 && ` Избыточный импорт снижает потенциал пика на ${Math.abs(importDeltaAtPeak)} ₽/кг.`}
-                  </>
-                ) : (
-                  crop.trendText
-                )}
-              </div>
-            </div>
-
-            <div className="divider" />
-
-            {/* Live Data & Frequency Explainer */}
-            <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 4, padding: '10px 12px' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--txt3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                Источники данных и частота обновления факторов
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--txt2)', lineHeight: 1.6 }}>
-                <strong>• Валюта (USD, KZT) и ставка ЦБ:</strong> обновляются ежедневно в автоматическом режиме с серверов Банка России.<br />
-                <strong>• Импорт (ФТС РФ, ЕЭК, Казахстан):</strong> обновляется ежемесячно по таможенным декларациям и фитосанитарным сводкам.<br />
-                <strong>• Запасы хранилищ и валовой сбор:</strong> обновляются ежемесячно по отчётам Минсельхоза РФ и Росстата.
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

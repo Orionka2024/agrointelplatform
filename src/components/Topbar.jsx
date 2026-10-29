@@ -1,59 +1,91 @@
-import { CROPS, MACRO } from '../data/marketData';
-import { useStoragePrices } from '../hooks/useStoragePrices';
-
-const NOW = new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
-const TIME = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+import { useMarket } from '../context/useMarket';
 
 export default function Topbar() {
-  const { storagePrices, isCustom, hasAnyCustom, resetAll } = useStoragePrices();
+  const { model, demo, setDemo, refresh, loading } = useMarket();
 
-  const tickers = [
-    ...Object.values(CROPS).map(c => {
-      const stor = storagePrices[c.id];
-      const custom = isCustom(c.id);
-      return {
-        name: c.ticker,
-        price: `${c.price.toFixed(c.price >= 100 ? 0 : 1)} / ${stor.toFixed(stor >= 100 ? 0 : 1)}скл`,
-        change: c.change,
-        isCustom: custom,
-      };
-    }),
-    { name: 'USD/RUB', price: MACRO.usdRub.toFixed(2), change: MACRO.usdRubChange },
-    { name: 'СТАВКА ЦБ', price: `${MACRO.keyRate.toFixed(2)}%`, change: 0 },
-  ];
+  const whPrice = model.prices.warehouse;
+  const mskPrice = model.prices.moscow;
+  const usd = model.macro.usdRub;
+  const keyRate = model.macro.keyRate;
+
+  const fmtPrice = (p) => {
+    if (p.exVat !== null && p.exVat !== undefined) {
+      return `${p.exVat.toFixed(1)} ₽`;
+    }
+    return 'нет данных';
+  };
 
   return (
     <div className="topbar">
       <div className="logo-mark">AGROINTEL</div>
+
       <div className="ticker-strip">
-        {tickers.map(t => (
-          <div className="ticker-item" key={t.name}>
-            <span className="ticker-name">{t.name}</span>
-            <span className="ticker-price" style={{ color: t.isCustom ? 'var(--blue)' : 'inherit' }}>
-              {t.price}
-            </span>
-            <span className={`ticker-chg ${t.change > 0 ? 'up' : t.change < 0 ? 'dn' : 'neu'}`}>
-              {t.change > 0 ? '+' : ''}{t.change !== 0 ? `${t.change}%` : '→'}
-            </span>
-          </div>
-        ))}
+        <div className="ticker-item" title={`Базис: Склад продавца (Волгоградская обл., EXW без НДС). Статус: ${whPrice.provenance.status}`}>
+          <span className="ticker-name">ЛУК (СКЛАД EXW):</span>
+          <span className="ticker-price" style={{ color: whPrice.exVat ? 'var(--blue)' : 'var(--txt3)' }}>
+            {fmtPrice(whPrice)}
+          </span>
+          <span className="badge info" style={{ fontSize: 9, padding: '1px 4px' }}>
+            {whPrice.provenance.status}
+          </span>
+        </div>
+
+        <div className="ticker-item" title={`Базис: Опт Москва (с доставкой, с НДС). Статус: ${mskPrice.provenance.status}`}>
+          <span className="ticker-name">МОСКВА (ОПТ С НДС):</span>
+          <span className="ticker-price">
+            {mskPrice.inclVat ? `${mskPrice.inclVat.toFixed(1)} ₽` : 'нет данных'}
+          </span>
+          <span className="badge neu" style={{ fontSize: 9, padding: '1px 4px' }}>
+            {mskPrice.provenance.status}
+          </span>
+        </div>
+
+        <div className="ticker-item" title={`Курс доллара ЦБ РФ. Статус: ${usd.provenance.status}`}>
+          <span className="ticker-name">USD/RUB:</span>
+          <span className="ticker-price">{usd.value ? usd.value.toFixed(2) : '—'}</span>
+          <span className={`ticker-chg ${usd.provenance.status === 'live' ? 'up' : 'neu'}`}>
+            {usd.provenance.status}
+          </span>
+        </div>
+
+        <div className="ticker-item" title={`Ключевая ставка Банка России. Статус: ${keyRate.provenance.status}`}>
+          <span className="ticker-name">СТАВКА ЦБ:</span>
+          <span className="ticker-price">{keyRate.value ? `${keyRate.value.toFixed(1)}%` : '—'}</span>
+          <span className="ticker-chg neu">{keyRate.provenance.status}</span>
+        </div>
       </div>
-      <div className="topbar-right">
-        {hasAnyCustom && (
-          <button
-            type="button"
-            onClick={resetAll}
-            className="cash-reset-btn"
-            style={{ fontSize: 10, padding: '2px 7px', background: 'transparent' }}
-            title="Сбросить все изменённые вручную цены склада к нормативам"
-          >
-            ↺ Сбросить склад
-          </button>
-        )}
-        <div className="live-dot" />
-        <span className="live-label">LIVE · {NOW} · {TIME}</span>
+
+      <div className="topbar-right" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Mode Toggle Button */}
+        <button
+          type="button"
+          onClick={() => setDemo(!demo)}
+          className={`basis-btn ${demo ? 'active warn' : 'active'}`}
+          style={{
+            fontSize: 11,
+            padding: '3px 9px',
+            border: demo ? '1px solid var(--amber-border)' : '1px solid var(--blue-border)',
+            background: demo ? 'var(--amber-bg)' : 'var(--blue-bg)',
+            color: demo ? 'var(--amber)' : 'var(--blue)',
+            cursor: 'pointer',
+            fontWeight: 600,
+          }}
+          title={demo ? 'Сейчас активен демонстрационный режим с иллюстративными данными. Нажмите, чтобы переключить на режим реальных наблюдений.' : 'Сейчас активен режим реальных данных. Нажмите, чтобы переключить на демо-режим.'}
+        >
+          {demo ? '🟡 ДЕМО-РЕЖИМ' : '🟢 ФАКТ (РЕАЛЬНЫЕ ДАННЫЕ)'}
+        </button>
+
+        <button
+          type="button"
+          onClick={refresh}
+          disabled={loading}
+          className="cash-reset-btn"
+          style={{ fontSize: 11, padding: '3px 8px' }}
+          title="Обновить рыночные данные"
+        >
+          {loading ? '...' : '↺'}
+        </button>
       </div>
     </div>
   );
 }
-
