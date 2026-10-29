@@ -4,6 +4,7 @@ import { TARGET_SPECS } from '../../shared/spec.js';
 import { CROPS } from '../data/marketData';
 import { evaluateStorage, weeksToMonths } from '../../shared/storageEconomics.js';
 import { warehouseToMoscow, moscowToWarehouse } from '../../shared/bridge.js';
+import { CROP_TYPES, getCropProfile } from '../../shared/cropProfiles.js';
 
 const FORECAST_CONFIDENCE = [
   95, 94, 92, 91, 89, 87, 84, 81, 78, 74, 71, 67, 63, 59, 55, 51, 48, 45, 42, 39, 36, 33, 30, 27, 24, 21
@@ -37,6 +38,280 @@ function getWeekDateLabel(weeksAhead, baseDate = '2026-10-24') {
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' }).replace('.', '');
 }
 
+function OffSeasonPlanningView({ cropProfile }) {
+  const plan = cropProfile.planning2027 || {};
+  const [area, setArea] = useState(15);
+  const [yieldTons, setYieldTons] = useState(plan.targetYield || 40);
+  const [costPerHaK, setCostPerHaK] = useState(plan.costNormK || 320);
+  const [pricePerKg, setPricePerKg] = useState(plan.targetPriceWh || 15.0);
+
+  const totalHarvest = area * yieldTons;
+  const totalCost = area * costPerHaK * 1000;
+  const totalRevenue = totalHarvest * pricePerKg * 1000;
+  const netProfit = totalRevenue - totalCost;
+  const profitPerHa = area > 0 ? Math.round(netProfit / area) : 0;
+  const roi = totalCost > 0 ? Math.round((netProfit / totalCost) * 100) : 0;
+  const costPerKg = yieldTons > 0 ? (costPerHaK * 1000) / (yieldTons * 1000) : 0;
+
+  return (
+    <div style={{ padding: '14px' }}>
+      {/* Notice Banner */}
+      <div style={{
+        background: 'rgba(59, 130, 246, 0.08)',
+        border: '1px solid var(--blue)',
+        borderRadius: 8,
+        padding: '14px 16px',
+        marginBottom: 16
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <span style={{ fontSize: 24 }}>❄️</span>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--txt)' }}>
+              {cropProfile.offSeasonNotice?.title || 'Межсезонье: Сезон 2026 закрыт'}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--txt2)', marginTop: 2, lineHeight: 1.5 }}>
+              {cropProfile.offSeasonNotice?.description}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 10, fontSize: 11, borderTop: '1px dashed var(--border)', paddingTop: 8, flexWrap: 'wrap' }}>
+          <span>🗓️ <strong>Старт поставок нового урожая:</strong> {cropProfile.offSeasonNotice?.nextSeasonStart}</span>
+          <span>🎯 <strong>Ориентир стратегии:</strong> <span className="badge info">{cropProfile.cycleRec}</span></span>
+          <span>⚖️ <strong>Фаза рыночного цикла:</strong> <span className="badge warn">{cropProfile.cyclePhase}</span></span>
+        </div>
+      </div>
+
+      {/* Summary KPI Cards */}
+      <div className="row-4" style={{ gap: 10, marginBottom: 16 }}>
+        <div className="panel" style={{ padding: '10px 14px', background: 'var(--surface2)' }}>
+          <div className="stat-label">Ориентир стратегии</div>
+          <div className="stat-val" style={{ color: 'var(--amber)', fontSize: 16, marginTop: 4 }}>
+            {cropProfile.cycleRec}
+          </div>
+          <div className="stat-sub" style={{ fontSize: 10, color: 'var(--txt3)', marginTop: 2 }}>
+            Севооборот и контрактация
+          </div>
+        </div>
+
+        <div className="panel" style={{ padding: '10px 14px', background: 'var(--surface2)' }}>
+          <div className="stat-label">Себестоимость 1 кг (порог)</div>
+          <div className="stat-val" style={{ color: 'var(--blue)', fontSize: 18, marginTop: 4 }}>
+            {costPerKg.toFixed(2)} ₽/кг
+          </div>
+          <div className="stat-sub" style={{ fontSize: 10, color: 'var(--txt3)', marginTop: 2 }}>
+            при урожае {yieldTons} т/га
+          </div>
+        </div>
+
+        <div className="panel" style={{ padding: '10px 14px', background: 'var(--surface2)' }}>
+          <div className="stat-label">Ожидаемая рентабельность</div>
+          <div className="stat-val up" style={{ fontSize: 18, marginTop: 4 }}>
+            +{roi}%
+          </div>
+          <div className="stat-sub" style={{ fontSize: 10, color: 'var(--txt3)', marginTop: 2 }}>
+            Чистыми: {(profitPerHa / 1000).toFixed(0)} тыс. ₽/га
+          </div>
+        </div>
+
+        <div className="panel" style={{ padding: '10px 14px', background: 'var(--surface2)' }}>
+          <div className="stat-label">Валовый сбор ({area} га)</div>
+          <div className="stat-val" style={{ color: 'var(--txt)', fontSize: 18, marginTop: 4 }}>
+            {totalHarvest} т
+          </div>
+          <div className="stat-sub" style={{ fontSize: 10, color: 'var(--txt3)', marginTop: 2 }}>
+            Выручка: {(totalRevenue / 1e6).toFixed(2)} млн ₽
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 14, marginBottom: 16 }}>
+        {/* Interactive Planning Calculator */}
+        <div className="panel" style={{ padding: '12px 14px', background: 'var(--surface2)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontWeight: 700, fontSize: 12 }}>
+              🚜 Калькулятор структуры посевов и рентабельности на сезон 2027
+            </span>
+            <span className="badge info" style={{ fontSize: 9 }}>ПЛАНИРОВАНИЕ 2027</span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 11 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px', alignItems: 'center' }}>
+              <span>Площадь посева (га):</span>
+              <input
+                type="number"
+                min="1"
+                max="500"
+                value={area}
+                onChange={e => setArea(Math.max(1, parseFloat(e.target.value) || 0))}
+                style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--border)' }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px', alignItems: 'center' }}>
+              <span>Плановая урожайность (т/га):</span>
+              <input
+                type="number"
+                step="1"
+                min="5"
+                max="100"
+                value={yieldTons}
+                onChange={e => setYieldTons(Math.max(1, parseFloat(e.target.value) || 0))}
+                style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--border)' }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px', alignItems: 'center' }}>
+              <span>Затраты на 1 га (тыс. ₽):</span>
+              <input
+                type="number"
+                step="10"
+                min="50"
+                max="1500"
+                value={costPerHaK}
+                onChange={e => setCostPerHaK(Math.max(1, parseFloat(e.target.value) || 0))}
+                style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--border)' }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px', alignItems: 'center' }}>
+              <span>Ожидаемая цена с поля (₽/кг EXW):</span>
+              <input
+                type="number"
+                step="0.5"
+                min="1"
+                max="100"
+                value={pricePerKg}
+                onChange={e => setPricePerKg(Math.max(0.5, parseFloat(e.target.value) || 0))}
+                style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--border)' }}
+              />
+            </div>
+
+            <div style={{ marginTop: 6, padding: '10px 12px', background: 'var(--surface)', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ color: 'var(--txt2)' }}>Совокупный бюджет посева:</span>
+                <strong className="mono">{(totalCost / 1e6).toFixed(2)} млн ₽</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ color: 'var(--txt2)' }}>Ожидаемая валовая выручка:</span>
+                <strong className="mono">{(totalRevenue / 1e6).toFixed(2)} млн ₽</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border)', paddingTop: 4, marginTop: 4 }}>
+                <span style={{ fontWeight: 600 }}>Чистая прибыль проекта:</span>
+                <strong className="mono" style={{ color: netProfit >= 0 ? 'var(--green)' : 'var(--red)', fontSize: 12 }}>
+                  {netProfit >= 0 ? '+' : ''}{(netProfit / 1e6).toFixed(2)} млн ₽ ({roi}%)
+                </strong>
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--txt3)', marginTop: 4 }}>
+                Порог безубыточности: при цене ниже {costPerKg.toFixed(2)} ₽/кг производство станет убыточным.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Annual Wholesale Cycle Progression */}
+        <div className="panel" style={{ padding: '12px 14px', background: 'var(--surface2)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontWeight: 700, fontSize: 12 }}>
+              📊 Годовой цикл цен открытого грунта ({cropProfile.label})
+            </span>
+            <span className="badge neu" style={{ fontSize: 9 }}>ИСТОРИЧЕСКИЙ ПРОФИЛЬ</span>
+          </div>
+
+          <table className="tbl" style={{ fontSize: 11 }}>
+            <thead>
+              <tr>
+                <th>Период</th>
+                <th>Агрофаза</th>
+                <th style={{ textAlign: 'right' }}>Склад/Поле</th>
+                <th style={{ textAlign: 'right' }}>Опт Москва</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(cropProfile.annualCycle || []).map((ac, idx) => (
+                <tr key={idx} style={{ opacity: ac.status === 'off_season' ? 0.65 : 1 }}>
+                  <td className="fw">{ac.month}</td>
+                  <td style={{ fontSize: 10, color: ac.status === 'off_season' ? 'var(--txt3)' : 'var(--txt)' }}>
+                    {ac.phase}
+                  </td>
+                  <td style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontWeight: 600, color: ac.priceWh ? 'var(--blue)' : 'var(--txt3)' }}>
+                    {ac.priceWh ? `${ac.priceWh.toFixed(1)} ₽` : '—'}
+                  </td>
+                  <td style={{ textAlign: 'right', fontFamily: 'var(--mono)', color: ac.priceMsk ? 'var(--amber)' : 'var(--txt3)' }}>
+                    {ac.priceMsk ? `${ac.priceMsk.toFixed(1)} ₽` : 'межсезонье'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ fontSize: 10, color: 'var(--txt3)', marginTop: 8 }}>
+            * В зимне-весенний период поставок с отечественных полей нет. Зимний спрос в ритейле обеспечивается точечным импортом (Бразилия, Иран).
+          </div>
+        </div>
+      </div>
+
+      {/* Agronomic Milestones Roadmap for 2027 */}
+      <div className="panel" style={{ padding: '12px 14px', background: 'var(--surface2)', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <span style={{ fontWeight: 700, fontSize: 12 }}>
+            🗓️ Дорожная карта агрономических решений на сезон 2027 г. ({cropProfile.label})
+          </span>
+          <span className="badge info" style={{ fontSize: 9 }}>РЕГЛАМЕНТ АГРОНОМА</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {(cropProfile.planning2027?.keyMilestones || []).map((m, idx) => (
+            <div key={idx} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '6px 0', borderBottom: idx < cropProfile.planning2027.keyMilestones.length - 1 ? '1px solid var(--border)' : 'none', fontSize: 11 }}>
+              <span className="badge up" style={{ fontSize: 10, minWidth: 150, textAlign: 'center' }}>
+                {m.period}
+              </span>
+              <span style={{ color: 'var(--txt)', lineHeight: 1.5 }}>
+                {m.step}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {cropProfile.planning2027?.recommendedVarieties && (
+          <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px dashed var(--border)', fontSize: 11, color: 'var(--txt2)' }}>
+            🌱 <strong>Рекомендуемые проверенные сорта и гибриды F1:</strong> {cropProfile.planning2027.recommendedVarieties}
+          </div>
+        )}
+      </div>
+
+      {/* Market Balance & Phytosanitary Risks */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div className="panel" style={{ padding: '12px 14px', background: 'var(--surface2)' }}>
+          <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 8 }}>
+            ⚖️ Баланс рынка и емкость потребления (2027)
+          </div>
+          <div style={{ fontSize: 11, lineHeight: 1.6, color: 'var(--txt2)' }}>
+            <div>• <strong>Потребность рынка РФ:</strong> {cropProfile.balance?.D ?? 1.5} млн тонн.</div>
+            <div>• <strong>Отечественное производство:</strong> {cropProfile.balance?.P ?? 1.35} млн тонн.</div>
+            <div>• <strong>Импорт:</strong> {cropProfile.balance?.I ?? 0.1} млн тонн (ранние поставки июнь–июль из Узбекистана и Казахстана).</div>
+            <div>• <strong>Специфика:</strong> рынок бахчевых крайне чувствителен к погодным факторам августа. Жаркое лето повышает спрос на +25%, дождливое — снижает потребление на 30%.</div>
+          </div>
+        </div>
+
+        <div className="panel" style={{ padding: '12px 14px', background: 'var(--surface2)' }}>
+          <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 8 }}>
+            ⚠️ Фитосанитарные риски и ограничения
+          </div>
+          <div style={{ fontSize: 11, lineHeight: 1.6, color: 'var(--txt2)' }}>
+            {(cropProfile.planning2027?.marketRisks || []).map((r, idx) => (
+              <div key={idx} style={{ marginTop: idx > 0 ? 6 : 0 }}>
+                • {r}
+              </div>
+            ))}
+            <div style={{ marginTop: 6, fontStyle: 'italic', color: 'var(--txt3)' }}>
+              * Севооборот: запрещен повторный посев арбуза и дыни на одном поле ранее чем через 3–4 года во избежание накопления фузариозного фона.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Forecast({ onNavigateToImport }) {
   const { model, demo, setDemo, basis, setBasis, scenario, setScenario, updateAssumptions, issueNewForecast } = useMarket();
 
@@ -67,6 +342,8 @@ export default function Forecast({ onNavigateToImport }) {
 
   const scenarioRows = model.scenarios.rows?.[basis]?.[scenario] || fc?.horizons || [];
 
+  const cropProfile = getCropProfile(activeCrop);
+  const isFieldSeasonal = cropProfile.type === CROP_TYPES.FIELD_SEASONAL;
   const selectedCrop = CROPS[activeCrop] || CROPS.onion;
 
   // Custom manual price support per crop
@@ -75,8 +352,8 @@ export default function Forecast({ onNavigateToImport }) {
   const savedPriceVal = hasSavedCustomPrice ? Number(savedManualPrice) : null;
 
   const defaultBenchmarkPrice = basis === 'warehouse'
-    ? (activeCrop === 'onion' ? (model.prices.warehouse.exVat ?? 16.6) : (selectedCrop.price / 1.8))
-    : (activeCrop === 'onion' ? (model.prices.moscow.inclVat ?? 31.2) : selectedCrop.price);
+    ? (activeCrop === 'onion' ? (model.prices.warehouse.exVat ?? cropProfile.benchmarkWarehousePrice) : cropProfile.benchmarkWarehousePrice)
+    : (activeCrop === 'onion' ? (model.prices.moscow.inclVat ?? cropProfile.benchmarkMoscowPrice) : cropProfile.benchmarkMoscowPrice);
 
   const currentActualPrice = hasSavedCustomPrice ? savedPriceVal : defaultBenchmarkPrice;
 
@@ -125,7 +402,7 @@ export default function Forecast({ onNavigateToImport }) {
 
   const curWhPrice = basis === 'warehouse'
     ? currentActualPrice
-    : (moscowToWarehouse(currentActualPrice, model.bridge).status === 'ok' ? moscowToWarehouse(currentActualPrice, model.bridge).warehouseExVat : currentActualPrice / 1.8);
+    : (moscowToWarehouse(currentActualPrice, model.bridge).status === 'ok' ? moscowToWarehouse(currentActualPrice, model.bridge).warehouseExVat : currentActualPrice / 1.65);
 
   const originWhBase = whBaseHorizons[0]?.point || 15.89;
   const originMskBase = mskBaseHorizons[0]?.point || 28.34;
@@ -143,29 +420,42 @@ export default function Forecast({ onNavigateToImport }) {
     let whPrice;
     let mskPrice;
 
-    if (basis === 'warehouse') {
-      const basePt = (r.scenarioPoint ?? r.point ?? whBaseHorizons[i]?.point ?? originWhBase);
-      const ratio = originWhBase > 0 ? basePt / originWhBase : 1;
-      whPrice = currentActualPrice * ratio;
-      const bCalc = warehouseToMoscow(whPrice, model.bridge);
-      mskPrice = bCalc.status === 'ok' ? bCalc.moscowInclVat : (mskBaseHorizons[i]?.point ?? whPrice * 1.8);
+    if (activeCrop === 'onion' && !demo && scenarioRows.length > 0 && fc?.status === 'validated') {
+      if (basis === 'warehouse') {
+        const basePt = (r.scenarioPoint ?? r.point ?? whBaseHorizons[i]?.point ?? originWhBase);
+        const ratio = originWhBase > 0 ? basePt / originWhBase : 1;
+        whPrice = currentActualPrice * ratio;
+        const bCalc = warehouseToMoscow(whPrice, model.bridge);
+        mskPrice = bCalc.status === 'ok' ? bCalc.moscowInclVat : (mskBaseHorizons[i]?.point ?? whPrice * 1.8);
+      } else {
+        const basePt = (r.scenarioPoint ?? r.point ?? mskBaseHorizons[i]?.point ?? originMskBase);
+        const ratio = originMskBase > 0 ? basePt / originMskBase : 1;
+        mskPrice = currentActualPrice * ratio;
+        const bCalc = moscowToWarehouse(mskPrice, model.bridge);
+        whPrice = bCalc.status === 'ok' ? bCalc.warehouseExVat : (whBaseHorizons[i]?.point ?? mskPrice / 1.8);
+      }
     } else {
-      const basePt = (r.scenarioPoint ?? r.point ?? mskBaseHorizons[i]?.point ?? originMskBase);
-      const ratio = originMskBase > 0 ? basePt / originMskBase : 1;
-      mskPrice = currentActualPrice * ratio;
-      const bCalc = moscowToWarehouse(mskPrice, model.bridge);
-      whPrice = bCalc.status === 'ok' ? bCalc.warehouseExVat : (whBaseHorizons[i]?.point ?? mskPrice / 1.8);
+      const mult = cropProfile.seasonalMultipliers?.[i] ?? 1.0;
+      if (basis === 'warehouse') {
+        whPrice = curWhPrice * mult;
+        const bCalc = warehouseToMoscow(whPrice, model.bridge);
+        mskPrice = bCalc.status === 'ok' ? bCalc.moscowInclVat : whPrice * 1.65;
+      } else {
+        mskPrice = currentActualPrice * mult;
+        const bCalc = moscowToWarehouse(mskPrice, model.bridge);
+        whPrice = bCalc.status === 'ok' ? bCalc.warehouseExVat : mskPrice / 1.65;
+      }
     }
 
     whPricesList.push(whPrice);
 
     const spread = mskPrice - whPrice;
     const storageRes = evaluateStorage(curWhPrice, whPrice, {
-      ...model.storage.params,
+      ...(cropProfile.storageParams || model.storage.params),
       months: weeksToMonths(h),
     });
     const netPrice = storageRes.status === 'ok' ? storageRes.netLaterPerKgStored : null;
-    const phase = getSeasonPhase(i);
+    const phase = cropProfile.getPhase ? cropProfile.getPhase(i) : getSeasonPhase(i);
     const conf = FORECAST_CONFIDENCE[i] ?? Math.max(20, 95 - i * 3);
 
     rawRows.push({
@@ -333,9 +623,12 @@ export default function Forecast({ onNavigateToImport }) {
 
       {/* ── Subtab: Forecast Table View ── */}
       {activeTab === 'forecast' && (
-        <div>
-          {/* Interactive Manual Price Bar */}
-          <div style={{ padding: '10px 14px', background: 'var(--surface2)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, fontSize: 12 }}>
+        isFieldSeasonal ? (
+          <OffSeasonPlanningView cropProfile={cropProfile} />
+        ) : (
+          <div>
+            {/* Interactive Manual Price Bar */}
+            <div style={{ padding: '10px 14px', background: 'var(--surface2)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, fontSize: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 600 }}>
                 {basis === 'warehouse'
@@ -490,7 +783,7 @@ export default function Forecast({ onNavigateToImport }) {
                 {/* Section Header */}
                 <div className="fc-section-hd" style={{ padding: '10px 0 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span className="panel-title" style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase' }}>
-                    26-НЕДЕЛЬНЫЙ ПРОГНОЗ · {basis === 'warehouse' ? 'ОТГРУЗКА ИЗ ХРАНИЛИЩА (EXW БЕЗ НДС)' : 'ОПТ МОСКВА (С ДОСТАВКОЙ И НДС)'}
+                    26-НЕДЕЛЬНЫЙ ПРОГНОЗ · {selectedCrop.label.toUpperCase()} · {basis === 'warehouse' ? 'ОТГРУЗКА ИЗ ХРАНИЛИЩА (EXW БЕЗ НДС)' : 'ОПТ МОСКВА (С ДОСТАВКОЙ И НДС)'}
                   </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span className="badge info" style={{ fontSize: 10 }}>R² = 0.87</span>
@@ -598,18 +891,22 @@ export default function Forecast({ onNavigateToImport }) {
                   )}
 
                   <div style={{ borderTop: '1px dashed var(--border)', marginTop: 8, paddingTop: 6, fontSize: 10, color: 'var(--txt3)', lineHeight: 1.5 }}>
-                    <strong>Справочные региональные агрономические окна (ориентиры):</strong><br />
-                    • <strong>Волгоградская обл.:</strong> уборка на капельном поливе — август–сентябрь; окончание закладки в хранилища и сброс некондиции с полей — октябрь; ноябрь — реализация из необорудованных складов до заморозков и старт плановых отгрузок кондиционного фонда.<br />
-                    • <strong>Казахстан (Жамбылская обл.):</strong> сезон массового экспорта — август–октябрь.<br />
-                    • <strong>Узбекистан:</strong> ранний лук нового урожая — апрель–май.<br />
-                    <em>* Сила сезонного давления в модели определяется по датированным сводкам (ход уборки, запасы, качество), загружаемым через CSV.</em>
+                    <strong>Справочные агрономические окна ({cropProfile.fullName || cropProfile.label}):</strong><br />
+                    {(cropProfile.seasonalNotes || []).map((sn, idx) => (
+                      <div key={idx} style={{ marginTop: 2 }}>
+                        • <strong>{sn.label}:</strong> {sn.note}
+                      </div>
+                    ))}
+                    <div style={{ marginTop: 4, fontStyle: 'italic' }}>
+                      * Профиль сезонности и технологические параметры потерь калиброваны под стандарты длительного хранения овощей в РФ.
+                    </div>
                   </div>
                 </div>
               </div>
             )}
           </div>
         </div>
-      )}
+      ))}
 
       {/* ── Subtab: Cost Bridge ── */}
       {activeTab === 'bridge' && (

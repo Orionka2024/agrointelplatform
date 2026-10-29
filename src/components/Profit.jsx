@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMarket } from '../context/useMarket';
 import { evaluateStorage, lossSensitivity, priceSensitivity } from '../../shared/storageEconomics.js';
 import { CROPS, CROP_DEFAULTS } from '../data/marketData';
+import { CROP_TYPES, getCropProfile } from '../../shared/cropProfiles.js';
 
 function fmt(n) {
   if (n === null || n === undefined) return '—';
@@ -15,6 +16,7 @@ export default function Profit() {
   const { model, demo, updateAssumptions } = useMarket();
 
   const [activeTab, setActiveTab] = useState('storage'); // 'storage' | 'field'
+  const [storageCrop, setStorageCrop] = useState('onion');
 
   // Storage Economics state
   const whPrice = model.prices.warehouse.exVat ?? 15.0;
@@ -33,6 +35,29 @@ export default function Profit() {
   const [financingRatePctYear, setFinancingRatePctYear] = useState(storageParams.financingRatePctYear ?? 20);
   const [sellNowCostRubKg, setSellNowCostRubKg] = useState(storageParams.sellNowCostRubKg ?? 0.2);
   const [acquisitionCostRubKg, setAcquisitionCostRubKg] = useState(storageParams.acquisitionCostRubKg ?? 12.0);
+
+  function handleSelectStorageCrop(id) {
+    setStorageCrop(id);
+    const p = getCropProfile(id);
+    if (p.type === CROP_TYPES.STORAGE) {
+      const sp = p.storageParams;
+      const nowP = id === 'onion' ? (model.prices.warehouse.exVat ?? p.benchmarkWarehousePrice) : p.benchmarkWarehousePrice;
+      const futP = Math.round(nowP * (p.seasonalMultipliers[19] ?? 1.5) * 10) / 10;
+      setPNow(nowP);
+      setPFuture(futP);
+      setMonths(sp.months);
+      setShrinkPct(sp.shrinkPct);
+      setRotPct(sp.rotPct);
+      setDowngradeSharePct(sp.downgradeSharePct);
+      setDowngradeDiscountPct(sp.downgradeDiscountPct);
+      setEnergyRubKgMonth(sp.energyRubKgMonth);
+      setHandlingRubKg(sp.handlingRubKg);
+      setSortingRubKgSold(sp.sortingRubKgSold);
+      setFinancingRatePctYear(sp.financingRatePctYear);
+      setSellNowCostRubKg(sp.sellNowCostRubKg);
+      setAcquisitionCostRubKg(sp.acquisitionCostRubKg);
+    }
+  }
 
   const currentParams = {
     months,
@@ -99,84 +124,117 @@ export default function Profit() {
           <div className="panel">
             <div className="panel-hd" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span className="panel-title">Параметры хранения и издержек</span>
-              {demo && <span className="badge amber" style={{ fontSize: 10 }}>ДЕМО-ПАРАМЕТРЫ</span>}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <select
+                  value={storageCrop}
+                  onChange={e => handleSelectStorageCrop(e.target.value)}
+                  style={{ padding: '2px 8px', fontSize: 11, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--txt)', fontWeight: 600 }}
+                >
+                  {Object.values(CROPS).map(c => (
+                    <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>
+                  ))}
+                </select>
+                {demo && <span className="badge amber" style={{ fontSize: 10 }}>ДЕМО-ПАРАМЕТРЫ</span>}
+              </div>
             </div>
             <div className="panel-body">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 11 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
-                  <span>Цена «продать сейчас» (₽/кг EXW):</span>
-                  <input type="number" step="0.5" value={pNow} onChange={e => setPNow(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+              {getCropProfile(storageCrop).type === CROP_TYPES.FIELD_SEASONAL ? (
+                <div style={{ background: 'var(--surface2)', padding: '24px 16px', borderRadius: 6, border: '1px solid var(--border)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>{storageCrop === 'watermalon' ? '🍉' : '🍈'}</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--txt)', marginBottom: 6 }}>
+                    {CROPS[storageCrop]?.label}: Длительное зимнее хранение не осуществляется
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--txt2)', maxWidth: 440, margin: '0 auto 16px', lineHeight: 1.55 }}>
+                    Бахчевые культуры (арбуз, дыня) — скоропортящаяся продукция открытого грунта. Хранение до весны в овощехранилищах РФ технологически невозможно из-за полной потери товарного вида. Для расчета экономики гектара на сезон 2027 г. используйте калькулятор поля.
+                  </div>
+                  <button
+                    type="button"
+                    className="basis-btn active"
+                    onClick={() => { setActiveTab('field'); setFieldCrop(storageCrop); }}
+                    style={{ fontSize: 11, padding: '5px 12px' }}
+                  >
+                    🚜 Перейти в калькулятор поля для {CROPS[storageCrop]?.label}
+                  </button>
                 </div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 11 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                      <span>Цена «продать сейчас» (₽/кг EXW):</span>
+                      <input type="number" step="0.5" value={pNow} onChange={e => setPNow(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                    </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
-                  <span>Издержки сбыта сейчас (₽/кг EXW):</span>
-                  <input type="number" step="0.05" value={sellNowCostRubKg} onChange={e => setSellNowCostRubKg(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
-                </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                      <span>Издержки сбыта сейчас (₽/кг EXW):</span>
+                      <input type="number" step="0.05" value={sellNowCostRubKg} onChange={e => setSellNowCostRubKg(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                    </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
-                  <span>Ожидаемая будущая цена (₽/кг EXW):</span>
-                  <input type="number" step="0.5" value={pFuture} onChange={e => setPFuture(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
-                </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                      <span>Ожидаемая будущая цена (₽/кг EXW):</span>
+                      <input type="number" step="0.5" value={pFuture} onChange={e => setPFuture(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                    </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
-                  <span>Срок хранения (месяцев):</span>
-                  <input type="number" step="0.5" min="0.5" max="10" value={months} onChange={e => setMonths(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
-                </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                      <span>Срок хранения (месяцев):</span>
+                      <input type="number" step="0.5" min="0.5" max="10" value={months} onChange={e => setMonths(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                    </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
-                  <span>Усушка / естественная убыль (%):</span>
-                  <input type="number" step="0.5" value={shrinkPct} onChange={e => setShrinkPct(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
-                </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                      <span>Усушка / естественная убыль (%):</span>
+                      <input type="number" step="0.5" value={shrinkPct} onChange={e => setShrinkPct(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                    </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
-                  <span>Гниль / отход при хранении (%):</span>
-                  <input type="number" step="0.5" value={rotPct} onChange={e => setRotPct(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
-                </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                      <span>Гниль / отход при хранении (%):</span>
+                      <input type="number" step="0.5" value={rotPct} onChange={e => setRotPct(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                    </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
-                  <span>Доля нестандарта / 2 сорт (%):</span>
-                  <input type="number" step="1" min="0" max="100" value={downgradeSharePct} onChange={e => setDowngradeSharePct(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
-                </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                      <span>Доля нестандарта / 2 сорт (%):</span>
+                      <input type="number" step="1" min="0" max="100" value={downgradeSharePct} onChange={e => setDowngradeSharePct(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                    </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
-                  <span>Скидка на нестандарт (% к цене):</span>
-                  <input type="number" step="1" min="0" max="100" value={downgradeDiscountPct} onChange={e => setDowngradeDiscountPct(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
-                </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                      <span>Скидка на нестандарт (% к цене):</span>
+                      <input type="number" step="1" min="0" max="100" value={downgradeDiscountPct} onChange={e => setDowngradeDiscountPct(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                    </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
-                  <span>Энергия и охлаждение (₽/кг заложенного/мес):</span>
-                  <input type="number" step="0.05" value={energyRubKgMonth} onChange={e => setEnergyRubKgMonth(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
-                </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                      <span>Энергия и охлаждение (₽/кг заложенного/мес):</span>
+                      <input type="number" step="0.05" value={energyRubKgMonth} onChange={e => setEnergyRubKgMonth(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                    </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
-                  <span>Закладка и выгрузка (₽/кг заложенного):</span>
-                  <input type="number" step="0.1" value={handlingRubKg} onChange={e => setHandlingRubKg(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
-                </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                      <span>Закладка и выгрузка (₽/кг заложенного):</span>
+                      <input type="number" step="0.1" value={handlingRubKg} onChange={e => setHandlingRubKg(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                    </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
-                  <span>Сортировка перед продажей (₽/кг проданного):</span>
-                  <input type="number" step="0.1" value={sortingRubKgSold} onChange={e => setSortingRubKgSold(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
-                </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                      <span>Сортировка перед продажей (₽/кг проданного):</span>
+                      <input type="number" step="0.1" value={sortingRubKgSold} onChange={e => setSortingRubKgSold(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                    </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
-                  <span>Стоимость денег (альтернативная доходность, % год):</span>
-                  <input type="number" step="1" value={financingRatePctYear} onChange={e => setFinancingRatePctYear(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
-                </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                      <span>Стоимость денег (альтернативная доходность, % год):</span>
+                      <input type="number" step="1" value={financingRatePctYear} onChange={e => setFinancingRatePctYear(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                    </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
-                  <span>Себестоимость выращенного (₽/кг, sunk cost):</span>
-                  <input type="number" step="0.5" value={acquisitionCostRubKg} onChange={e => setAcquisitionCostRubKg(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
-                </div>
-              </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center' }}>
+                      <span>Себестоимость выращенного (₽/кг, sunk cost):</span>
+                      <input type="number" step="0.5" value={acquisitionCostRubKg} onChange={e => setAcquisitionCostRubKg(parseFloat(e.target.value) || 0)} style={{ padding: 4 }} />
+                    </div>
+                  </div>
 
-              <button
-                type="button"
-                onClick={handleSaveStorageParams}
-                className="basis-btn active"
-                style={{ fontSize: 11, padding: '4px 10px', marginTop: 14 }}
-              >
-                💾 Сохранить параметры хранения в модели
-              </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveStorageParams}
+                    className="basis-btn active"
+                    style={{ fontSize: 11, padding: '4px 10px', marginTop: 14 }}
+                  >
+                    💾 Сохранить параметры хранения в модели
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -204,7 +262,7 @@ export default function Profit() {
 
                     <div className="result-grid" style={{ marginBottom: 12 }}>
                       <div>
-                        <div className="result-lbl">Выход товарного лука</div>
+                        <div className="result-lbl">Выход кондиции ({CROPS[storageCrop]?.label})</div>
                         <div className="result-num">{(storageResult.saleableYield * 100).toFixed(1)}%</div>
                       </div>
                       <div>
