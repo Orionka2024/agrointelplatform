@@ -1,3 +1,5 @@
+import { allowRequest } from '../server/access.js';
+import { importAnnualCSV, ANNUAL_TEMPLATE } from '../shared/planning.js';
 /**
  * Vercel Serverless Function & Local Dev Handler: /api/import
  * Validates, de-duplicates and imports transactions/offers or indicators.
@@ -7,12 +9,13 @@ import { importPriceCSV, importIndicatorCSV, PRICE_CSV_TEMPLATE } from '../share
 import { todayISO } from '../shared/dates.js';
 
 const INDICATOR_CSV_TEMPLATE = [
-  'observation_date,retrieved_date,indicator,value,unit,region,storage_type,crop_year,cause,source,source_ref,notes',
+  'observation_date,retrieved_date,indicator,value,unit,region,storage_type,crop_year,cause,source,source_ref,notes,published_date,verification_status,verified_by,verified_at',
   '# пример: 2026-09-15,2026-09-16,harvest_progress_pct,45,%,Волгоградская обл.,,2026,,Комитет с/х Волгоградской обл.,сводка-15,,',
 ].join('\n');
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  if (!allowRequest(req, res, {costly: false})) return;
+
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -22,9 +25,10 @@ export default async function handler(req, res) {
     const url = new URL(req.url, 'http://localhost');
     const templateType = url.searchParams.get('template') || 'prices';
     return res.status(200).json({
+      annualTemplate: ANNUAL_TEMPLATE,
       priceTemplate: PRICE_CSV_TEMPLATE,
       indicatorTemplate: INDICATOR_CSV_TEMPLATE,
-      requestedTemplate: templateType === 'indicators' ? INDICATOR_CSV_TEMPLATE : PRICE_CSV_TEMPLATE,
+      requestedTemplate: templateType === 'annual' ? ANNUAL_TEMPLATE : templateType === 'indicators' ? INDICATOR_CSV_TEMPLATE : PRICE_CSV_TEMPLATE,
       counts: {
         prices: store.getObservations().length,
         indicators: store.getIndicators().length,
@@ -43,14 +47,19 @@ export default async function handler(req, res) {
 
   const type = body?.type || 'prices';
   const csvContent = body?.csv;
-  const importDate = body?.importDate || todayISO();
+  const importDate = todayISO();
 
   if (!csvContent || typeof csvContent !== 'string' || !csvContent.trim()) {
     return res.status(400).json({ error: 'BAD_REQUEST', message: 'Поле csv обязательно (содержимое CSV-файла в виде строки)' });
   }
 
+  if (csvContent.length > 2_000_000) return res.status(413).json({message:'CSV превышает 2 MB'});
   try {
-    if (type === 'prices') {
+    if (type === 'annual') {
+      const report = importAnnualCSV(csvContent, store.getAnnual(), {today: importDate});
+      if (report.accepted.length) store.appendAnnual(report.accepted);
+      return res.status(200).json({success: report.accepted.length > 0, type, report});
+    } else if (type === 'prices') {
       const existing = store.getObservations();
       const report = importPriceCSV(csvContent, existing, { importDate, today: importDate });
       if (report.accepted.length > 0) {

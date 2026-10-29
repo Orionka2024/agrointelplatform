@@ -59,7 +59,7 @@ export function buildDemoForecast(basis, bridge = DEMO_BRIDGE) {
     const h = i + 1;
     const date = addDays(DEMO_ISSUE_DATE, h * 7);
     let point;
-    if (basis === 'moscow') point = m;
+    if (basis === 'moscow') point = m / (1 + bridge.vatRate);
     else {
       const w = moscowToWarehouse(m, bridge);
       point = w.status === 'ok' ? w.warehouseExVat : null;

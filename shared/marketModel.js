@@ -1,3 +1,6 @@
+import { monitorMarket } from './monitoring.js';
+import { MODEL_VERSION } from './models.js';
+import { isVerified } from './observations.js';
 /**
  * Single source of truth for every screen (dashboard, forecast, deficit, storage, profitability, AI adviser).
  * Pure function: all inputs are explicit (including `today`), so the same inputs give the same numbers everywhere.
@@ -11,7 +14,7 @@ import { classifyFreshness, FRESHNESS_DAYS } from './provenance.js';
 import { warehouseToMoscow, validateBridge, estimateDifferenceFromMatched, impliedMargin } from './bridge.js';
 import { deficitIndex } from './balance.js';
 import { DEFAULT_SCENARIOS, EMPTY_SENSITIVITIES, SCENARIO_IDS, evaluateScenario, applyScenarioToRows } from './scenarios.js';
-import { evaluateStorage, validateStorageParams, weeksToMonths } from './storageEconomics.js';
+import { evaluateStorage, validateStorageParams, storageAtHorizon } from './storageEconomics.js';
 import { evaluateSeasonalPressure } from './seasonality.js';
 import { buildDemoForecast, DEMO_ISSUE_DATE, DEMO_BRIDGE, DEMO_STORAGE, DEMO_BALANCE, DEMO_SCENARIO_SENSITIVITIES, DEMO_ONION_MOSCOW_INCL, DEMO_SEASONAL_PRESSURES } from './demo.js';
 import { DEFAULT_VAT_RATE, TARGET_SPECS } from './spec.js';
@@ -42,13 +45,13 @@ export const BENCHMARK_STORAGE = {
 };
 
 export const DEFAULT_ASSUMPTIONS = {
-  version: 1,
+  version: 2,
   bridge: BENCHMARK_BRIDGE,
   manualPrices: { warehouse: null, moscow: null },
   storage: BENCHMARK_STORAGE,
   scenarios: DEFAULT_SCENARIOS,
-  sensitivities: DEMO_SCENARIO_SENSITIVITIES,
-  balance: DEMO_BALANCE,
+  sensitivities: EMPTY_SENSITIVITIES,
+  balance: {},
 };
 
 function mergeAssumptions(a) {
@@ -57,13 +60,13 @@ function mergeAssumptions(a) {
     bridge: { ...BENCHMARK_BRIDGE, ...(a?.bridge || {}) },
     storage: { ...BENCHMARK_STORAGE, ...(a?.storage || {}) },
     scenarios: { ...DEFAULT_SCENARIOS, ...(a?.scenarios || {}) },
-    sensitivities: { ...DEMO_SCENARIO_SENSITIVITIES, ...(a?.sensitivities || {}) },
+    sensitivities: { ...EMPTY_SENSITIVITIES, ...(a?.sensitivities || {}) },
     manualPrices: { warehouse: null, moscow: null, ...(a?.manualPrices || {}) },
   };
 }
 
 function latestStoredForecast(forecasts, basis) {
-  return forecasts.filter(f => f.basis === basis).sort((a, b) => (a.issueDate === b.issueDate ? (a.issuedAt || '') < (b.issuedAt || '') ? 1 : -1 : a.issueDate < b.issueDate ? 1 : -1))[0] || null;
+  return forecasts.filter(f => f.basis === basis && f.modelVersion === MODEL_VERSION && f.schema === 2).sort((a, b) => (a.issueDate === b.issueDate ? (a.issuedAt || '') < (b.issuedAt || '') ? 1 : -1 : a.issueDate < b.issueDate ? 1 : -1))[0] || null;
 }
 
 function priceView({ basis, observations, assumptions, today, demo, vatRate }) {
@@ -102,7 +105,11 @@ export function computeBalanceFor(cropId, { assumptions, demo, today, toggles = 
 
 export function computeMarketModel({ observations = [], indicators = [], forecasts = [], assumptions: rawAssumptions, macro = null, demo = false, today, storeAvailable = true }) {
   if (!today) throw new Error('computeMarketModel requires explicit `today`');
-  const assumptions = mergeAssumptions(rawAssumptions);
+  const assumptions = mergeAssumptions(rawAssumptions?.version === 2 ? rawAssumptions : null);
+  const evidence = { pricesTotal: observations.length, pricesVerified: observations.filter(isVerified).length,
+    indicatorsTotal: indicators.length, indicatorsVerified: indicators.filter(isVerified).length,
+    legacyForecasts: forecasts.filter(f => f.modelVersion !== MODEL_VERSION).length };
+  indicators = indicators.filter(isVerified);
   const bridge = demo ? DEMO_BRIDGE : assumptions.bridge;
   const vatRate = Number.isFinite(Number(bridge.vatRate)) ? Number(bridge.vatRate) : DEFAULT_VAT_RATE;
   const sens = demo ? DEMO_SCENARIO_SENSITIVITIES : assumptions.sensitivities;
@@ -166,8 +173,8 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
   else if (!prices.warehouse.exVat) storage.note = 'Нет цены склада «продать сейчас».';
   else if (!wf?.horizons?.length) storage.note = 'Нет прогноза цены склада.';
   else {
-    storage.rows = wf.horizons.filter(r => r.point != null).map(r => {
-      const e = evaluateStorage(prices.warehouse.exVat, r.point, { ...storageParams, months: weeksToMonths(r.h) });
+    storage.rows = wf.horizons.filter(r => r.point != null && r.targetDate > today).map(r => {
+      const e = evaluateStorage(prices.warehouse.exVat, r.point, storageAtHorizon(storageParams, Math.max(0, (Date.parse(r.targetDate)-Date.parse(today))/86400000/30.4375)));
       return { h: r.h, targetDate: r.targetDate, futurePrice: r.point, interval: r.interval, result: e };
     });
   }
@@ -197,7 +204,8 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
   ];
 
   return {
-    mode: demo ? 'demo' : 'observed', today, storeAvailable,
+    mode: demo ? 'demo' : 'observed', today, storeAvailable, evidence,
+    monitoring: monitorMarket(observations, indicators, today),
     assumptions, bridge, vatRate, sensitivities: sens,
     prices, series, bridgeValidation, bridgeResult, empirical, spread,
     forecasts: forecastInfo, scenarios: { results: scenarioResults, rows: scenarioRows },

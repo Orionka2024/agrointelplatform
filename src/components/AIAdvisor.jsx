@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useMarket } from '../context/useMarket';
 import { parseSafeMarkdown } from '../../shared/safeMarkdown.js';
-import { buildSnapshot } from '../../shared/snapshot.js';
 
 const QUICK_QUESTIONS = [
   'Какова текущая цена лука на складе в Волгограде и оптом в Москве?',
@@ -66,20 +65,13 @@ export default function AIAdvisor() {
     setAnswer('');
     setError(null);
 
-    // Build structured snapshot of the CURRENT market state
-    const snapshot = buildSnapshot(model, {
-      selectedBasis: basis,
-      selectedScenario: scenario,
-    });
-
     try {
       const res = await fetch('/api/advisor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: query,
-          snapshot,
-          demo,
+          demo, selectedBasis: basis, selectedScenario: scenario,
           userApiKey: userApiKey.trim() || undefined,
         }),
       });

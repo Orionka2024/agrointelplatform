@@ -1,3 +1,5 @@
+import { allowRequest } from '../server/access.js';
+import { annualEvidence } from '../shared/planning.js';
 /**
  * Vercel Serverless Function & Local Dev Handler: /api/market
  * Returns unified market model computed by shared/marketModel.js.
@@ -7,7 +9,8 @@ import { computeMarketModel } from '../shared/marketModel.js';
 import { todayISO } from '../shared/dates.js';
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  if (!allowRequest(req, res, {costly: false})) return;
+
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -24,19 +27,7 @@ export default async function handler(req, res) {
     const indicators = store.getIndicators();
     const forecasts = store.getForecasts();
     const assumptions = store.getAssumptions();
-    const defaultMacroSeed = {
-      usdRub: { value: 96.75, asOf: '2026-10-24', source: 'cbr.ru' },
-      kztRub: { value: 0.198, asOf: '2026-10-24', source: 'cbr.ru' },
-      keyRate: { value: 21.0, asOf: '2026-10-24', source: 'cbr.ru' },
-    };
-    const macroCache = store.getMacroCache() || defaultMacroSeed;
-
-    // Format macroCache for computeMarketModel
-    const macro = {
-      usdRub: macroCache?.usdRub ?? defaultMacroSeed.usdRub,
-      kztRub: macroCache?.kztRub ?? defaultMacroSeed.kztRub,
-      keyRate: macroCache?.keyRate ?? defaultMacroSeed.keyRate,
-    };
+    const macro = store.getMacroCache();
 
     const model = computeMarketModel({
       observations,
@@ -49,6 +40,8 @@ export default async function handler(req, res) {
       storeAvailable: true,
     });
 
+    model.annualHistory = store.getAnnual();
+    model.annualEvidence = annualEvidence(model.annualHistory, {today, region: model.assumptions.planning?.region});
     res.status(200).json(model);
   } catch (err) {
     console.error('[api/market] Error:', err);

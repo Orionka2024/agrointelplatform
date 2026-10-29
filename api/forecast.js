@@ -1,3 +1,4 @@
+import { allowRequest } from '../server/access.js';
 /**
  * Vercel Serverless Function & Local Dev Handler: /api/forecast
  * Issues new forecasts and provides stored forecast history.
@@ -7,7 +8,8 @@ import { issueForecast } from '../shared/forecast.js';
 import { todayISO } from '../shared/dates.js';
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  if (!allowRequest(req, res, {costly: true})) return;
+
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 

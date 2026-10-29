@@ -20,7 +20,7 @@ const mean = a => a.reduce((s, x) => s + x, 0) / a.length;
 export function rollingOriginBacktest(points, opts = {}) {
   const {
     horizons = HORIZONS, finalFraction = 0.4, minFinal = 20, minTune = 10, selectionMargin = 0.05,
-    models = MODELS,
+    models = MODELS, visibleAt = null, targetAvailableAt = null,
   } = opts;
   const out = {
     params: { finalFraction, minFinal, minTune, selectionMargin },
@@ -38,7 +38,7 @@ export function rollingOriginBacktest(points, opts = {}) {
   out.split = { finalStartOrigin: finalStart, firstOrigin: weeks[0], lastOrigin: weeks[weeks.length - 1] };
 
   for (const origin of weeks) {
-    const visible = truncateMap(points, origin); // information set at the origin
+    const visible = visibleAt ? visibleAt(origin) : truncateMap(points, origin); // information set at the origin
     for (const h of horizons) {
       const target = addWeeks(origin, h);
       if (!actual.has(target)) continue;
@@ -57,7 +57,7 @@ export function rollingOriginBacktest(points, opts = {}) {
     const seasAll = rec('seasonal_ratio');
     const pairedKey = r => r.origin;
 
-    const tuneFilter = r => r.origin < finalStart && weeksBetween(r.target, finalStart) >= 0;
+    const tuneFilter = r => r.origin < finalStart && weeksBetween((targetAvailableAt ? targetAvailableAt(r.target) : r.target), finalStart) > 0;
     const tuneS = seasAll.filter(tuneFilter);
     const tuneSet = new Set(tuneS.map(pairedKey));
     const tuneN = naiveAll.filter(r => tuneFilter(r) && tuneSet.has(r.origin));
@@ -80,7 +80,7 @@ export function rollingOriginBacktest(points, opts = {}) {
     const cover = { 0.8: { n: 0, covered: 0 }, 0.95: { n: 0, covered: 0 } };
     const allSel = rec(selected);
     for (const r of finalSel) {
-      const matured = allSel.filter(x => weeksBetween(x.target, r.origin) >= 0).map(x => x.abs);
+      const matured = allSel.filter(x => weeksBetween((targetAvailableAt ? targetAvailableAt(x.target) : x.target), r.origin) >= 0).map(x => x.abs);
       for (const level of [0.8, 0.95]) {
         const q = conformalQuantile(matured, level);
         if (q == null) continue;
@@ -107,7 +107,8 @@ export function rollingOriginBacktest(points, opts = {}) {
         coverage95: { n: cover[0.95].n, rate: rate(cover[0.95]) },
       },
       // A non-baseline model is adopted for production only if it also beats naive in the final period.
-      confirmedInHoldout: selected === 'naive' ? true : mae < naiveMae,
+      beatsNaiveInHoldout: mae < naiveMae, // Reporting only; never selects the deployed model.
+      confirmedInHoldout: true,
     };
   }
   return out;

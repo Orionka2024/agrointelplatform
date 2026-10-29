@@ -966,3 +966,15 @@ select:focus { border-color: var(--blue); }
 
 
 
+
+/* Evidence and planning workspaces */
+.audit-controls { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:16px 0; }
+.audit-controls button, .panel-body > button { padding:8px 12px; cursor:pointer; }
+.audit-inputs { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; margin:18px 0; }
+.audit-inputs label { display:flex; flex-direction:column; gap:6px; }
+.audit-inputs input, .audit-controls input, .audit-controls select { padding:8px; max-width:100%; }
+.audit-scroll { overflow-x:auto; }
+.audit-warning { padding:12px; border-left:3px solid var(--amber); background:var(--surface2); }
+.panel-body details { margin:18px 0; }
+.panel-body summary { cursor:pointer; font-weight:600; }
+.panel-body p { line-height:1.6; }

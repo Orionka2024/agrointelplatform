@@ -8,7 +8,7 @@
  * (If you know when each price became public, supply published_date.)
  */
 import { weekStart, addWeeks, weeksBetween, daysBetween } from './dates.js';
-import { availableDate } from './observations.js';
+import { availableDate, isVerified } from './observations.js';
 import { TARGET_SPECS } from './spec.js';
 
 function median(arr) {
@@ -24,23 +24,24 @@ function median(arr) {
  * @returns {{points:{week:string,value:number,n:number,sources:string[]}[], excluded:object, used:number}}
  */
 export function buildWeeklySeries(observations, opts) {
-  const { basis, kind = 'transaction', asOf = null, publishLagDays = 0, excludeOutliers = true } = opts;
+  const { basis, kind = 'transaction', asOf = null, publishLagDays = 0, excludeOutliers = false } = opts;
   const target = TARGET_SPECS[basis];
   if (!target) throw new Error(`Unknown basis ${basis}`);
   const specFields = opts.spec?.fields || target.fields;
-  const excluded = { notAvailableYet: 0, vatUnknown: 0, basisMismatch: 0, outlier: 0, specMismatch: 0, otherMarketOrKind: 0 };
+  const excluded = { notAvailableYet: 0, vatUnknown: 0, basisMismatch: 0, outlier: 0, specMismatch: 0, otherMarketOrKind: 0, unverified: 0 };
   let specUnknown = 0;
   const buckets = new Map();
   const usedIds = [];
   for (const o of observations) {
+    if (!isVerified(o)) { excluded.unverified++; continue; }
     if (o.market !== target.market || o.kind !== kind) { excluded.otherMarketOrKind++; continue; }
-    if (asOf && availableDate(o, publishLagDays) > asOf) { excluded.notAvailableYet++; continue; }
+    if (asOf && (o.observationDate > asOf || availableDate(o, publishLagDays) > asOf)) { excluded.notAvailableYet++; continue; }
     if (o.priceExVatRubKg == null) { excluded.vatUnknown++; continue; }
     if (!target.deliveryBasis.includes(o.deliveryBasis)) { excluded.basisMismatch++; continue; }
     if (excludeOutliers && o.quality?.outlier) { excluded.outlier++; continue; }
     // Spec match: only enforced when BOTH the target field is set and the observation states it.
     let mismatch = false;
-    for (const key of ['grade', 'packaging']) {
+    for (const key of ['grade', 'sizeMm', 'packaging', 'lotSizeT', 'paymentTerms']) {
       const want = specFields[key]?.value;
       const have = o.spec?.[key];
       if (want && have && String(want).toLowerCase() !== String(have).toLowerCase()) mismatch = true;

@@ -128,3 +128,11 @@ export function priceSensitivity(pNow, pPoint, params, interval = null, shifts =
 export function weeksToMonths(weeks) {
   return weeks / 4.348;
 }
+
+/** Loss assumptions are totals over referenceMonths, compounded for the holding duration. */
+export function storageAtHorizon(params, months) {
+  const reference = Number(params.referenceMonths ?? params.months);
+  if (!(reference > 0) || !(months >= 0)) return { ...params, months, shrinkPct: null, rotPct: null };
+  const scale = pct => 100 * (1 - Math.pow(1 - Number(pct) / 100, months / reference));
+  return { ...params, months, shrinkPct: scale(params.shrinkPct), rotPct: scale(params.rotPct), downgradeSharePct: scale(params.downgradeSharePct) };
+}

@@ -12,7 +12,7 @@ import { addWeeks, weeksBetween } from './dates.js';
 import { valueNear } from './series.js';
 
 export const HORIZONS = [1, 4, 8, 13, 26];
-export const MODEL_VERSION = 'baselines-1.0.0';
+export const MODEL_VERSION = 'evidence-2.0.0';
 export const MAX_STALE_WEEKS = 3;
 export const MIN_SEASONAL_YEARS = 2;
 export const MAX_SEASONAL_YEARS = 4;

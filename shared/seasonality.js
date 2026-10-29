@@ -64,7 +64,7 @@ function groupKey(o) {
  * @param {{asOf:string, indicators:object[], staleDays?:number, lagEvidence?:Record<string,{lagWeeks:number,corr:number,n:number}>}} p
  */
 export function evaluateSeasonalPressure({ asOf, indicators = [], staleDays = SEASONAL_STALE_DAYS, lagEvidence = {} }) {
-  const usable = indicators.filter(o => o.observationDate <= asOf);
+  const usable = indicators.filter(o => o.observationDate <= asOf && (o.publishedDate || o.retrievedDate || o.observationDate) <= asOf);
   if (usable.length === 0) {
     return {
       status: 'no_observations', asOf, pressures: [],
@@ -88,6 +88,9 @@ export function evaluateSeasonalPressure({ asOf, indicators = [], staleDays = SE
     if (o.indicator === 'harvest_progress_pct') {
       supports = o.value > 0 && o.value < 100;
       reason = supports ? `Уборка идёт: ${o.value}% (регион: ${o.region})` : `Ход уборки ${o.value}% — фаза не активна`;
+    } else if (o.indicator === 'temp_storage_stock_t') {
+      supports = false;
+      reason = `Запасы ${o.value} ${o.unit}: наличие запасов не подтверждает ликвидацию`;
     } else if (o.indicator === 'quality_loss_share_pct') {
       supports = o.value > 0;
       reason = `Доля партий с потерей качества ${o.value}%${o.cause ? ` (причина: ${o.cause})` : ''}`;

@@ -1,89 +1,29 @@
-import { CROPS, MARKET_CYCLE_STAGES } from '../data/marketData';
-
-const CYCLE_POSITIONS = [
-  { id: 'garlic',     phase: 'Дефицит предложения', pCls: 'dn',   rec: 'Озимый сев / расширение', rStyle: { color: 'var(--green)', fontWeight: 500 } },
-  { id: 'onion',      phase: 'Сезонная закладка',   pCls: 'warn', rec: 'Оценка окупаемости хранения', rStyle: { color: 'var(--blue)', fontWeight: 500 } },
-  { id: 'watermalon', phase: 'Завершение сезона',   pCls: 'up',   rec: 'Планирование площадей 2027', rStyle: { color: 'var(--txt2)', fontWeight: 500 } },
-  { id: 'carrot',     phase: 'Закладка фондов',     pCls: 'info', rec: 'Контроль лежкости и влаги',  rStyle: { color: 'var(--blue)', fontWeight: 500 } },
-  { id: 'melon',      phase: 'Межсезонье',          pCls: 'info', rec: 'Стандартный севооборот',     rStyle: { color: 'var(--txt2)', fontWeight: 500 } },
-  { id: 'potato',     phase: 'Баланс',              pCls: 'info', rec: 'Плановая контрактация',      rStyle: { color: 'var(--txt2)', fontWeight: 500 } },
-  { id: 'beet',       phase: 'Баланс',              pCls: 'info', rec: 'Стандартная закладка',       rStyle: { color: 'var(--txt2)', fontWeight: 500 } },
-  { id: 'cabbage',    phase: 'Избыток сбора',       pCls: 'dn',   rec: 'Оперативный сбыт',           rStyle: { color: 'var(--amber)', fontWeight: 500 } },
-];
-
+import { useState } from 'react';
+import { useMarket } from '../context/useMarket';
+import { evaluatePlan, PLANNING_FIELDS, annualEvidence } from '../../shared/planning.js';
+const fmt=v=>Number.isFinite(v)?v.toLocaleString('ru-RU',{maximumFractionDigits:2}):'—';
 export default function Cycle() {
-  return (
-    <div className="row-2">
-      {/* Cycle stages */}
-      <div className="panel">
-        <div className="panel-hd"><span className="panel-title">Структура многолетнего рыночного цикла</span></div>
-        <div className="panel-body">
-          {MARKET_CYCLE_STAGES.map(s => (
-            <div className="stage-row" key={s.n}>
-              <div className="stage-n">{s.n}</div>
-              <div className="stage-dot" style={{ background: s.color }} />
-              <div>
-                <div className="stage-title" style={{ color: s.color }}>{s.title}</div>
-                <div className="stage-desc">{s.desc}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Right column */}
-      <div className="col-stack">
-        <div className="panel">
-          <div className="panel-hd"><span className="panel-title">Оценка фазы цикла по культурам</span></div>
-          <div className="panel-body" style={{ padding: 0 }}>
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th className="pl">Культура</th>
-                  <th>Фаза цикла</th>
-                  <th>Ориентир стратегии</th>
-                </tr>
-              </thead>
-              <tbody>
-                {CYCLE_POSITIONS.map(cp => {
-                  const c = CROPS[cp.id] || { emoji: '🌱', label: cp.id };
-                  return (
-                    <tr key={cp.id}>
-                      <td className="pl fw">{c.emoji} {c.label}</td>
-                      <td><span className={`pill ${cp.pCls}`}>{cp.phase}</span></td>
-                      <td style={{ fontSize: 11, ...cp.rStyle }}>{cp.rec}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="panel">
-          <div className="panel-hd"><span className="panel-title">Методологический комментарий</span></div>
-          <div className="panel-body">
-            <div className="signal-box hold">
-              <div className="signal-label hold">Многолетняя циклическая динамика</div>
-              <div className="signal-text hold" style={{ marginTop: 6, fontSize: 11, lineHeight: 1.55 }}>
-                Рыночные циклы в овощеводстве формируются реакцией производителей на рентабельность предыдущего сезона (эффект «паутинообразной модели»). Высокие цены одного года стимулируют расширение сева в следующем, что может приводить к перепроизводству. Решения о закладке на хранение должны опираться на детальный расчет безубыточной будущей цены с учетом усушки, гнили и стоимости капитала (раздел «Экономика хранения»).
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="panel">
-          <div className="panel-hd"><span className="panel-title">Бизнес-применение</span></div>
-          <div className="panel-body" style={{ padding: '8px 14px' }}>
-            {['Фермеры и агрохолдинги', 'Трейдеры и овощные базы', 'Банки, кредитующие АПК', 'Поставщики семян и агрохимии'].map(t => (
-              <div className="macro-row" key={t}>
-                <span className="macro-lbl">{t}</span>
-                <span className="badge info">СУБЪЕКТ</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const {model,updateAssumptions}=useMarket();
+  const [plan,setPlan]=useState(()=>model.assumptions.planning||{});
+  const [scenario,setScenario]=useState('base'),[message,setMessage]=useState('');
+  const year=Number(model.today.slice(0,4))+1;
+  const names={surplus:'Избыток',base:'Центральный',tight:'Дефицит'};
+  const values=plan[scenario]||{};
+  const evidence=annualEvidence(model.annualHistory||[],{today:model.today,region:plan.region});
+  function update(k,v){setPlan(p=>({...p,[scenario]:{...(p[scenario]||{}),[k]:v}}));}
+  const results=Object.keys(names).map(id=>({id,result:evaluatePlan(plan[id]||{})}));
+  async function save(){setMessage(await updateAssumptions({planning:plan})?'Сценарии сохранены':'Не удалось сохранить');}
+  return <div className="panel"><div className="panel-hd"><span className="panel-title">Планирование урожая {year} и продаж {year}–{year+1}</span><span className="badge warn">СЦЕНАРИИ · НЕ ПРОГНОЗ</span></div><div className="panel-body">
+    <p>Высокая цена не означает автоматически низкую цену следующего года. Сначала оцениваются площади, товарный урожай и баланс. Цена и урожайность задаются совместно; вероятности этим сценариям не присваиваются.</p>
+    <label>Регион исторического ряда <input value={plan.region||''} onChange={e=>setPlan(p=>({...p,region:e.target.value}))}/></label>
+    <p>Подтверждённых лет: {evidence.n}; статус: {evidence.status}. Нужны сопоставимые годовые данные, желательно 8–15 лет. Сводки разных регионов не смешиваются.</p>
+    <table className="tbl"><thead><tr><th>Год</th><th>Реальная маржа, ₽/га (CPI=100)</th><th>Площадь следующего года</th><th>Реальная цена следующего года</th></tr></thead><tbody>{evidence.pairs.map(r=><tr key={r.year}><td>{r.year}</td><td>{fmt(r.realMarginPerHa)}</td><td>{fmt(r.nextAreaChangePct)}%</td><td>{fmt(r.nextRealPriceChangePct)}%</td></tr>)}</tbody></table>
+    <p>Это описательное сравнение, не причинная модель и не доказанный цикл. Импорт годовой истории доступен на вкладке данных.</p>
+    <div className="audit-controls"><label>Редактировать сценарий <select value={scenario} onChange={e=>setScenario(e.target.value)}>{Object.entries(names).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label><button onClick={save}>Сохранить</button><span role="status">{message}</span></div>
+    <div className="audit-inputs">{Object.entries(PLANNING_FIELDS).map(([k,label])=><label key={k}>{label}<input type="number" min="0" step="any" value={values[k]??''} onChange={e=>update(k,e.target.value)}/></label>)}</div>
+    <p>Все рыночные объёмы относятся к одному региону/рынку и маркетинговому году. Потери после приёмки не должны повторно включать уже исключённую нетоварную часть урожая. Стоимость воды и труда включите в затраты выращивания.</p>
+    <div className="audit-scroll"><table className="tbl"><thead><tr><th>Сценарий</th><th>Товарный урожай, т</th><th>Прибыль / га</th><th>Безубыточная цена</th><th>Остаток рынка, т</th><th>Ограничения</th></tr></thead><tbody>{results.map(({id,result:r})=><tr key={id}><td>{names[id]}</td><td>{fmt(r.tonnes)}</td><td>{fmt(r.profit)} / {fmt(r.profitPerHa)}</td><td>{fmt(r.breakEvenPrice)}</td><td>{fmt(r.endingT)}{r.endingT<0?' — баланс несовместим':''}</td><td>{r.status==='scenario'?r.constraints.map(c=>`${c.label}: ${c.ok?'OK':'превышено'}`).join('; '):'Заполните все поля корректно'}</td></tr>)}</tbody></table></div>
+    <h3>Контрольные точки</h3><p>До посева: намерения и бюджет → после посева: фактическая площадь → летом: урожайность и качество → при уборке: товарные тонны → хранение до весны {year+1}: ежемесячные продажи, потери и стоимость денег.</p>
+    <p>Для продажи после хранения используйте «Экономика хранения» с ценой и длительностью выбранного сценария. В этом расчёте прибыль относится к продаже урожая без последующего хранения.</p>
+  </div></div>;
 }

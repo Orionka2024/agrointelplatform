@@ -36,7 +36,10 @@ function apiDevServerPlugin() {
 
           if (req.method === 'POST' || req.method === 'PUT') {
             const chunks = [];
+            let bytes = 0;
             for await (const chunk of req) {
+              bytes += chunk.length;
+              if (bytes > 2_100_000) { res.status(413).json({message:'Request too large'}); return; }
               chunks.push(chunk);
             }
             const raw = Buffer.concat(chunks).toString();

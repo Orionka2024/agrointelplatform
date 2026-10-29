@@ -1,181 +1,80 @@
-/**
- * Durable storage for local development and serverless deployment.
- *
- * Persistence Strategy:
- * - When running locally: persists to `./data/*.json` with atomic file writes (write to temp file then rename).
- * - When running on Vercel / serverless: uses writable /tmp directory or falls back to in-memory state.
- * - Browser localStorage is strictly non-authoritative (only for local UI preferences).
+/** Local durable SQLite store. Serverless requires an explicitly mounted persistent DATA_DIR.
+ * Original JSON inputs are read once as unverified legacy evidence and never rewritten.
+ * SQLite transactions serialize writes; audit revisions and forecast records are retained.
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { isVerified } from '../shared/observations.js';
 import { DEFAULT_ASSUMPTIONS } from '../shared/marketModel.js';
-
-const DATA_DIR = process.env.DATA_DIR || (
-  process.env.VERCEL ? path.join('/tmp', 'agro-data') : path.join(process.cwd(), 'data')
-);
-
-function ensureDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+let db;
+function database() {
+  if (db) return db;
+  const dir = process.env.DATA_DIR || (process.env.VERCEL ? '/tmp' : path.join(process.cwd(), 'data'));
+  const seedDir = path.join(process.cwd(), 'data');
+  fs.mkdirSync(dir, { recursive: true });
+  db = new DatabaseSync(path.join(dir, 'agro.sqlite'));
+  db.exec('PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS documents (name TEXT PRIMARY KEY, body TEXT NOT NULL); CREATE TABLE IF NOT EXISTS revisions (id INTEGER PRIMARY KEY, name TEXT NOT NULL, body TEXT NOT NULL, saved_at TEXT NOT NULL);');
+  for (const name of ['observations','indicators','forecasts','assumptions','macro_cache','annual']) {
+    if (db.prepare('SELECT name FROM documents WHERE name=?').get(name)) continue;
+    let value = name === 'assumptions' ? DEFAULT_ASSUMPTIONS : name === 'macro_cache' ? null : [];
+    const seed = path.join(seedDir, `${name}.json`);
+    const fallbackSeed = path.join(dir, `${name}.json`);
+    const actualSeed = fs.existsSync(seed) ? seed : (fs.existsSync(fallbackSeed) ? fallbackSeed : null);
+    if (actualSeed && !['assumptions','macro_cache'].includes(name)) value = JSON.parse(fs.readFileSync(actualSeed, 'utf8'));
+    db.prepare('INSERT OR IGNORE INTO documents VALUES (?,?)').run(name,JSON.stringify(value));
   }
+  return db;
 }
-
-function getFilePath(filename) {
-  ensureDir();
-  return path.join(DATA_DIR, filename);
+function read(name) { return JSON.parse(database().prepare('SELECT body FROM documents WHERE name=?').get(name).body); }
+function write(name,value) {
+  const d = database(), body = JSON.stringify(value);
+  d.prepare('INSERT INTO revisions(name,body,saved_at) VALUES (?,?,?)').run(name,body,new Date().toISOString());
+  d.prepare('UPDATE documents SET body=? WHERE name=?').run(body,name);
+  return value;
 }
-
-function readJSON(filename, fallback) {
-  try {
-    const p = getFilePath(filename);
-    if (fs.existsSync(p)) {
-      const raw = fs.readFileSync(p, 'utf-8');
-      return JSON.parse(raw);
+function change(name, fn) {
+  const d = database(); d.exec('BEGIN IMMEDIATE');
+  try { const value = write(name,fn(read(name))); d.exec('COMMIT'); return value; }
+  catch(e) { d.exec('ROLLBACK'); throw e; }
+}
+function append(name,rows) {
+  let added=0;
+  const out=change(name,current=>{
+    const ids=new Set(current.map(o=>o.id));
+    for(const row of rows) {
+      if(!ids.has(row.id)) {current.push(row);ids.add(row.id);added++;}
+      else {
+        const index=current.findIndex(o=>o.id===row.id);
+        if(!isVerified(current[index]) && isVerified(row)) {
+          // Attestation may be upgraded; historical values remain immutable.
+          current[index]={...current[index],verification:row.verification}; added++;
+        }
+      }
     }
-    // Fallback to project seed files if running in /tmp
-    const seedPath = path.join(process.cwd(), 'data', filename);
-    if (fs.existsSync(seedPath)) {
-      const raw = fs.readFileSync(seedPath, 'utf-8');
-      return JSON.parse(raw);
-    }
-    return fallback;
-  } catch (err) {
-    console.warn(`[store] Failed to read ${filename}:`, err.message);
-    return fallback;
-  }
+    return current;
+  }); return {added,total:out.length};
 }
-
-function writeJSON(filename, data) {
-  try {
-    ensureDir();
-    const target = path.join(DATA_DIR, filename);
-    const temp = `${target}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
-    fs.writeFileSync(temp, JSON.stringify(data, null, 2), 'utf-8');
-    fs.renameSync(temp, target);
-    return true;
-  } catch (err) {
-    console.error(`[store] Failed to write ${filename}:`, err.message);
-    return false;
-  }
-}
-
-// In-memory cache to guarantee fast access and serverless persistence within warm container
-let memObservations = null;
-let memIndicators = null;
-let memForecasts = null;
-let memAssumptions = null;
-let memMacroCache = null;
-
 export const store = {
-  getObservations() {
-    if (!memObservations) {
-      memObservations = readJSON('observations.json', []);
-    }
-    return memObservations;
-  },
-
-  saveObservations(list) {
-    memObservations = list;
-    return writeJSON('observations.json', list);
-  },
-
-  appendObservations(newObs) {
-    const current = this.getObservations();
-    const existingIds = new Set(current.map(o => o.id));
-    const toAdd = newObs.filter(o => !existingIds.has(o.id));
-    const merged = [...current, ...toAdd];
-    this.saveObservations(merged);
-    return { added: toAdd.length, total: merged.length };
-  },
-
-  getIndicators() {
-    if (!memIndicators) {
-      memIndicators = readJSON('indicators.json', []);
-    }
-    return memIndicators;
-  },
-
-  saveIndicators(list) {
-    memIndicators = list;
-    return writeJSON('indicators.json', list);
-  },
-
-  appendIndicators(newInd) {
-    const current = this.getIndicators();
-    const existingIds = new Set(current.map(o => o.id));
-    const toAdd = newInd.filter(o => !existingIds.has(o.id));
-    const merged = [...current, ...toAdd];
-    this.saveIndicators(merged);
-    return { added: toAdd.length, total: merged.length };
-  },
-
-  getForecasts() {
-    if (!memForecasts) {
-      memForecasts = readJSON('forecasts.json', []);
-    }
-    return memForecasts;
-  },
-
+  getObservations:()=>read('observations'), saveObservations:list=>change('observations',()=>list), appendObservations:rows=>append('observations',rows),
+  getIndicators:()=>read('indicators'), saveIndicators:list=>change('indicators',()=>list), appendIndicators:rows=>append('indicators',rows),
+  getAnnual:()=>read('annual'), appendAnnual:rows=>append('annual',rows),
+  getForecasts:()=>read('forecasts'),
   saveForecast(fc) {
-    const current = this.getForecasts();
-    // Keep immutable history, replace existing if same ID
-    const idx = current.findIndex(f => f.id === fc.id);
-    if (idx >= 0) {
-      current[idx] = fc;
-    } else {
-      current.push(fc);
-    }
-    memForecasts = current;
-    writeJSON('forecasts.json', current);
-    return fc;
+    change('forecasts',rows=>{
+      const old=rows.find(r=>r.id===fc.id);
+      if(old && JSON.stringify(old)!==JSON.stringify(fc)) throw new Error('Forecast ID collision: immutable history');
+      return old ? rows : [...rows,fc];
+    }); return fc;
   },
-
-  getAssumptions() {
-    if (!memAssumptions) {
-      memAssumptions = readJSON('assumptions.json', DEFAULT_ASSUMPTIONS);
-    }
-    return memAssumptions;
-  },
-
-  saveAssumptions(assumptions) {
-    memAssumptions = assumptions;
-    return writeJSON('assumptions.json', assumptions);
-  },
-
+  getAssumptions:()=>read('assumptions'), saveAssumptions:a=>change('assumptions',()=>a),
   updateAssumptions(patch) {
-    const cur = this.getAssumptions();
-    const updated = {
-      ...cur,
-      ...patch,
-      bridge: { ...(cur.bridge || {}), ...(patch.bridge || {}) },
-      storage: { ...(cur.storage || {}), ...(patch.storage || {}) },
-      scenarios: { ...(cur.scenarios || {}), ...(patch.scenarios || {}) },
-      sensitivities: { ...(cur.sensitivities || {}), ...(patch.sensitivities || {}) },
-      manualPrices: { ...(cur.manualPrices || {}), ...(patch.manualPrices || {}) },
-      balance: { ...(cur.balance || {}), ...(patch.balance || {}) },
-    };
-    this.saveAssumptions(updated);
-    return updated;
+    return change('assumptions',cur=>{
+      const out={...cur,...patch,version:2};
+      for(const key of ['bridge','storage','scenarios','sensitivities','manualPrices','balance','planning']) out[key]={...(cur[key]||{}),...(patch[key]||{})};
+      return out;
+    });
   },
-
-  getMacroCache() {
-    if (!memMacroCache) {
-      memMacroCache = readJSON('macro_cache.json', null);
-    }
-    return memMacroCache;
-  },
-
-  saveMacroCache(cache) {
-    memMacroCache = cache;
-    return writeJSON('macro_cache.json', cache);
-  },
-
-  clearData() {
-    memObservations = [];
-    memIndicators = [];
-    memForecasts = [];
-    writeJSON('observations.json', []);
-    writeJSON('indicators.json', []);
-    writeJSON('forecasts.json', []);
-  }
+  getMacroCache:()=>read('macro_cache'), saveMacroCache:c=>change('macro_cache',()=>c),
+  clearData() { for(const k of ['observations','indicators','forecasts','annual']) change(k,()=>[]); },
 };

@@ -1,32 +1,15 @@
+import { allowRequest } from '../server/access.js';
 /**
  * Vercel Serverless Function & Local Dev Handler: /api/advisor
  * Secure AI Advisor with structured snapshot context and strict evidence boundaries.
  */
-import fs from 'node:fs';
-import path from 'node:path';
 import { store } from '../server/store.js';
 import { computeMarketModel } from '../shared/marketModel.js';
 import { buildSnapshot, sanitizeSnapshot } from '../shared/snapshot.js';
 import { todayISO } from '../shared/dates.js';
 import { generateAutonomousAnalysis } from '../shared/autonomousAdvisor.js';
 
-function getEnvVar(name) {
-  if (process.env[name]) return process.env[name];
-  try {
-    for (const filename of ['.env.local', '.env']) {
-      const p = path.join(process.cwd(), filename);
-      if (fs.existsSync(p)) {
-        const text = fs.readFileSync(p, 'utf-8');
-        const re = new RegExp(`^${name}\\s*=\\s*["']?([^"'\\r\\n]+)["']?`, 'm');
-        const m = text.match(re);
-        if (m && m[1].trim()) return m[1].trim();
-      }
-    }
-  } catch {
-    // silent
-  }
-  return null;
-}
+function getEnvVar(name) { return process.env[name] || null; }
 
 const SYSTEM_INSTRUCTIONS = `Ты — аналитик платформы Agro Intelligence Platform. Твоя задача — давать честный, доказательный экономический анализ рынка лука в Волгоградской области (склад продавца) и сравнения с оптовым рынком Москвы.
 
@@ -151,7 +134,8 @@ async function callAnthropic(apiKey, promptText) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  if (!allowRequest(req, res, {costly: true})) return;
+
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -175,13 +159,7 @@ export default async function handler(req, res) {
 
   // Build authoritative snapshot
   let snapshot;
-  if (body?.snapshot && typeof body.snapshot === 'object') {
-    const s = sanitizeSnapshot(body.snapshot);
-    if (s?.error) {
-      return res.status(400).json({ error: 'SNAPSHOT_TOO_LARGE', message: 'Размер контекста превышает лимит' });
-    }
-    snapshot = s;
-  } else {
+  {
     // Generate server-side snapshot
     const demo = body?.demo === true;
     const selectedBasis = body?.selectedBasis || 'warehouse';

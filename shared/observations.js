@@ -145,6 +145,7 @@ export function validatePriceRow(raw, { today, importDate } = {}) {
     id: hash32(`${naturalKey}|${priceRubKg.toFixed(4)}`),
     naturalKey: hash32(naturalKey),
     kind, market, geography,
+    verification: verificationOf(raw),
     observationDate, retrievedDate, retrievedDateAssumed,
     publishedDate: publishedDate || null,
     priceRubKg, priceExVatRubKg,
@@ -216,9 +217,9 @@ export function importPriceCSV(csvText, existing = [], { today, importDate } = {
   for (const row of parsed.rows) {
     const r = validatePriceRow(row, { today, importDate });
     if (!r.ok) { report.rejected.push({ line: row.__line, errors: r.errors }); continue; }
-    if (seenIds.has(r.obs.id)) { report.duplicates.push({ line: row.__line, id: r.obs.id }); continue; }
+    if (seenIds.has(r.obs.id) && !(isVerified(r.obs) && !isVerified(existing.find(o => o.id === r.obs.id) || r.obs))) { report.duplicates.push({ line: row.__line, id: r.obs.id }); continue; }
     const prev = byNatural.get(r.obs.naturalKey);
-    if (prev) {
+    if (prev && prev.id !== r.obs.id) {
       report.conflicts.push({ line: row.__line, existingPrice: prev.priceRubKg, newPrice: r.obs.priceRubKg });
       r.obs.quality.warnings.push('конфликт: та же запись с другой ценой');
     }
@@ -228,7 +229,8 @@ export function importPriceCSV(csvText, existing = [], { today, importDate } = {
     r.warnings.forEach(w => report.warnings.push({ line: row.__line, warning: w }));
   }
   // outliers considered against the existing store as well
-  const flagged = flagOutliers([...existing, ...report.accepted]);
+  const replaced = new Set(report.accepted.map(o => o.id));
+  const flagged = flagOutliers([...existing.filter(o => !replaced.has(o.id)), ...report.accepted]);
   const acceptedIds = new Set(report.accepted.map(o => o.id));
   report.accepted = flagged.filter(o => acceptedIds.has(o.id));
   report.outliers = report.accepted.filter(o => o.quality.outlier).length;
@@ -238,6 +240,9 @@ export function importPriceCSV(csvText, existing = [], { today, importDate } = {
 // ───────────────────────── indicators (non-price evidence) ─────────────────────────
 
 export const INDICATORS = {
+  buyer_orders_t: {unit:'t',label:'Заказы покупателей',min:0},
+  import_landed_rub_kg: {unit:'RUB/kg',label:'Стоимость импортного лука с доставкой',min:0},
+  planting_area_ha: {unit:'ha',label:'Площадь посева',min:0},
   harvest_progress_pct: { unit: '%', label: 'Ход уборки', min: 0, max: 100 },
   field_sales_volume_t: { unit: 't', label: 'Продажи с поля', min: 0 },
   temp_storage_stock_t: { unit: 't', label: 'Запасы во временных/неприспособленных хранилищах', min: 0 },
@@ -275,6 +280,7 @@ export function validateIndicatorRow(raw, { today, importDate } = {}) {
   if (!source) errors.push('source: обязательно');
   const cause = clean(raw.cause, 20).toLowerCase() || null;
   if (cause && !QUALITY_CAUSES.includes(cause)) errors.push(`cause: допустимо ${QUALITY_CAUSES.join('|')}`);
+  if (raw.published_date && (!isISODate(raw.published_date) || raw.published_date < observationDate)) errors.push('published_date: неверная дата');
   if (errors.length) return { ok: false, errors, warnings: [], obs: null };
   const key = [indicator, observationDate, region, clean(raw.storage_type, 40), clean(raw.crop_year, 9), source, clean(raw.source_ref, 200)].join('|');
   return {
@@ -282,6 +288,8 @@ export function validateIndicatorRow(raw, { today, importDate } = {}) {
     obs: {
       id: hash32(`${key}|${value}`), naturalKey: hash32(key),
       indicator, value, unit, region,
+      verification: verificationOf(raw),
+      publishedDate: clean(raw.published_date, 10) || retrievedDate,
       cropYear: clean(raw.crop_year, 9) || null,
       storageType: clean(raw.storage_type, 40) || null,
       cause,
@@ -302,7 +310,7 @@ export function importIndicatorCSV(csvText, existing = [], { today, importDate }
   for (const row of parsed.rows) {
     const r = validateIndicatorRow(row, { today, importDate });
     if (!r.ok) { report.rejected.push({ line: row.__line, errors: r.errors }); continue; }
-    if (seen.has(r.obs.id)) { report.duplicates.push({ line: row.__line, id: r.obs.id }); continue; }
+    if (seen.has(r.obs.id) && !(isVerified(r.obs) && !isVerified(existing.find(o => o.id === r.obs.id) || r.obs))) { report.duplicates.push({ line: row.__line, id: r.obs.id }); continue; }
     seen.add(r.obs.id);
     report.accepted.push(r.obs);
   }
@@ -310,11 +318,26 @@ export function importIndicatorCSV(csvText, existing = [], { today, importDate }
 }
 
 export function availableDate(obs, publishLagDays = 0) {
-  return obs.publishedDate || addDays(obs.observationDate, publishLagDays);
+  return obs.publishedDate || obs.retrievedDate || addDays(obs.observationDate, publishLagDays);
 }
 
 export const PRICE_CSV_TEMPLATE = [
-  'observation_date,retrieved_date,kind,market,geography,price,unit,vat,vat_rate,delivery_basis,grade,size_mm,packaging,lot_size_t,payment_terms,volume_t,source,source_ref,published_date,notes',
+  'observation_date,retrieved_date,kind,market,geography,price,unit,vat,vat_rate,delivery_basis,grade,size_mm,packaging,lot_size_t,payment_terms,volume_t,source,source_ref,published_date,notes,verification_status,verified_by,verified_at',
   '# пример (не данные!): 2026-01-12,2026-01-13,transaction,warehouse_volgograd,"Волгоградская обл., Городищенский р-н",18.5,RUB/kg,excl,0.10,EXW,1-й сорт,50-70,навалом,20,предоплата,20,ИМЯ_ИСТОЧНИКА,идентификатор_сделки,,',
 ].join('\n');
 export { parseISODate };
+
+/** User attestation: not independent source verification. Existing seed records remain unverified. */
+export function verificationOf(raw) {
+  const status = raw.verification_status === 'verified' ? 'verified' : 'unverified';
+  const reference = clean(raw.source_ref, 200);
+  const reviewer = clean(raw.verified_by, 120);
+  const date = clean(raw.verified_at, 10);
+  if (status === 'verified' && (!reference || !reviewer || !isISODate(date))) {
+    return { status: 'unverified', reason: 'Для подтверждения нужны source_ref, verified_by, verified_at' };
+  }
+  return { status, by: reviewer || null, at: date || null, evidence: reference || null };
+}
+export function isVerified(o) {
+  return o.verification?.status === 'verified' && !!o.verification.by && !!o.verification.evidence && isISODate(o.verification.at);
+}

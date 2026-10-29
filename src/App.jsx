@@ -15,7 +15,7 @@ const TABS = [
   { id: 'forecast',    label: 'Прогноз цен' },
   { id: 'deficit',     label: 'Баланс и дефицит' },
   { id: 'profit',      label: 'Экономика хранения' },
-  { id: 'cycle',       label: 'Цикл рынка' },
+  { id: 'cycle',       label: 'Планирование 2027/28' },
   { id: 'data_import', label: 'Импорт данных (CSV)' },
   { id: 'ai',          label: 'AI-советник' },
 ];

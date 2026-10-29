@@ -4,23 +4,25 @@
  * It is created by an explicit call with an explicit issueDate; nothing here reads the wall clock,
  * and an old record is never re-dated to "today".
  */
-import { weekStart, addWeeks, weeksBetween } from './dates.js';
+import { weekStart, addWeeks, weeksBetween, isISODate } from './dates.js';
 import { buildWeeklySeries, pointsToMap, describeSeries } from './series.js';
 import { rollingOriginBacktest } from './backtest.js';
-import { HORIZONS, MODELS, MODEL_VERSION, conformalQuantile } from './models.js';
-import { hash32 } from './observations.js';
+import { MODELS, MODEL_VERSION, conformalQuantile } from './models.js';
+import { hash32, availableDate, isVerified } from './observations.js';
 import { TARGET_SPECS, PRICE_UNIT } from './spec.js';
 
 export const MAX_DATA_AGE_WEEKS_FOR_ISSUE = 1; // latest observed week may lag the issue week by at most 1 week
 export const FULL_HORIZONS = Array.from({ length: 26 }, (_, i) => i + 1);
 
 export function issueForecast({ observations, basis, issueDate, kind = 'transaction', publishLagDays = 0, now = null, backtestOpts = {}, horizons = FULL_HORIZONS }) {
+  if (!isISODate(issueDate)) throw new Error('Invalid issue date');
   const target = TARGET_SPECS[basis];
+  if (!target) throw new Error('Invalid basis');
   const series = buildWeeklySeries(observations, { basis, kind, asOf: issueDate, publishLagDays });
   const desc = describeSeries(series.points);
   const issueWeek = weekStart(issueDate);
   const base = {
-    schema: 1,
+    schema: 2,
     mode: 'observed',
     basis,
     issueDate,
@@ -41,7 +43,7 @@ export function issueForecast({ observations, basis, issueDate, kind = 'transact
     validation: null,
     reasons: [],
   };
-  const idOf = rec => ({ ...rec, id: `fc-${hash32(`${rec.basis}|${rec.issueDate}|${rec.provenance.inputHash}|${rec.modelVersion}`)}` });
+  const idOf = rec => ({ ...rec, id: `fc-${hash32(`${rec.basis}|${rec.issueDate}|${rec.provenance.inputHash}|${rec.modelVersion}|${kind}|${publishLagDays}|${JSON.stringify(horizons)}|${JSON.stringify(backtestOpts)}|${now || ''}`)}` });
 
   if (desc.n === 0) {
     return idOf({ ...base, status: 'insufficient_data', reasons: ['Нет наблюдений по этому ряду (рынок/тип цены/базис/НДС).'] });
@@ -52,17 +54,28 @@ export function issueForecast({ observations, basis, issueDate, kind = 'transact
   }
 
   const map = pointsToMap(series.points);
-  const origin = desc.lastWeek;
-  const bt = rollingOriginBacktest(series.points, { horizons, ...backtestOpts });
+  const origin = issueWeek;
+  const effectiveDates = new Map();
+  for (const o of observations.filter(isVerified)) {
+    if (o.market !== target.market || o.kind !== kind || availableDate(o, publishLagDays) > issueDate) continue;
+    const w = weekStart(o.observationDate);
+    const d = availableDate(o, publishLagDays);
+    if (!effectiveDates.has(w) || d > effectiveDates.get(w)) effectiveDates.set(w, d);
+  }
+  const bt = rollingOriginBacktest(series.points, {
+    horizons, ...backtestOpts,
+    visibleAt: origin => pointsToMap(buildWeeklySeries(observations, { basis, kind, asOf: origin, publishLagDays }).points),
+    targetAvailableAt: w => effectiveDates.get(w) || w,
+  });
   const rows = [];
   let anyValidated = false;
   for (const h of horizons) {
     const v = bt.horizons[h];
     const validated = v?.status === 'ok';
-    let modelId = validated && v.confirmedInHoldout ? v.selected : 'naive';
+    let modelId = validated ? v.selected : 'naive';
     let point = MODELS[modelId].predict(map, origin, h);
     if (point == null) { modelId = 'naive'; point = MODELS.naive.predict(map, origin, h); }
-    const abs = bt.errors[modelId]?.[h]?.map(r => r.abs) ?? [];
+    const abs = bt.errors[modelId]?.[h]?.filter(r => (effectiveDates.get(r.target) || r.target) <= issueDate).map(r => r.abs) ?? [];
     let interval = null;
     if (validated) {
       const q80 = conformalQuantile(abs, 0.8);
@@ -83,7 +96,7 @@ export function issueForecast({ observations, basis, issueDate, kind = 'transact
   }
   return idOf({
     ...base,
-    status: anyValidated ? 'validated' : 'baseline_unvalidated',
+    status: rows.every(r => r.validated) ? 'validated' : anyValidated ? 'partially_validated' : 'baseline_unvalidated',
     horizons: rows,
     validation: {
       method: 'rolling-origin, purged tuning/final split, out-of-sample conformal intervals',

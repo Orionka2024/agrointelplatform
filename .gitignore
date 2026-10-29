@@ -33,3 +33,5 @@ dist-ssr
 !public/*
 !src/assets/*
 data/*.tmp
+
+data/*.sqlite*

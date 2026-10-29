@@ -9,7 +9,7 @@ export function MarketProvider({ children }) {
       const saved = localStorage.getItem('agro_demo_mode');
       if (saved === 'false') return false;
       if (saved === 'true') return true;
-      // Default to observed mode now that the built-in 6-year dataset (313 weeks) is active
+      // Real mode does not use unverified seed data.
       return false;
     } catch {
       return false;
@@ -18,7 +18,8 @@ export function MarketProvider({ children }) {
 
   const [basis, setBasis] = useState('warehouse');
   const [scenario, setScenario] = useState('base');
-  const [today] = useState(() => todayISO());
+  const [today, setToday] = useState(() => todayISO());
+  useEffect(() => { const timer = setInterval(() => setToday(todayISO()), 60000); return () => clearInterval(timer); }, []);
   const [model, setModel] = useState(() => {
     // Immediate fallback synchronous model so screens never render empty
     return computeMarketModel({
@@ -26,11 +27,7 @@ export function MarketProvider({ children }) {
       indicators: [],
       forecasts: [],
       assumptions: null,
-      macro: {
-        usdRub: { value: 96.75, asOf: '2026-10-24', source: 'cbr.ru' },
-        kztRub: { value: 0.198, asOf: '2026-10-24', source: 'cbr.ru' },
-        keyRate: { value: 21.0, asOf: '2026-10-24', source: 'cbr.ru' },
-      },
+      macro: null,
       demo: false,
       today: todayISO(),
       storeAvailable: false,

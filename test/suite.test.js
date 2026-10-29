@@ -84,9 +84,9 @@ test('2. Observation validation and units conversion', () => {
 
 test('3. Point-in-time leakage prevention in series builder', () => {
   const observations = [
-    { id: '1', market: 'warehouse_volgograd', kind: 'transaction', observationDate: '2026-10-05', priceExVatRubKg: 15.0, deliveryBasis: 'EXW', spec: {}, source: 's1' },
-    { id: '2', market: 'warehouse_volgograd', kind: 'transaction', observationDate: '2026-10-12', priceExVatRubKg: 15.5, deliveryBasis: 'EXW', spec: {}, source: 's1' },
-    { id: '3', market: 'warehouse_volgograd', kind: 'transaction', observationDate: '2026-10-26', priceExVatRubKg: 16.5, deliveryBasis: 'EXW', spec: {}, source: 's1' },
+    { id: '1', market: 'warehouse_volgograd', kind: 'transaction', observationDate: '2026-10-05', priceExVatRubKg: 15.0, deliveryBasis: 'EXW', spec: {}, source: 's1', verification: {status:'verified',by:'test fixture',at:'2026-10-29',evidence:'synthetic test record'} },
+    { id: '2', market: 'warehouse_volgograd', kind: 'transaction', observationDate: '2026-10-12', priceExVatRubKg: 15.5, deliveryBasis: 'EXW', spec: {}, source: 's1', verification: {status:'verified',by:'test fixture',at:'2026-10-29',evidence:'synthetic test record'} },
+    { id: '3', market: 'warehouse_volgograd', kind: 'transaction', observationDate: '2026-10-26', priceExVatRubKg: 16.5, deliveryBasis: 'EXW', spec: {}, source: 's1', verification: {status:'verified',by:'test fixture',at:'2026-10-29',evidence:'synthetic test record'} },
   ];
 
   // As of 2026-10-15, observation on 2026-10-26 must NOT be included!
@@ -98,8 +98,8 @@ test('3. Point-in-time leakage prevention in series builder', () => {
 
 test('4. Forecast immutability - changing today does not re-date an old forecast', () => {
   const dummyObs = [
-    { id: '1', market: 'warehouse_volgograd', kind: 'transaction', observationDate: '2026-10-05', priceExVatRubKg: 15.0, deliveryBasis: 'EXW', spec: {}, source: 's1' },
-    { id: '2', market: 'warehouse_volgograd', kind: 'transaction', observationDate: '2026-10-12', priceExVatRubKg: 15.2, deliveryBasis: 'EXW', spec: {}, source: 's1' },
+    { id: '1', market: 'warehouse_volgograd', kind: 'transaction', observationDate: '2026-10-05', priceExVatRubKg: 15.0, deliveryBasis: 'EXW', spec: {}, source: 's1', verification: {status:'verified',by:'test fixture',at:'2026-10-29',evidence:'synthetic test record'} },
+    { id: '2', market: 'warehouse_volgograd', kind: 'transaction', observationDate: '2026-10-12', priceExVatRubKg: 15.2, deliveryBasis: 'EXW', spec: {}, source: 's1', verification: {status:'verified',by:'test fixture',at:'2026-10-29',evidence:'synthetic test record'} },
   ];
 
   const fc = issueForecast({

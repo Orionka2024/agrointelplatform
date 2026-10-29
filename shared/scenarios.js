@@ -61,7 +61,7 @@ export function applyScenarioToRows(rows, result, lagWeeks = null) {
     const shift = active ? result.totalPct : 0;
     return {
       ...r,
-      scenarioPoint: +(r.point * (1 + shift / 100)).toFixed(2),
+      scenarioPoint: result.complete && 1 + shift / 100 > 0 ? +(r.point * (1 + shift / 100)).toFixed(2) : null,
       scenarioShiftPct: shift,
       lagKnown: lagWeeks !== null,
     };

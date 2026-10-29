@@ -1,3 +1,4 @@
+import { allowRequest } from '../server/access.js';
 /**
  * Vercel Serverless Function & Local Dev Handler: /api/macro
  * Fetches live macro data from Central Bank of Russia (cbr.ru).
@@ -6,7 +7,8 @@
 import { store } from '../server/store.js';
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  if (!allowRequest(req, res, {costly: true})) return;
+
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
