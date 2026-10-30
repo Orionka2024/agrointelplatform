@@ -1,0 +1,2 @@
+# Read-only parsing of Rosstat source workbooks; no workbook rewriting.
+openpyxl==3.1.5

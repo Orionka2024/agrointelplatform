@@ -50,20 +50,25 @@ export default async function handler(req, res) {
     errors.push(`CBR Currency fetch error: ${err.message}`);
   }
 
-  // 2. Fetch key rate from CBR KeyRate page
+  // 2. Fetch key rate from CBR SOAP DailyInfo.asmx (with HTML fallback)
+  let krAsOf = null;
   try {
-    const krRes = await fetch(
-      'https://www.cbr.ru/hd_base/KeyRate/?UniDbQuery.Posted=True&UniDbQuery.From=' +
-        new Date(Date.now() - 7 * 86400000).toLocaleDateString('ru-RU') +
-        '&UniDbQuery.To=' +
-        new Date().toLocaleDateString('ru-RU'),
-      { signal: AbortSignal.timeout(5000) }
-    );
+    const fromIso = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
+    const toIso = now.slice(0, 10);
+    const soap = `<?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><KeyRate xmlns="http://web.cbr.ru/"><fromDate>${fromIso}T00:00:00</fromDate><ToDate>${toIso}T00:00:00</ToDate></KeyRate></soap:Body></soap:Envelope>`;
+    const krRes = await fetch('https://www.cbr.ru/DailyInfoWebServ/DailyInfo.asmx', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': 'http://web.cbr.ru/KeyRate' },
+      body: soap,
+      signal: AbortSignal.timeout(6000),
+    });
     if (krRes.ok) {
-      const krHtml = await krRes.text();
-      const krMatch = krHtml.match(/(\d{1,2}[.,]\d{2})\s*<\/td>\s*<\/tr>/);
-      if (krMatch) {
-        keyRate = parseFloat(krMatch[1].replace(',', '.'));
+      const krXml = await krRes.text();
+      const rows = [...krXml.matchAll(/<KR[^>]*>\s*<DT>(\d{4}-\d{2}-\d{2})[^<]*<\/DT>\s*<Rate>([\d.]+)<\/Rate>\s*<\/KR>/g)];
+      if (rows.length) {
+        rows.sort((a, b) => a[1].localeCompare(b[1]));
+        krAsOf = rows.at(-1)[1];
+        keyRate = parseFloat(rows.at(-1)[2]);
       }
     } else {
       errors.push(`CBR KeyRate HTTP ${krRes.status}`);
@@ -76,7 +81,7 @@ export default async function handler(req, res) {
   const updatedCache = {
     usdRub: usdRub !== null ? { value: usdRub, asOf: cbrDate || now.slice(0, 10), fetchedAt: now, source: 'cbr.ru' } : cached?.usdRub ?? null,
     kztRub: kztRub !== null ? { value: kztRub, asOf: cbrDate || now.slice(0, 10), fetchedAt: now, source: 'cbr.ru' } : cached?.kztRub ?? null,
-    keyRate: keyRate !== null ? { value: keyRate, asOf: now.slice(0, 10), fetchedAt: now, source: 'cbr.ru' } : cached?.keyRate ?? null,
+    keyRate: keyRate !== null ? { value: keyRate, asOf: krAsOf || now.slice(0, 10), fetchedAt: now, source: 'cbr.ru' } : cached?.keyRate ?? null,
     lastAttemptAt: now,
   };
   store.saveMacroCache(updatedCache);
@@ -124,7 +129,7 @@ export default async function handler(req, res) {
     keyRate: keyRate !== null ? {
       value: keyRate,
       status: 'live',
-      asOf: now.slice(0, 10),
+      asOf: krAsOf || now.slice(0, 10),
       source: 'cbr.ru',
       fetchedAt: now,
     } : updatedCache.keyRate ? {

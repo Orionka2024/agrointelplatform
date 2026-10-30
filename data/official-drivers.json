@@ -1,0 +1,995 @@
+{
+  "schema": 1,
+  "collectedAt": "2026-10-29",
+  "note": "Official Bank of Russia series. Monthly USD/RUB = mean of daily official rates; key rate = level at last quoted day of month. Complete months only; no interpolation.",
+  "sources": {
+    "usdRub": {
+      "url": "https://www.cbr.ru/scripts/XML_dynamic.asp?date_req1=01/01/2020&date_req2=29/10/2026&VAL_NM_RQ=R01235",
+      "retrievedDate": "2026-10-29",
+      "sha256": "c28a9ada0a014a8c1c61f248e1275bda8003b9c38752d992f638e3473fcf6138",
+      "file": "data/sources/cbr/c28a9ada0a014a8c-usd_rub.xml"
+    },
+    "keyRate": {
+      "url": "https://www.cbr.ru/DailyInfoWebServ/DailyInfo.asmx (KeyRate)",
+      "retrievedDate": "2026-10-29",
+      "sha256": "3d5725b7e754fbfc8e66d5d02db8449d1c80e27322042604fd400451c17eb0a3",
+      "file": "data/sources/cbr/3d5725b7e754fbfc-key_rate.xml"
+    }
+  },
+  "usdRub": [
+    {
+      "period": "2020-01",
+      "n": 17,
+      "value": 61.81214705882353,
+      "availableDate": "2020-02-01"
+    },
+    {
+      "period": "2020-02",
+      "n": 20,
+      "value": 63.97975000000001,
+      "availableDate": "2020-03-01"
+    },
+    {
+      "period": "2020-03",
+      "n": 19,
+      "value": 73.71944210526317,
+      "availableDate": "2020-04-01"
+    },
+    {
+      "period": "2020-04",
+      "n": 18,
+      "value": 74.76353333333334,
+      "availableDate": "2020-05-01"
+    },
+    {
+      "period": "2020-05",
+      "n": 18,
+      "value": 72.50029444444444,
+      "availableDate": "2020-06-01"
+    },
+    {
+      "period": "2020-06",
+      "n": 20,
+      "value": 69.19671500000001,
+      "availableDate": "2020-07-01"
+    },
+    {
+      "period": "2020-07",
+      "n": 23,
+      "value": 71.29407391304346,
+      "availableDate": "2020-08-01"
+    },
+    {
+      "period": "2020-08",
+      "n": 21,
+      "value": 73.79810952380953,
+      "availableDate": "2020-09-01"
+    },
+    {
+      "period": "2020-09",
+      "n": 22,
+      "value": 75.72798636363635,
+      "availableDate": "2020-10-01"
+    },
+    {
+      "period": "2020-10",
+      "n": 23,
+      "value": 77.66354782608694,
+      "availableDate": "2020-11-01"
+    },
+    {
+      "period": "2020-11",
+      "n": 19,
+      "value": 76.83946842105263,
+      "availableDate": "2020-12-01"
+    },
+    {
+      "period": "2020-12",
+      "n": 23,
+      "value": 74.21670434782608,
+      "availableDate": "2021-01-01"
+    },
+    {
+      "period": "2021-01",
+      "n": 16,
+      "value": 74.392475,
+      "availableDate": "2021-02-01"
+    },
+    {
+      "period": "2021-02",
+      "n": 19,
+      "value": 74.31681578947371,
+      "availableDate": "2021-03-01"
+    },
+    {
+      "period": "2021-03",
+      "n": 21,
+      "value": 74.39713333333331,
+      "availableDate": "2021-04-01"
+    },
+    {
+      "period": "2021-04",
+      "n": 22,
+      "value": 76.14393181818183,
+      "availableDate": "2021-05-01"
+    },
+    {
+      "period": "2021-05",
+      "n": 19,
+      "value": 74.00427368421053,
+      "availableDate": "2021-06-01"
+    },
+    {
+      "period": "2021-06",
+      "n": 21,
+      "value": 72.61685714285713,
+      "availableDate": "2021-07-01"
+    },
+    {
+      "period": "2021-07",
+      "n": 23,
+      "value": 73.88989130434781,
+      "availableDate": "2021-08-01"
+    },
+    {
+      "period": "2021-08",
+      "n": 21,
+      "value": 73.58273333333332,
+      "availableDate": "2021-09-01"
+    },
+    {
+      "period": "2021-09",
+      "n": 22,
+      "value": 72.92621818181817,
+      "availableDate": "2021-10-01"
+    },
+    {
+      "period": "2021-10",
+      "n": 22,
+      "value": 71.4500909090909,
+      "availableDate": "2021-11-01"
+    },
+    {
+      "period": "2021-11",
+      "n": 19,
+      "value": 72.69891052631579,
+      "availableDate": "2021-12-01"
+    },
+    {
+      "period": "2021-12",
+      "n": 23,
+      "value": 73.76931304347826,
+      "availableDate": "2022-01-01"
+    },
+    {
+      "period": "2022-01",
+      "n": 15,
+      "value": 76.59474666666665,
+      "availableDate": "2022-02-01"
+    },
+    {
+      "period": "2022-02",
+      "n": 19,
+      "value": 77.16937368421054,
+      "availableDate": "2022-03-01"
+    },
+    {
+      "period": "2022-03",
+      "n": 22,
+      "value": 103.47004545454543,
+      "availableDate": "2022-04-01"
+    },
+    {
+      "period": "2022-04",
+      "n": 22,
+      "value": 77.89918636363637,
+      "availableDate": "2022-05-01"
+    },
+    {
+      "period": "2022-05",
+      "n": 17,
+      "value": 63.312741176470595,
+      "availableDate": "2022-06-01"
+    },
+    {
+      "period": "2022-06",
+      "n": 21,
+      "value": 57.178557142857144,
+      "availableDate": "2022-07-01"
+    },
+    {
+      "period": "2022-07",
+      "n": 22,
+      "value": 58.221399999999996,
+      "availableDate": "2022-08-01"
+    },
+    {
+      "period": "2022-08",
+      "n": 22,
+      "value": 60.391918181818184,
+      "availableDate": "2022-09-01"
+    },
+    {
+      "period": "2022-09",
+      "n": 22,
+      "value": 59.82150000000001,
+      "availableDate": "2022-10-01"
+    },
+    {
+      "period": "2022-10",
+      "n": 21,
+      "value": 61.11584285714285,
+      "availableDate": "2022-11-01"
+    },
+    {
+      "period": "2022-11",
+      "n": 21,
+      "value": 60.85299523809524,
+      "availableDate": "2022-12-01"
+    },
+    {
+      "period": "2022-12",
+      "n": 23,
+      "value": 65.81498695652175,
+      "availableDate": "2023-01-01"
+    },
+    {
+      "period": "2023-01",
+      "n": 16,
+      "value": 68.875975,
+      "availableDate": "2023-02-01"
+    },
+    {
+      "period": "2023-02",
+      "n": 18,
+      "value": 72.78275,
+      "availableDate": "2023-03-01"
+    },
+    {
+      "period": "2023-03",
+      "n": 22,
+      "value": 76.10358636363637,
+      "availableDate": "2023-04-01"
+    },
+    {
+      "period": "2023-04",
+      "n": 21,
+      "value": 80.99554285714285,
+      "availableDate": "2023-05-01"
+    },
+    {
+      "period": "2023-05",
+      "n": 19,
+      "value": 79.2125947368421,
+      "availableDate": "2023-06-01"
+    },
+    {
+      "period": "2023-06",
+      "n": 21,
+      "value": 83.31933333333335,
+      "availableDate": "2023-07-01"
+    },
+    {
+      "period": "2023-07",
+      "n": 21,
+      "value": 90.47404761904762,
+      "availableDate": "2023-08-01"
+    },
+    {
+      "period": "2023-08",
+      "n": 23,
+      "value": 95.28534782608698,
+      "availableDate": "2023-09-01"
+    },
+    {
+      "period": "2023-09",
+      "n": 22,
+      "value": 96.62225909090907,
+      "availableDate": "2023-10-01"
+    },
+    {
+      "period": "2023-10",
+      "n": 21,
+      "value": 97.12228095238095,
+      "availableDate": "2023-11-01"
+    },
+    {
+      "period": "2023-11",
+      "n": 21,
+      "value": 90.4127904761905,
+      "availableDate": "2023-12-01"
+    },
+    {
+      "period": "2023-12",
+      "n": 22,
+      "value": 90.81718636363638,
+      "availableDate": "2024-01-01"
+    },
+    {
+      "period": "2024-01",
+      "n": 16,
+      "value": 88.6802875,
+      "availableDate": "2024-02-01"
+    },
+    {
+      "period": "2024-02",
+      "n": 20,
+      "value": 91.51825499999998,
+      "availableDate": "2024-03-01"
+    },
+    {
+      "period": "2024-03",
+      "n": 21,
+      "value": 91.73163333333333,
+      "availableDate": "2024-04-01"
+    },
+    {
+      "period": "2024-04",
+      "n": 21,
+      "value": 92.95856666666666,
+      "availableDate": "2024-05-01"
+    },
+    {
+      "period": "2024-05",
+      "n": 19,
+      "value": 90.60715263157894,
+      "availableDate": "2024-06-01"
+    },
+    {
+      "period": "2024-06",
+      "n": 20,
+      "value": 87.75688,
+      "availableDate": "2024-07-01"
+    },
+    {
+      "period": "2024-07",
+      "n": 22,
+      "value": 87.49164999999999,
+      "availableDate": "2024-08-01"
+    },
+    {
+      "period": "2024-08",
+      "n": 23,
+      "value": 89.16016086956522,
+      "availableDate": "2024-09-01"
+    },
+    {
+      "period": "2024-09",
+      "n": 20,
+      "value": 91.23450500000001,
+      "availableDate": "2024-10-01"
+    },
+    {
+      "period": "2024-10",
+      "n": 23,
+      "value": 96.16022608695651,
+      "availableDate": "2024-11-01"
+    },
+    {
+      "period": "2024-11",
+      "n": 22,
+      "value": 100.68744999999998,
+      "availableDate": "2024-12-01"
+    },
+    {
+      "period": "2024-12",
+      "n": 21,
+      "value": 102.25964761904763,
+      "availableDate": "2025-01-01"
+    },
+    {
+      "period": "2025-01",
+      "n": 16,
+      "value": 100.412125,
+      "availableDate": "2025-02-01"
+    },
+    {
+      "period": "2025-02",
+      "n": 20,
+      "value": 92.742305,
+      "availableDate": "2025-03-01"
+    },
+    {
+      "period": "2025-03",
+      "n": 21,
+      "value": 86.0234142857143,
+      "availableDate": "2025-04-01"
+    },
+    {
+      "period": "2025-04",
+      "n": 22,
+      "value": 83.4256,
+      "availableDate": "2025-05-01"
+    },
+    {
+      "period": "2025-05",
+      "n": 19,
+      "value": 80.20483157894738,
+      "availableDate": "2025-06-01"
+    },
+    {
+      "period": "2025-06",
+      "n": 18,
+      "value": 78.66786111111111,
+      "availableDate": "2025-07-01"
+    },
+    {
+      "period": "2025-07",
+      "n": 23,
+      "value": 78.77240434782607,
+      "availableDate": "2025-08-01"
+    },
+    {
+      "period": "2025-08",
+      "n": 22,
+      "value": 80.12778636363636,
+      "availableDate": "2025-09-01"
+    },
+    {
+      "period": "2025-09",
+      "n": 21,
+      "value": 82.97080476190479,
+      "availableDate": "2025-10-01"
+    },
+    {
+      "period": "2025-10",
+      "n": 23,
+      "value": 80.92137391304347,
+      "availableDate": "2025-11-01"
+    },
+    {
+      "period": "2025-11",
+      "n": 20,
+      "value": 80.343825,
+      "availableDate": "2025-12-01"
+    },
+    {
+      "period": "2025-12",
+      "n": 22,
+      "value": 78.40162272727272,
+      "availableDate": "2026-01-01"
+    },
+    {
+      "period": "2026-01",
+      "n": 15,
+      "value": 77.21495333333334,
+      "availableDate": "2026-02-01"
+    },
+    {
+      "period": "2026-02",
+      "n": 19,
+      "value": 76.92779999999998,
+      "availableDate": "2026-03-01"
+    },
+    {
+      "period": "2026-03",
+      "n": 20,
+      "value": 80.50373999999998,
+      "availableDate": "2026-04-01"
+    },
+    {
+      "period": "2026-04",
+      "n": 22,
+      "value": 76.88977272727273,
+      "availableDate": "2026-05-01"
+    },
+    {
+      "period": "2026-05",
+      "n": 20,
+      "value": 72.811205,
+      "availableDate": "2026-06-01"
+    },
+    {
+      "period": "2026-06",
+      "n": 20,
+      "value": 73.58293499999999,
+      "availableDate": "2026-07-01"
+    },
+    {
+      "period": "2026-07",
+      "n": 23,
+      "value": 77.8817347826087,
+      "availableDate": "2026-08-01"
+    },
+    {
+      "period": "2026-08",
+      "n": 21,
+      "value": 83.17453333333333,
+      "availableDate": "2026-09-01"
+    },
+    {
+      "period": "2026-09",
+      "n": 22,
+      "value": 85.11026818181818,
+      "availableDate": "2026-10-01"
+    }
+  ],
+  "keyRate": [
+    {
+      "period": "2020-01",
+      "n": 20,
+      "value": 6.25,
+      "availableDate": "2020-02-01"
+    },
+    {
+      "period": "2020-02",
+      "n": 19,
+      "value": 6,
+      "availableDate": "2020-03-01"
+    },
+    {
+      "period": "2020-03",
+      "n": 21,
+      "value": 6,
+      "availableDate": "2020-04-01"
+    },
+    {
+      "period": "2020-04",
+      "n": 22,
+      "value": 5.5,
+      "availableDate": "2020-05-01"
+    },
+    {
+      "period": "2020-05",
+      "n": 19,
+      "value": 5.5,
+      "availableDate": "2020-06-01"
+    },
+    {
+      "period": "2020-06",
+      "n": 20,
+      "value": 4.5,
+      "availableDate": "2020-07-01"
+    },
+    {
+      "period": "2020-07",
+      "n": 22,
+      "value": 4.25,
+      "availableDate": "2020-08-01"
+    },
+    {
+      "period": "2020-08",
+      "n": 21,
+      "value": 4.25,
+      "availableDate": "2020-09-01"
+    },
+    {
+      "period": "2020-09",
+      "n": 22,
+      "value": 4.25,
+      "availableDate": "2020-10-01"
+    },
+    {
+      "period": "2020-10",
+      "n": 22,
+      "value": 4.25,
+      "availableDate": "2020-11-01"
+    },
+    {
+      "period": "2020-11",
+      "n": 20,
+      "value": 4.25,
+      "availableDate": "2020-12-01"
+    },
+    {
+      "period": "2020-12",
+      "n": 23,
+      "value": 4.25,
+      "availableDate": "2021-01-01"
+    },
+    {
+      "period": "2021-01",
+      "n": 19,
+      "value": 4.25,
+      "availableDate": "2021-02-01"
+    },
+    {
+      "period": "2021-02",
+      "n": 20,
+      "value": 4.25,
+      "availableDate": "2021-03-01"
+    },
+    {
+      "period": "2021-03",
+      "n": 22,
+      "value": 4.5,
+      "availableDate": "2021-04-01"
+    },
+    {
+      "period": "2021-04",
+      "n": 22,
+      "value": 5,
+      "availableDate": "2021-05-01"
+    },
+    {
+      "period": "2021-05",
+      "n": 19,
+      "value": 5,
+      "availableDate": "2021-06-01"
+    },
+    {
+      "period": "2021-06",
+      "n": 22,
+      "value": 5.5,
+      "availableDate": "2021-07-01"
+    },
+    {
+      "period": "2021-07",
+      "n": 22,
+      "value": 6.5,
+      "availableDate": "2021-08-01"
+    },
+    {
+      "period": "2021-08",
+      "n": 22,
+      "value": 6.5,
+      "availableDate": "2021-09-01"
+    },
+    {
+      "period": "2021-09",
+      "n": 22,
+      "value": 6.75,
+      "availableDate": "2021-10-01"
+    },
+    {
+      "period": "2021-10",
+      "n": 21,
+      "value": 7.5,
+      "availableDate": "2021-11-01"
+    },
+    {
+      "period": "2021-11",
+      "n": 21,
+      "value": 7.5,
+      "availableDate": "2021-12-01"
+    },
+    {
+      "period": "2021-12",
+      "n": 22,
+      "value": 8.5,
+      "availableDate": "2022-01-01"
+    },
+    {
+      "period": "2022-01",
+      "n": 20,
+      "value": 8.5,
+      "availableDate": "2022-02-01"
+    },
+    {
+      "period": "2022-02",
+      "n": 20,
+      "value": 20,
+      "availableDate": "2022-03-01"
+    },
+    {
+      "period": "2022-03",
+      "n": 22,
+      "value": 20,
+      "availableDate": "2022-04-01"
+    },
+    {
+      "period": "2022-04",
+      "n": 21,
+      "value": 17,
+      "availableDate": "2022-05-01"
+    },
+    {
+      "period": "2022-05",
+      "n": 18,
+      "value": 11,
+      "availableDate": "2022-06-01"
+    },
+    {
+      "period": "2022-06",
+      "n": 21,
+      "value": 9.5,
+      "availableDate": "2022-07-01"
+    },
+    {
+      "period": "2022-07",
+      "n": 21,
+      "value": 8,
+      "availableDate": "2022-08-01"
+    },
+    {
+      "period": "2022-08",
+      "n": 23,
+      "value": 8,
+      "availableDate": "2022-09-01"
+    },
+    {
+      "period": "2022-09",
+      "n": 22,
+      "value": 7.5,
+      "availableDate": "2022-10-01"
+    },
+    {
+      "period": "2022-10",
+      "n": 21,
+      "value": 7.5,
+      "availableDate": "2022-11-01"
+    },
+    {
+      "period": "2022-11",
+      "n": 21,
+      "value": 7.5,
+      "availableDate": "2022-12-01"
+    },
+    {
+      "period": "2022-12",
+      "n": 22,
+      "value": 7.5,
+      "availableDate": "2023-01-01"
+    },
+    {
+      "period": "2023-01",
+      "n": 21,
+      "value": 7.5,
+      "availableDate": "2023-02-01"
+    },
+    {
+      "period": "2023-02",
+      "n": 19,
+      "value": 7.5,
+      "availableDate": "2023-03-01"
+    },
+    {
+      "period": "2023-03",
+      "n": 22,
+      "value": 7.5,
+      "availableDate": "2023-04-01"
+    },
+    {
+      "period": "2023-04",
+      "n": 20,
+      "value": 7.5,
+      "availableDate": "2023-05-01"
+    },
+    {
+      "period": "2023-05",
+      "n": 21,
+      "value": 7.5,
+      "availableDate": "2023-06-01"
+    },
+    {
+      "period": "2023-06",
+      "n": 21,
+      "value": 7.5,
+      "availableDate": "2023-07-01"
+    },
+    {
+      "period": "2023-07",
+      "n": 21,
+      "value": 8.5,
+      "availableDate": "2023-08-01"
+    },
+    {
+      "period": "2023-08",
+      "n": 23,
+      "value": 12,
+      "availableDate": "2023-09-01"
+    },
+    {
+      "period": "2023-09",
+      "n": 21,
+      "value": 13,
+      "availableDate": "2023-10-01"
+    },
+    {
+      "period": "2023-10",
+      "n": 22,
+      "value": 15,
+      "availableDate": "2023-11-01"
+    },
+    {
+      "period": "2023-11",
+      "n": 22,
+      "value": 15,
+      "availableDate": "2023-12-01"
+    },
+    {
+      "period": "2023-12",
+      "n": 21,
+      "value": 16,
+      "availableDate": "2024-01-01"
+    },
+    {
+      "period": "2024-01",
+      "n": 21,
+      "value": 16,
+      "availableDate": "2024-02-01"
+    },
+    {
+      "period": "2024-02",
+      "n": 20,
+      "value": 16,
+      "availableDate": "2024-03-01"
+    },
+    {
+      "period": "2024-03",
+      "n": 20,
+      "value": 16,
+      "availableDate": "2024-04-01"
+    },
+    {
+      "period": "2024-04",
+      "n": 23,
+      "value": 16,
+      "availableDate": "2024-05-01"
+    },
+    {
+      "period": "2024-05",
+      "n": 21,
+      "value": 16,
+      "availableDate": "2024-06-01"
+    },
+    {
+      "period": "2024-06",
+      "n": 19,
+      "value": 16,
+      "availableDate": "2024-07-01"
+    },
+    {
+      "period": "2024-07",
+      "n": 23,
+      "value": 18,
+      "availableDate": "2024-08-01"
+    },
+    {
+      "period": "2024-08",
+      "n": 22,
+      "value": 18,
+      "availableDate": "2024-09-01"
+    },
+    {
+      "period": "2024-09",
+      "n": 21,
+      "value": 19,
+      "availableDate": "2024-10-01"
+    },
+    {
+      "period": "2024-10",
+      "n": 23,
+      "value": 21,
+      "availableDate": "2024-11-01"
+    },
+    {
+      "period": "2024-11",
+      "n": 21,
+      "value": 21,
+      "availableDate": "2024-12-01"
+    },
+    {
+      "period": "2024-12",
+      "n": 22,
+      "value": 21,
+      "availableDate": "2025-01-01"
+    },
+    {
+      "period": "2025-01",
+      "n": 20,
+      "value": 21,
+      "availableDate": "2025-02-01"
+    },
+    {
+      "period": "2025-02",
+      "n": 20,
+      "value": 21,
+      "availableDate": "2025-03-01"
+    },
+    {
+      "period": "2025-03",
+      "n": 21,
+      "value": 21,
+      "availableDate": "2025-04-01"
+    },
+    {
+      "period": "2025-04",
+      "n": 22,
+      "value": 21,
+      "availableDate": "2025-05-01"
+    },
+    {
+      "period": "2025-05",
+      "n": 20,
+      "value": 21,
+      "availableDate": "2025-06-01"
+    },
+    {
+      "period": "2025-06",
+      "n": 20,
+      "value": 20,
+      "availableDate": "2025-07-01"
+    },
+    {
+      "period": "2025-07",
+      "n": 23,
+      "value": 18,
+      "availableDate": "2025-08-01"
+    },
+    {
+      "period": "2025-08",
+      "n": 21,
+      "value": 18,
+      "availableDate": "2025-09-01"
+    },
+    {
+      "period": "2025-09",
+      "n": 22,
+      "value": 17,
+      "availableDate": "2025-10-01"
+    },
+    {
+      "period": "2025-10",
+      "n": 23,
+      "value": 16.5,
+      "availableDate": "2025-11-01"
+    },
+    {
+      "period": "2025-11",
+      "n": 20,
+      "value": 16.5,
+      "availableDate": "2025-12-01"
+    },
+    {
+      "period": "2025-12",
+      "n": 22,
+      "value": 16,
+      "availableDate": "2026-01-01"
+    },
+    {
+      "period": "2026-01",
+      "n": 19,
+      "value": 16,
+      "availableDate": "2026-02-01"
+    },
+    {
+      "period": "2026-02",
+      "n": 19,
+      "value": 15.5,
+      "availableDate": "2026-03-01"
+    },
+    {
+      "period": "2026-03",
+      "n": 22,
+      "value": 15,
+      "availableDate": "2026-04-01"
+    },
+    {
+      "period": "2026-04",
+      "n": 22,
+      "value": 14.5,
+      "availableDate": "2026-05-01"
+    },
+    {
+      "period": "2026-05",
+      "n": 20,
+      "value": 14.5,
+      "availableDate": "2026-06-01"
+    },
+    {
+      "period": "2026-06",
+      "n": 21,
+      "value": 14.25,
+      "availableDate": "2026-07-01"
+    },
+    {
+      "period": "2026-07",
+      "n": 23,
+      "value": 14,
+      "availableDate": "2026-08-01"
+    },
+    {
+      "period": "2026-08",
+      "n": 21,
+      "value": 14,
+      "availableDate": "2026-09-01"
+    },
+    {
+      "period": "2026-09",
+      "n": 22,
+      "value": 14,
+      "availableDate": "2026-10-01"
+    }
+  ]
+}

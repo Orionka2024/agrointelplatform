@@ -1,0 +1,5 @@
+node_modules
+dist
+data/*.sqlite*
+data/*.tmp
+data/sources/rosstat/R-03-2025.docx

@@ -1,7 +1,9 @@
 {
   "name": "frontend",
   "private": true,
-  "engines": { "node": ">=24.0.0" },
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "version": "0.0.0",
   "type": "module",
   "scripts": {
@@ -9,7 +11,10 @@
     "test": "node scripts/test.mjs",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "data:collect": "python3 scripts/collect_rosstat.py --download",
+    "data:drivers": "node scripts/collect_cbr.mjs",
+    "data:forecast": "node scripts/build_official_forecast.mjs"
   },
   "dependencies": {
     "chart.js": "^4.5.1",

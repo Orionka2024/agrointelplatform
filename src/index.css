@@ -978,3 +978,21 @@ select:focus { border-color: var(--blue); }
 .panel-body details { margin:18px 0; }
 .panel-body summary { cursor:pointer; font-weight:600; }
 .panel-body p { line-height:1.6; }
+
+/* Official national benchmarks retain separate price bases. */
+.official-summary {border:1px solid #cbd8e7;background:#f4f8fd;padding:18px;border-radius:8px;margin-bottom:20px;}
+.official-summary h3 {margin:8px 0;}
+.official-cards {display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin:16px 0;}
+.official-cards>div {background:white;border:1px solid #d9e2ed;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:8px;}
+.official-cards strong {font-size:26px;color:#245a91;}
+.official-chart {height:320px;margin:20px 0;}
+.official-history {max-height:400px;overflow:auto;}
+.official-view {margin-bottom:16px;}
+.official-view button[aria-pressed="true"] {background:#245a91;color:white;border-color:#245a91;}
+.panel-body details {margin:16px 0;}
+.panel-body summary {cursor:pointer;font-weight:600;padding:8px 0;}
+.add-price {border:1px solid var(--green-border);background:var(--green-bg);padding:12px 16px;border-radius:8px;margin:14px 0;}
+.add-price label {display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--txt2);}
+.add-price button[type="submit"] {background:var(--green);color:#fff;border:1px solid var(--green);border-radius:4px;font-weight:600;align-self:flex-end;}
+.basis-banner {padding:10px 12px;border-left:3px solid var(--green);background:var(--green-bg);margin:10px 0;}
+

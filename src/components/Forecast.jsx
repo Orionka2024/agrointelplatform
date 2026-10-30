@@ -1,8 +1,14 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
+const OfficialMarket = lazy(() => import('./OfficialMarket'));
+import AddActualPrice from './AddActualPrice';
 import { useMarket } from '../context/useMarket';
 import { warehouseToMoscow } from '../../shared/bridge.js';
 const fmt=v=>Number.isFinite(v)?v.toFixed(2):'—';
-export default function Forecast({onNavigateToImport}) {
+export default function Forecast(props) {
+  const [view,setView]=useState('official');
+  return <><div className="audit-controls official-view"><button aria-pressed={view==='official'} onClick={()=>setView('official')}>РФ: история, факторы ЦБ и прогноз</button><button aria-pressed={view==='warehouse'} onClick={()=>setView('warehouse')}>Склад / опт: недельный прогноз по вашим сделкам</button></div>{view==='official'?<Suspense fallback={<p>Загрузка официальной истории…</p>}><OfficialMarket/></Suspense>:<TransactionForecast {...props}/>}</>;
+}
+function TransactionForecast({onNavigateToImport}) {
   const {model,demo,basis,setBasis,scenario,setScenario,issueNewForecast,updateAssumptions}=useMarket();
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[manual,setManual]=useState('');
   const fc=model.forecasts[basis],rows=fc?.horizons||[];
@@ -13,13 +19,14 @@ export default function Forecast({onNavigateToImport}) {
     if(!(Number(manual)>0)) {setError('Введите положительную цену');return;}
     if(await updateAssumptions({manualPrices:{[basis]:{value:Number(manual),vat:'excl',asOf:model.today,note:'Пользовательское допущение'}}})) setManual('');
   }
-  return <div className="panel"><div className="panel-hd"><span className="panel-title">Лук · прогноз цены без НДС, ₽/кг</span><span className="badge warn">{demo?'ДЕМО':fc?.status||'Не выпущен'}</span></div><div className="panel-body">
+  return <div className="panel"><div className="panel-hd"><span className="panel-title">Лук · недельный прогноз по вашим сделкам без НДС, ₽/кг</span><span className="badge warn">{demo?'ДЕМО':fc?.status||'Не выпущен'}</span></div><div className="panel-body">
+    <AddActualPrice defaultOpen={!rows.length}/>
     <div className="audit-controls"><label>Рынок <select value={basis} onChange={e=>setBasis(e.target.value)}><option value="warehouse">Склад Волгоград</option><option value="moscow">Москва с доставкой</option></select></label>
-    <button disabled={busy||demo} onClick={issue}>{busy?'Расчёт…':'Выпустить новый прогноз'}</button><button onClick={onNavigateToImport}>Импорт и источники</button></div>
+    <button disabled={busy||demo} onClick={issue}>{busy?'Расчёт…':'Выпустить новый прогноз'}</button><button onClick={onNavigateToImport}>Импорт CSV и источники</button></div>
     {error&&<p role="alert">{error}</p>}
     <p>Выпуск: {fc?.issueDate||'—'} · Отсечка: {fc?.inputCutoff||'—'} · Модель: {fc?.modelVersion||'—'}. Даты и цены ниже берутся из сохранённого выпуска без пересчёта масштаба.</p>
     {!!fc?.ageDays&&fc.ageDays>7&&<p className="audit-warning">Выпуск старше недели. Обновите данные и выпустите новый прогноз.</p>}
-    {!rows.length&&<p className="audit-warning">Нет подходящего прогноза. Нужны подтверждённые данные; старые выпуски предыдущей методологии исключены. Сезонная кривая не подставляется.</p>}
+    {!rows.length&&<p className="audit-warning">Для недельного прогноза по собственным сделкам введите минимум 2 разные недели сделок выше (или переключитесь на вкладку «РФ: история, факторы ЦБ и прогноз», где калибровка работает уже с одной вашей цены).</p>}
     {fc?.reasons?.map((r,i)=><p key={i}>{r}</p>)}
     <div className="audit-scroll"><table className="tbl"><thead><tr><th>Горизонт / неделя с</th><th>Прогноз</th><th>80% диапазон</th><th>95% диапазон</th><th>Оценка</th><th>MAE / n</th></tr></thead><tbody>{rows.map(r=>{
       const v=fc.validation?.byHorizon?.[r.h];return <tr key={r.h}><td>W+{r.h} · {r.targetDate}</td><td>{fmt(r.point)}</td><td>{r.interval?`${fmt(r.interval.lo80)}–${fmt(r.interval.hi80)}`:'—'}</td><td>{r.interval?`${fmt(r.interval.lo95)}–${fmt(r.interval.hi95)}`:'—'}</td><td>{r.validated?'Ретроспективная проверка':'Не валидирован'} · {r.modelId}</td><td>{fmt(v?.final?.mae)} / {v?.final?.n??'—'}</td></tr>;})}</tbody></table></div>

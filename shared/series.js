@@ -2,10 +2,8 @@
  * Weekly series construction from observations with point-in-time filtering.
  *
  * Leakage control: a forecast issued on `asOf` may only use observations whose AVAILABLE date is
- * <= asOf, where availableDate = published_date if known, otherwise observation_date + publishLagDays.
- * `retrieved_date` is deliberately not used for point-in-time filtering, because historical data
- * bulk-imported today would otherwise be invisible to every historical backtest origin.
- * (If you know when each price became public, supply published_date.)
+ * <= asOf, where availableDate = published_date if known, otherwise retrieval date, then observation_date + publishLagDays.
+ * Missing original publication dates must not be invented for historical backtests.
  */
 import { weekStart, addWeeks, weeksBetween, daysBetween } from './dates.js';
 import { availableDate, isVerified } from './observations.js';

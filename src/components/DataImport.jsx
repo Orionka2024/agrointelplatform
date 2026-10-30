@@ -1,3 +1,4 @@
+import OfficialSummary from './OfficialSummary';
 import { useState } from 'react';
 import { useMarket } from '../context/useMarket';
 import { PRICE_CSV_TEMPLATE } from '../../shared/observations.js';
@@ -10,7 +11,7 @@ export default function DataImport(){
   async function submit(e){e.preventDefault();setBusy(true);setError('');try{const r=await importData(type,text);setReport(r.report);}catch(e){setError(e.message);}finally{setBusy(false);}}
   function download(){const u=URL.createObjectURL(new Blob([template],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=u;a.download=type+'-template.csv';a.click();URL.revokeObjectURL(u);}
   return <div className="panel"><div className="panel-hd"><span className="panel-title">Источники и импорт подтверждённых данных</span></div><div className="panel-body">
-    <p className="audit-warning">Встроенная история не подтверждена первичными документами и исключена из реальных прогнозов. Ручная цена — допущение, а не сделка. Подтверждено {model.evidence?.pricesVerified||0} ценовых записей.</p>
+    <OfficialSummary/><p className="audit-warning">Старая демонстрационная история не подтверждена первичными документами и исключена из реальных прогнозов. Ручная цена — допущение, а не сделка. Подтверждено {model.evidence?.pricesVerified||0} ценовых записей.</p>
     <p>Для использования записи в реальном ряду нужны verification_status=verified, verified_by, verified_at (YYYY-MM-DD) и source_ref (URL или идентификатор исходного документа). Подтверждайте только проверенные записи. Храните исходные документы отдельно под указанными идентификаторами. Дата публикации обязательна для корректного исторического воспроизведения; без неё используется дата получения.</p>
     <form onSubmit={submit}><div className="audit-controls"><select aria-label="Тип импорта" value={type} onChange={e=>{setType(e.target.value);setReport(null);}}><option value="prices">Цены: сделки / bids / asks / индексы</option><option value="indicators">Рыночные индикаторы</option><option value="annual">Годовые данные для цикла</option></select><button type="button" onClick={download}>Скачать шаблон</button><input aria-label="CSV файл" type="file" accept=".csv,text/csv" onChange={async e=>{const f=e.target.files[0];if(f){if(f.size>2_000_000){setError('Лимит 2 MB');return;}setText(await f.text());}}}/></div>
     <textarea aria-label="CSV данные" rows="12" style={{width:'100%',fontFamily:'monospace'}} value={text} onChange={e=>setText(e.target.value)} placeholder={template}/><button disabled={busy||!text.trim()}>{busy?'Проверка…':'Проверить и импортировать'}</button></form>

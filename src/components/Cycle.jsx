@@ -1,3 +1,4 @@
+import OfficialAnnualEvidence from './OfficialAnnualEvidence';
 import { useState } from 'react';
 import { useMarket } from '../context/useMarket';
 import { evaluatePlan, PLANNING_FIELDS, annualEvidence } from '../../shared/planning.js';
@@ -14,9 +15,9 @@ export default function Cycle() {
   const results=Object.keys(names).map(id=>({id,result:evaluatePlan(plan[id]||{})}));
   async function save(){setMessage(await updateAssumptions({planning:plan})?'Сценарии сохранены':'Не удалось сохранить');}
   return <div className="panel"><div className="panel-hd"><span className="panel-title">Планирование урожая {year} и продаж {year}–{year+1}</span><span className="badge warn">СЦЕНАРИИ · НЕ ПРОГНОЗ</span></div><div className="panel-body">
-    <p>Высокая цена не означает автоматически низкую цену следующего года. Сначала оцениваются площади, товарный урожай и баланс. Цена и урожайность задаются совместно; вероятности этим сценариям не присваиваются.</p>
+    <OfficialAnnualEvidence/><h3>Дополнительная история маржи хозяйства</h3><p>Высокая цена не означает автоматически низкую цену следующего года. Сначала оцениваются площади, товарный урожай и баланс. Цена и урожайность задаются совместно; вероятности этим сценариям не присваиваются.</p>
     <label>Регион исторического ряда <input value={plan.region||''} onChange={e=>setPlan(p=>({...p,region:e.target.value}))}/></label>
-    <p>Подтверждённых лет: {evidence.n}; статус: {evidence.status}. Нужны сопоставимые годовые данные, желательно 8–15 лет. Сводки разных регионов не смешиваются.</p>
+    <p>Полных лет с затратами и товарным выходом: {evidence.n}; статус: {evidence.status}. Нужны сопоставимые годовые данные, желательно 8–15 лет. Сводки разных регионов не смешиваются.</p>
     <table className="tbl"><thead><tr><th>Год</th><th>Реальная маржа, ₽/га (CPI=100)</th><th>Площадь следующего года</th><th>Реальная цена следующего года</th></tr></thead><tbody>{evidence.pairs.map(r=><tr key={r.year}><td>{r.year}</td><td>{fmt(r.realMarginPerHa)}</td><td>{fmt(r.nextAreaChangePct)}%</td><td>{fmt(r.nextRealPriceChangePct)}%</td></tr>)}</tbody></table>
     <p>Это описательное сравнение, не причинная модель и не доказанный цикл. Импорт годовой истории доступен на вкладке данных.</p>
     <div className="audit-controls"><label>Редактировать сценарий <select value={scenario} onChange={e=>setScenario(e.target.value)}>{Object.entries(names).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label><button onClick={save}>Сохранить</button><span role="status">{message}</span></div>
