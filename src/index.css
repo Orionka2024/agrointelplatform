@@ -1036,4 +1036,85 @@ select:focus { border-color: var(--blue); }
   background: rgba(13, 124, 74, 0.05);
 }
 
+/* ── Volgograd Location Basis Disclosure & Container-Responsive Table ── */
+.vlg-basis-details {
+  margin: 0 14px 10px;
+  border: 1px solid var(--blue-border);
+  background: var(--blue-bg);
+  border-radius: 6px;
+  font-size: 11px;
+}
+.vlg-basis-details summary {
+  cursor: pointer;
+  padding: 8px 12px;
+  font-weight: 600;
+  color: var(--blue);
+  user-select: none;
+}
+.vlg-basis-body {
+  padding: 8px 12px 12px;
+  background: var(--surface);
+  border-top: 1px solid var(--blue-border);
+  border-radius: 0 0 6px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.vlg-tbl-caption {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--txt2);
+  padding: 4px 8px 6px;
+  caption-side: top;
+}
+.vlg-reconcile-tbl {
+  border-collapse: separate;
+  border-spacing: 0;
+  --label-2: "Уровень цены";
+  --label-3: "Источник и условия";
+}
+.vlg-reconcile-tbl tbody th {
+  position: sticky;
+  inset-inline-start: 0;
+  background: var(--surface);
+  font-weight: 600;
+  text-align: left;
+}
+@container (width < 600px) {
+  .vlg-reconcile-tbl,
+  .vlg-reconcile-tbl thead,
+  .vlg-reconcile-tbl tbody,
+  .vlg-reconcile-tbl tr,
+  .vlg-reconcile-tbl th,
+  .vlg-reconcile-tbl td {
+    display: block;
+  }
+  .vlg-reconcile-tbl thead {
+    display: none;
+  }
+  .vlg-reconcile-tbl tr {
+    margin-block-end: 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+  .vlg-reconcile-tbl tbody th {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    background: var(--surface2);
+  }
+  .vlg-reconcile-tbl td:nth-child(2)::before {
+    content: var(--label-2) ": ";
+    font-weight: 600;
+    color: var(--txt2);
+  }
+  .vlg-reconcile-tbl td:nth-child(3)::before {
+    content: var(--label-3) ": ";
+    font-weight: 600;
+    color: var(--txt2);
+  }
+}
+
+
 

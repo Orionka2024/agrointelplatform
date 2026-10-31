@@ -26,7 +26,7 @@ function AppContent() {
   function renderTab() {
     switch (tab) {
       case 'dashboard':   return <Dashboard />;
-      case 'forecast':    return <Forecast onNavigateToImport={() => setTab('data_import')} />;
+      case 'forecast':    return <Forecast onNavigateToImport={() => setTab('data_import')} onNavigateToDashboard={() => setTab('dashboard')} />;
       case 'deficit':     return <Deficit />;
       case 'profit':      return <Profit />;
       case 'cycle':       return <Cycle />;

@@ -1,12 +1,8 @@
 import {useEffect,useState} from 'react';
 import {useMarket} from '../context/useMarket';
 import {USER_PRICE_MARKETS,buildUserPriceCsv} from '../../shared/localBasis.js';
-const KEY='agro_user_prices';
-const isIso=s=>/^\d{4}-\d{2}-\d{2}$/.test(s||'');
-const valid=e=>e&&USER_PRICE_MARKETS[e.basis]&&isIso(e.date)&&Number(e.price)>0&&['excl','incl'].includes(e.vat);
+import {isValidUserPriceEntry,loadStoredUserPrices,upsertStoredUserPrice} from '../utils/userPriceStore.js';
 let browserSynced=false;
-function loadLocal(){try{const a=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(a)?a.filter(valid):[];}catch{return [];}}
-function saveLocal(list){try{localStorage.setItem(KEY,JSON.stringify(list));}catch{/* storage unavailable */}}
 /** The user attests to the price they enter. It is stored as a verified own transaction and used to
  * calibrate the national benchmark immediately and, over time, train the weekly own-price series. */
 export default function AddActualPrice({defaultOpen=true}){
@@ -16,7 +12,7 @@ export default function AddActualPrice({defaultOpen=true}){
   useEffect(()=>{
     if(browserSynced||demo)return;
     browserSynced=true;
-    const local=loadLocal();if(!local.length)return;
+    const local=loadStoredUserPrices();if(!local.length)return;
     importData('prices',buildUserPriceCsv(local,model.today)).catch(()=>{});
   },[demo,importData,model.today]);
   const durable=model.storeDurable!==false;
@@ -24,19 +20,18 @@ export default function AddActualPrice({defaultOpen=true}){
   async function submit(e){
     e.preventDefault();setMsg(null);
     const entry={basis,date,price:Number(String(price).replace(',','.')),vat};
-    if(!valid(entry)){setMsg({bad:true,text:'Проверьте дату (ГГГГ-ММ-ДД) и положительную цену.'});return;}
+    if(!isValidUserPriceEntry(entry)){setMsg({bad:true,text:'Проверьте дату (ГГГГ-ММ-ДД) и положительную цену.'});return;}
     if(date>model.today){setMsg({bad:true,text:'Дата сделки не может быть в будущем.'});return;}
     setBusy(true);
     try{
       const prevWeeks=entry.basis==='warehouse'?whWeeks:mskWeeks;
+      upsertStoredUserPrice(entry);
       const r=await importData('prices',buildUserPriceCsv([entry],model.today));
       const rep=r.report||{};
       if(rep.rejected?.length){setMsg({bad:true,text:'Не принято: '+rep.rejected[0].errors.join('; ')});}
       else{
-        const list=loadLocal();
-        if(!list.some(x=>x.basis===entry.basis&&x.date===entry.date&&x.price===entry.price&&x.vat===entry.vat)){list.push(entry);saveLocal(list);}
         if(rep.accepted?.length&&!demo&&prevWeeks>=1){try{await issueNewForecast(entry.basis);}catch{/* optional weekly issue */}}
-        setMsg({text:rep.accepted?.length?'Фактическая цена сохранена в историю и учтена для калибровки прогноза.':'Такая запись уже сохранена — дубликат не добавлен.'});
+        setMsg({text:rep.accepted?.length?'Фактическая цена сохранена в историю и сразу отображена на панели «Обзор».':'Запись обновлена / уже учтена в расчёте.'});
         setPrice('');
       }
     }catch(err){setMsg({bad:true,text:err.message});}

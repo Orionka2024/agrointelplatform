@@ -15,6 +15,8 @@ import { officialForecast, officialSnapshot } from '../../shared/officialData.js
 import { CROP_PROFILES, CROP_TYPES } from '../../shared/cropProfiles.js';
 import { warehouseToMoscow } from '../../shared/bridge.js';
 import { buildWeeklyDecisionPlan } from '../../shared/weeklyDecisionPlan.js';
+import { buildUserPriceCsv } from '../../shared/localBasis.js';
+import { upsertStoredUserPrice } from '../utils/userPriceStore.js';
 import AddActualPrice from './AddActualPrice';
 import MonthlySalesPlanTable from './MonthlySalesPlanTable';
 import WeatherWidget from './WeatherWidget';
@@ -28,9 +30,21 @@ const IMPORTERS = [
 ];
 
 export default function Dashboard() {
-  const { model, refresh, error } = useMarket();
+  const {
+    model,
+    signals,
+    signalsBusy,
+    refreshSignals,
+    refresh,
+    importData,
+    demo,
+    setDemo,
+    clearLocalEntries,
+    error,
+  } = useMarket();
   const [macroBusy, setMacroBusy] = useState(false);
   const [macroMsg, setMacroMsg] = useState('');
+  const [spotBusy, setSpotBusy] = useState(false);
 
   const snap = officialSnapshot(model.today);
   const onionProfile = CROP_PROFILES.onion;
@@ -56,11 +70,14 @@ export default function Dashboard() {
     bridge: model.bridge,
     storageParams: model.storage?.params ?? onionProfile.storageParams,
     scenarioDeltaPct: 0,
+    scenarioId: 'base',
+    liveSignals: signals,
   });
 
-  const usdVal = model.macro.usdRub?.value ?? snap.drivers?.usdRub?.value;
-  const kztVal = model.macro.kztRub?.value ?? snap.drivers?.kztRub?.value;
-  const keyRateVal = model.macro.keyRate?.value ?? snap.drivers?.keyRate?.value;
+  const usdVal = signals?.fx?.usdRub?.value ?? model.macro.usdRub?.value ?? snap.drivers?.usdRub?.value;
+  const kztVal = signals?.fx?.kztRub?.value ?? model.macro.kztRub?.value ?? snap.drivers?.kztRub?.value;
+  const uzs10kVal = signals?.fx?.uzsPer10k?.value;
+  const keyRateVal = model.macro.keyRate?.value ?? signals?.fx?.keyRate?.value ?? snap.drivers?.keyRate?.value;
   const freightPerKg =
     model.bridge?.truckCostRub && model.bridge?.truckPayloadKg
       ? model.bridge.truckCostRub / model.bridge.truckPayloadKg
@@ -73,7 +90,7 @@ export default function Dashboard() {
       const r = await fetch('/api/macro');
       const d = await r.json();
       if (!r.ok) throw new Error(d.message || 'Ошибка ЦБ РФ');
-      setMacroMsg(d.errors?.length ? d.errors.join('; ') : 'Котировки ЦБ РФ обновлены');
+      setMacroMsg(d.errors?.length ? d.errors.join('; ') : 'Котировки ЦБ РФ и радар площадок обновлены');
       await refresh();
     } catch (e) {
       setMacroMsg(e.message);
@@ -82,14 +99,42 @@ export default function Dashboard() {
     }
   }
 
+  async function handleApplySpotConsensus() {
+    const val = signals?.analytics?.impliedDealSpotExVat;
+    if (!(val > 0)) return;
+    setSpotBusy(true);
+    try {
+      if (demo) setDemo(false);
+      const entry = { basis: 'warehouse', date: model.today, price: val, vat: 'excl' };
+      upsertStoredUserPrice(entry);
+      const csv = buildUserPriceCsv([entry], model.today);
+      await importData('prices', csv);
+    } finally {
+      setSpotBusy(false);
+    }
+  }
+
   const cropRows = Object.values(CROP_PROFILES).map((c) => {
     const isOnion = c.id === 'onion';
-    const wh = isOnion ? effWhPrice : c.benchmarkWarehousePrice;
+    const manualCropVal = Number(model.assumptions?.manualPrices?.[c.id]?.value);
+    const wh = isOnion ? effWhPrice : (manualCropVal > 0 ? manualCropVal : c.benchmarkWarehousePrice);
+    const isCustom = isOnion ? hasUserWh : manualCropVal > 0;
     const peakMult = c.type === CROP_TYPES.STORAGE ? Math.max(...(c.seasonalMultipliers || [1])) : 1;
     const peakWh = isOnion ? decisionPlan.peakWeek.whPrice : +(wh * peakMult).toFixed(1);
     const balRatio = c.balance ? +(c.balance.D / (c.balance.P + c.balance.I + (c.balance.S || 0))).toFixed(2) : 1.0;
-    return { ...c, wh, peakWh, balRatio };
+    return { ...c, wh, peakWh, balRatio, isCustom };
   });
+
+  const verifiedObs = model.verifiedObservations || [];
+  const manualCropEntries = Object.entries(model.assumptions?.manualPrices || {})
+    .filter(([k, v]) => k !== 'warehouse' && k !== 'moscow' && v && Number(v.value) > 0)
+    .map(([k, v]) => ({
+      cropId: k,
+      label: CROP_PROFILES[k]?.label || k,
+      emoji: CROP_PROFILES[k]?.emoji || '',
+      value: Number(v.value),
+      asOf: v.asOf || model.today,
+    }));
 
   const chartLabels = decisionPlan.weeks.map((w) => `W+${w.h} (${w.shortDate})`);
   const chartData = {
@@ -177,8 +222,8 @@ export default function Dashboard() {
             </>
           ) : (
             <>
-              Подключено <strong>{snap.producerCount} мес.</strong> цен производителей Росстата (РФ: <strong>{snap.producer?.value?.toFixed(2) ?? '18.12'} ₽/кг</strong> за {snap.producer?.period ?? '2026-09'}),{' '}
-              <strong>{snap.retailCount} нед.</strong> розницы (<strong>{snap.retail?.value?.toFixed(2) ?? '49.19'} ₽/кг</strong>), курсы ЦБ РФ и погода ERA5. Региональный старт ЮФО/Волгоград: <strong>{effWhPrice.toFixed(1)} ₽/кг</strong>.
+              Подключено <strong>{snap.producerCount} мес.</strong> цен производителей Росстата (РФ: <strong>{snap.producer?.value?.toFixed(2) ?? '18.12'} ₽/кг</strong>, ЮФО: <strong>{snap.producerSouth?.value?.toFixed(2) ?? '17.53'} ₽/кг</strong> за {snap.producer?.period ?? '2026-09'}),{' '}
+              <strong>{snap.retailCount} нед.</strong> розницы (<strong>{snap.retail?.value?.toFixed(2) ?? '49.19'} ₽/кг</strong>), курсы ЦБ РФ и погода ERA5. Старт Волгоград EXW (5+ см, от 20 т): <strong>{effWhPrice.toFixed(1)} ₽/кг</strong> без НДС.
             </>
           )}
         </div>
@@ -190,6 +235,92 @@ export default function Dashboard() {
       {/* Inline Actual Deal Entry */}
       <AddActualPrice defaultOpen={false} />
 
+      {/* Active User Price Entries Log (visible immediately when user adds/fixes a price) */}
+      {(verifiedObs.length > 0 || manualCropEntries.length > 0) && (
+        <div className="panel" style={{ borderColor: 'var(--green-border)' }}>
+          <div className="panel-hd" style={{ background: 'var(--green-bg)', flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="badge up">ВАШИ ДАННЫЕ АКТИВНЫ</span>
+              <span className="panel-title" style={{ color: 'var(--green)' }}>
+                Журнал зафиксированных цен ({verifiedObs.length + manualCropEntries.length})
+              </span>
+            </div>
+            {model.storeDurable === false && (
+              <button
+                type="button"
+                className="cash-reset-btn"
+                onClick={clearLocalEntries}
+                title="Очистить сохранённые в браузере цены и вернуться к региональному ориентиру 15.5 ₽/кг"
+              >
+                ↺ Сбросить к ориентиру 15.5 ₽
+              </button>
+            )}
+          </div>
+          <div
+            className="table-wrapper"
+            role="region"
+            tabIndex={0}
+            aria-label="Журнал зафиксированных пользователем цен"
+          >
+            <table className="tbl sticky-hd">
+              <thead>
+                <tr>
+                  <th scope="col" className="pl sticky-col">Дата</th>
+                  <th scope="col">Культура / Рынок</th>
+                  <th scope="col">Цена без НДС</th>
+                  <th scope="col">Эквивалент с НДС 10%</th>
+                  <th scope="col">Статус в расчёте</th>
+                </tr>
+              </thead>
+              <tbody>
+                {verifiedObs.map((o) => (
+                  <tr key={o.id}>
+                    <th scope="row" className="pl mono sticky-col" style={{ fontWeight: 500 }}>
+                      {o.observationDate}
+                    </th>
+                    <td>
+                      🧅 Лук · {o.market === 'warehouse_volgograd' ? 'Склад Волгоград (EXW)' : 'Опт Москва (DAP)'}
+                    </td>
+                    <td className="mono fw" style={{ color: 'var(--green)' }}>
+                      {(o.priceExVatRubKg ?? o.priceRubKg).toFixed(2)} ₽/кг
+                    </td>
+                    <td className="mono">
+                      {((o.priceExVatRubKg ?? o.priceRubKg) * 1.1).toFixed(2)} ₽/кг
+                    </td>
+                    <td>
+                      <span className="badge up">подтверждённая сделка</span>{' '}
+                      <span style={{ fontSize: 11, color: 'var(--txt2)' }}>
+                        калибрует 26-нед. график, 5 этапов и карточки ниже
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {manualCropEntries.map((m) => (
+                  <tr key={m.cropId}>
+                    <th scope="row" className="pl mono sticky-col" style={{ fontWeight: 500 }}>
+                      {m.asOf}
+                    </th>
+                    <td>
+                      {m.emoji} {m.label} · Склад EXW
+                    </td>
+                    <td className="mono fw" style={{ color: 'var(--blue)' }}>
+                      {m.value.toFixed(2)} ₽/кг
+                    </td>
+                    <td className="mono">{(m.value * 1.1).toFixed(2)} ₽/кг</td>
+                    <td>
+                      <span className="badge info">стартовое допущение</span>{' '}
+                      <span style={{ fontSize: 11, color: 'var(--txt2)' }}>
+                        учтено в таблице овощных культур
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* 4 KPI Stat Cards */}
       <div className="row-4">
         <div className="panel">
@@ -197,7 +328,7 @@ export default function Dashboard() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <div className="stat-label">Лук · Склад EXW (Волгоград)</div>
               <span className={`badge ${hasUserWh ? 'up' : 'info'}`} style={{ fontSize: 9 }}>
-                {hasUserWh ? 'ваша сделка' : 'ориентир ЮФО'}
+                {hasUserWh ? 'ваша сделка' : '5+ см · от 20 т'}
               </span>
             </div>
             <div className="stat-val" style={{ color: 'var(--blue)' }}>
@@ -205,7 +336,7 @@ export default function Dashboard() {
             </div>
             <div className="stat-meta">
               <span className="stat-sub">
-                без НДС · Росстат РФ ({snap.producer?.period ?? '2026-09'}): {snap.producer?.value?.toFixed(2) ?? '18.12'} ₽
+                без НДС (~{(effWhPrice * 1.1).toFixed(1)} ₽ с НДС) · ЮФО Росстат: {snap.producerSouth?.value?.toFixed(2) ?? '17.53'} ₽
               </span>
             </div>
           </div>
@@ -267,6 +398,200 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Live Spot Marketplaces & Multi-Factor Pressure Radar */}
+      {signals && (
+        <div className="row-32">
+          <div className="panel">
+            <div className="panel-hd" style={{ flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span className="panel-title">
+                  📡 Спот-котировки площадок · Лук репчатый (оферты ask ≠ сделки)
+                </span>
+                <span className={`badge ${signals.mode === 'live_hybrid' ? 'up' : 'info'}`}>
+                  {signals.mode === 'live_hybrid'
+                    ? `LIVE СКАН (${signals.liveFeedsConnected} канала)`
+                    : 'СВЕРЕННЫЙ СРЕЗ'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="cash-reset-btn"
+                  onClick={() => refreshSignals(true)}
+                  disabled={signalsBusy}
+                  style={{ fontSize: 10, padding: '2px 8px' }}
+                  title="Повторно опросить AgroRU, Food Star, ЦБ РФ и Open-Meteo"
+                >
+                  {signalsBusy ? 'Сканирование…' : '↻ Скан площадок'}
+                </button>
+                <button
+                  type="button"
+                  className="basis-btn active"
+                  onClick={handleApplySpotConsensus}
+                  disabled={spotBusy}
+                  style={{ fontSize: 10, padding: '3px 9px' }}
+                  title="Явно зафиксировать расчётный спот площадок Волгограда (за вычетом торга 0.25 ₽/кг) как стартовую цену склада"
+                >
+                  {spotBusy
+                    ? 'Калибровка…'
+                    : `⚡ Калибровать от спота (${signals.analytics.impliedDealSpotExVat.toFixed(1)} ₽)`}
+                </button>
+              </div>
+            </div>
+
+            <div
+              className="table-wrapper"
+              role="region"
+              tabIndex={0}
+              aria-labelledby="spot-radar-caption"
+            >
+              <table className="tbl sticky-hd">
+                <caption id="spot-radar-caption" className="vlg-tbl-caption">
+                  Мониторинг отпускных оферт и официальных ориентиров (калибр 5+ см, без смешивания с мелким 3–4 см и вакуумной чисткой)
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col" className="pl sticky-col">Площадка / канал</th>
+                    <th scope="col">Без НДС</th>
+                    <th scope="col">Коридор и условия партии</th>
+                    <th scope="col">Статус</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(signals.spotChannels || []).map((ch) => {
+                    const badgeCls =
+                      ch.status === 'live'
+                        ? 'up'
+                        : ch.status === 'captcha_protected'
+                          ? 'warn'
+                          : 'info';
+                    return (
+                      <tr key={ch.id}>
+                        <th scope="row" className="pl sticky-col" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
+                          <a
+                            href={ch.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ color: 'var(--txt)', textDecoration: 'none' }}
+                            title={ch.note}
+                          >
+                            {ch.source} <span style={{ color: 'var(--blue)', fontSize: 10 }}>↗</span>
+                          </a>
+                          <div style={{ fontSize: 10, fontWeight: 400, color: 'var(--txt3)' }}>{ch.spec}</div>
+                        </th>
+                        <td className="mono fw" style={{ color: ch.region === 'Москва' ? 'var(--amber)' : 'var(--blue)', whiteSpace: 'nowrap' }}>
+                          {ch.priceExVat.toFixed(2)} ₽
+                        </td>
+                        <td style={{ fontSize: 11, color: 'var(--txt2)' }}>
+                          <div>{ch.corridorText}</div>
+                          <div style={{ fontSize: 10, color: 'var(--txt3)' }}>{ch.note}</div>
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          <span className={`badge ${badgeCls}`}>{ch.statusLabel}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {(() => {
+              const agroRu = (signals.spotChannels || []).find((c) => c.id === 'agroru_vlg');
+              if (!agroRu?.liveOffers?.length) return null;
+              return (
+                <details className="vlg-basis-details">
+                  <summary>
+                    🔎 Живые объявления Волгоградской обл. с AgroRU ({agroRu.liveOffers.length} отфильтрованных товарных оферт 2026 г.)
+                  </summary>
+                  <div className="vlg-basis-body">
+                    {agroRu.liveOffers.map((of, i) => (
+                      <div key={`${of.url}-${i}`} className="macro-row" style={{ padding: '4px 0' }}>
+                        <span style={{ fontSize: 11, color: 'var(--txt)' }}>
+                          <a href={of.url} target="_blank" rel="noreferrer" style={{ color: 'var(--blue)' }}>
+                            {of.title}
+                          </a>{' '}
+                          <span style={{ color: 'var(--txt3)' }}>· {of.seller} ({of.date || 'свежее'})</span>
+                        </span>
+                        <span className="mono fw" style={{ whiteSpace: 'nowrap' }}>
+                          {of.priceExVat.toFixed(2)} ₽ без НДС
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              );
+            })()}
+          </div>
+
+          <div className="col-stack">
+            <div className="panel">
+              <div className="panel-hd" style={{ flexWrap: 'wrap', gap: 6 }}>
+                <span className="panel-title">Импортный паритет и пульс рынка</span>
+                <span className={`pill ${signals.analytics.signalRegime.cls}`}>
+                  Индекс: {signals.analytics.tensionScore > 0 ? `+${signals.analytics.tensionScore}` : signals.analytics.tensionScore}
+                </span>
+              </div>
+              <div className="panel-body" style={{ padding: '10px 14px' }}>
+                <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--txt2)', marginBottom: 6 }}>
+                  {signals.analytics.signalRegime.label}
+                </div>
+                <div className="progress" style={{ height: 6, marginBottom: 10 }}>
+                  <div
+                    className="progress-fill"
+                    style={{
+                      width: `${Math.min(100, Math.max(8, Math.round((signals.analytics.tensionScore + 100) / 2)))}%`,
+                      background:
+                        signals.analytics.tensionScore >= 15
+                          ? 'var(--green)'
+                          : signals.analytics.tensionScore <= -15
+                            ? '#EF9F27'
+                            : 'var(--blue)',
+                    }}
+                  />
+                </div>
+
+                <div className="macro-row">
+                  <span className="macro-lbl">🇰🇿 Паритет Тараз (КЗ) → Волг. EXW</span>
+                  <span className="macro-val">
+                    {signals.analytics.parity.kzLandedVolgogradExVat.toFixed(2)} ₽{' '}
+                    <span
+                      className={`fc-delta-pill ${signals.analytics.parity.kzSpreadVsLocal <= 0.5 ? 'dn' : 'up'}`}
+                      style={{ marginLeft: 4 }}
+                      title="Разница импортного паритета КЗ к вашей цене склада"
+                    >
+                      {signals.analytics.parity.kzSpreadVsLocal >= 0 ? '+' : ''}
+                      {signals.analytics.parity.kzSpreadVsLocal.toFixed(1)} ₽
+                    </span>
+                  </span>
+                </div>
+
+                <div className="macro-row">
+                  <span className="macro-lbl">🇺🇿 Ранний лук Термез (УЗ) → Юг РФ (апр.)</span>
+                  <span className="macro-val" style={{ color: 'var(--amber)' }}>
+                    ~{signals.analytics.parity.uzEarlyLandedSouthExVat.toFixed(1)} ₽/кг
+                  </span>
+                </div>
+
+                <div className="macro-row">
+                  <span className="macro-lbl">🇪🇬 Морской паритет Египет CIF (весна)</span>
+                  <span className="macro-val">
+                    ~{signals.analytics.parity.egLandedMoscowExVat.toFixed(1)} ₽/кг
+                  </span>
+                </div>
+
+                <div className="macro-row">
+                  <span className="macro-lbl">🌡️ Погода 10 дн. (min °C · 4 хаба)</span>
+                  <span className="macro-val" style={{ fontSize: 11 }}>
+                    ВЛГ {signals.weatherHubs.volgograd.minTemp10d}° · КЗ {signals.weatherHubs.zhambyl.minTemp10d}° · УЗ +{signals.weatherHubs.surkhandarya.minTemp10d}°
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Split: Crop Rating Matrix + Macro & Importers */}
       <div className="row-32">
         <div className="panel">
@@ -283,20 +608,25 @@ export default function Dashboard() {
             <table className="tbl sticky-hd">
               <thead>
                 <tr>
-                  <th className="pl sticky-col">Культура</th>
-                  <th>Фаза сезона</th>
-                  <th>Склад сейчас</th>
-                  <th>Пик хранения</th>
-                  <th>Баланс D/S</th>
-                  <th>Рекомендация</th>
+                  <th scope="col" className="pl sticky-col">Культура</th>
+                  <th scope="col">Фаза сезона</th>
+                  <th scope="col">Склад сейчас</th>
+                  <th scope="col">Пик хранения</th>
+                  <th scope="col">Баланс D/S</th>
+                  <th scope="col">Рекомендация</th>
                 </tr>
               </thead>
               <tbody>
                 {cropRows.map((c) => (
-                  <tr key={c.id}>
-                    <td className="pl fw sticky-col" style={{ whiteSpace: 'nowrap' }}>
-                      {c.emoji} {c.label}
-                    </td>
+                  <tr key={c.id} className={c.isCustom ? 'sales-plan-highlight' : ''}>
+                    <th scope="row" className="pl fw sticky-col" style={{ whiteSpace: 'nowrap' }}>
+                      {c.emoji} {c.label}{' '}
+                      {c.isCustom && (
+                        <span className="badge up" style={{ fontSize: 8, marginLeft: 4 }}>
+                          ваша
+                        </span>
+                      )}
+                    </th>
                     <td>
                       <span className={`pill ${c.pCls || 'info'}`}>{c.cyclePhase}</span>
                     </td>
@@ -341,6 +671,12 @@ export default function Dashboard() {
                   {kztVal ? `${kztVal.toFixed(4)} ₽` : '—'}
                 </span>
               </div>
+              {uzs10kVal && (
+                <div className="macro-row">
+                  <span className="macro-lbl">UZS/RUB · 10 000 узбекских сумов</span>
+                  <span className="macro-val">{uzs10kVal.toFixed(2)} ₽</span>
+                </div>
+              )}
               <div className="macro-row">
                 <span className="macro-lbl">Ключевая ставка ЦБ РФ</span>
                 <span className="macro-val" style={{ color: 'var(--red)' }}>
@@ -400,9 +736,14 @@ export default function Dashboard() {
       <div className="panel">
         <div className="panel-hd" style={{ flexWrap: 'wrap', gap: 8 }}>
           <span className="panel-title">
-            26-недельная траектория цен · Склад EXW, чистая выручка и Опт Москва
+            26-недельная динамика · Склад EXW, чистая выручка и Опт Москва (с учётом спроса РЦ, паузы 1–14 янв. и импорта КЗ/УЗ)
           </span>
-          <span className="badge info">CatBoost GBDT + 80% эмпирический коридор</span>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <span className="badge neu">Ноя: транзит КЗ</span>
+            <span className="badge info">Дек: пик РЦ → 1–14 янв: пауза ▼</span>
+            <span className="badge up">Мар: пик хранения ▲</span>
+            <span className="badge warn">Апр: ранний лук УЗ ▼</span>
+          </div>
         </div>
         <div style={{ padding: '12px 14px' }}>
           <div style={{ height: 250 }}>

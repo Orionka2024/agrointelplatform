@@ -3,13 +3,17 @@ import { CROP_PROFILES } from '../../shared/cropProfiles.js';
 import { warehouseToMoscow } from '../../shared/bridge.js';
 
 export default function Topbar() {
-  const { model, demo, setDemo, refresh, loading, today } = useMarket();
+  const { model, signals, signalsBusy, demo, setDemo, refresh, loading, today } = useMarket();
 
   const whPrice = model.prices.warehouse;
   const mskPrice = model.prices.moscow;
-  const usd = model.macro.usdRub;
-  const kzt = model.macro.kztRub;
-  const keyRate = model.macro.keyRate;
+  const usd = signals?.fx?.usdRub?.value ?? model.macro.usdRub?.value;
+  const usdLive = signals?.fx?.status === 'live' || model.macro.usdRub?.provenance?.status === 'live';
+  const kzt = signals?.fx?.kztRub?.value ?? model.macro.kztRub?.value;
+  const uzs10k = signals?.fx?.uzsPer10k?.value;
+  const keyRate = model.macro.keyRate?.value ?? signals?.fx?.keyRate?.value;
+  const spotDeal = signals?.analytics?.impliedDealSpotExVat;
+  const kzParity = signals?.analytics?.parity?.kzLandedVolgogradExVat;
 
   const hasWhActual = whPrice.exVat !== null && whPrice.exVat !== undefined;
   const effWh = hasWhActual ? whPrice.exVat : CROP_PROFILES.onion.benchmarkWarehousePrice;
@@ -25,6 +29,8 @@ export default function Topbar() {
     if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
     return dateStr;
   })();
+
+  const isBusy = loading || signalsBusy;
 
   return (
     <div className="topbar">
@@ -48,6 +54,21 @@ export default function Topbar() {
           </span>
         </div>
 
+        {spotDeal && (
+          <div
+            className="ticker-item"
+            title="Расчётный спот Волгограда по живым офертам AgroRU / AgroServer / Авито (5+ см, без НДС, за вычетом торга 0.25 ₽)"
+          >
+            <span className="ticker-name">СПОТ ДОСКИ:</span>
+            <span className="ticker-price">{spotDeal.toFixed(1)} ₽</span>
+            <span
+              className={`ticker-chg ${signals?.mode === 'live_hybrid' ? 'up' : 'neu'}`}
+            >
+              {signals?.mode === 'live_hybrid' ? `LIVE (${signals.liveFeedsConnected})` : 'сверка'}
+            </span>
+          </div>
+        )}
+
         <div
           className="ticker-item"
           title={
@@ -56,29 +77,40 @@ export default function Topbar() {
               : 'Расчётная оптовая цена Москвы по мосту издержек (с НДС 10%)'
           }
         >
-          <span className="ticker-name">МОСКВА (ОПТ С НДС):</span>
+          <span className="ticker-name">МОСКВА (ОПТ):</span>
           <span className="ticker-price">{effMsk.toFixed(1)} ₽</span>
-          <span className="badge neu" style={{ fontSize: 9, padding: '1px 4px' }}>
-            {hasMskActual ? mskPrice.provenance.status : 'мост издержек'}
+        </div>
+
+        {kzParity && (
+          <div
+            className="ticker-item"
+            title="Импортный паритет лука из Жамбылской обл. Казахстана с доставкой до ЮФО (без НДС)"
+          >
+            <span className="ticker-name">ПАРИТЕТ КЗ:</span>
+            <span className={`ticker-price ${kzParity <= effWh ? 'dn' : 'up'}`}>
+              {kzParity.toFixed(1)} ₽
+            </span>
+          </div>
+        )}
+
+        <div className="ticker-item" title="Курс доллара ЦБ РФ">
+          <span className="ticker-name">USD:</span>
+          <span className="ticker-price">{usd ? usd.toFixed(2) : '—'}</span>
+          <span className={`ticker-chg ${usdLive ? 'up' : 'neu'}`}>
+            {usdLive ? 'live' : 'арх.'}
           </span>
         </div>
 
-        <div className="ticker-item" title={`Курс доллара ЦБ РФ (${usd.provenance.status})`}>
-          <span className="ticker-name">USD/RUB:</span>
-          <span className="ticker-price">{usd.value ? usd.value.toFixed(2) : '—'}</span>
-          <span className={`ticker-chg ${usd.provenance.status === 'live' ? 'up' : 'neu'}`}>
-            {usd.provenance.status}
+        <div className="ticker-item" title="Курс тенге (1 KZT) и узбекского сума (10 000 UZS) ЦБ РФ">
+          <span className="ticker-name">KZT / 10K UZS:</span>
+          <span className="ticker-price">
+            {kzt ? kzt.toFixed(3) : '—'}{uzs10k ? ` / ${uzs10k.toFixed(1)}` : ''}
           </span>
         </div>
 
-        <div className="ticker-item" title={`Курс тенге ЦБ РФ (${kzt?.provenance?.status || 'cached'})`}>
-          <span className="ticker-name">KZT/RUB:</span>
-          <span className="ticker-price">{kzt?.value ? kzt.value.toFixed(3) : '—'}</span>
-        </div>
-
-        <div className="ticker-item" title={`Ключевая ставка Банка России (${keyRate.provenance.status})`}>
+        <div className="ticker-item" title="Ключевая ставка Банка России">
           <span className="ticker-name">СТАВКА ЦБ:</span>
-          <span className="ticker-price">{keyRate.value ? `${keyRate.value.toFixed(1)}%` : '—'}</span>
+          <span className="ticker-price">{keyRate ? `${keyRate.toFixed(1)}%` : '—'}</span>
         </div>
       </div>
 
@@ -106,7 +138,7 @@ export default function Topbar() {
           title={
             demo
               ? 'Активен демонстрационный режим. Нажмите для перехода к реальным данным Росстата / ЦБ РФ и вашим сделкам.'
-              : 'Режим реальных данных (Росстат + ЦБ РФ + ваши сделки).'
+              : 'Режим реальных данных (Росстат + ЦБ РФ + скан спот-рынка + ваши сделки).'
           }
         >
           {demo ? '🟡 ДЕМО-РЕЖИМ' : '🟢 РЕАЛЬНЫЕ ДАННЫЕ'}
@@ -115,12 +147,12 @@ export default function Topbar() {
         <button
           type="button"
           onClick={refresh}
-          disabled={loading}
+          disabled={isBusy}
           className="cash-reset-btn"
           style={{ fontSize: 11, padding: '3px 8px' }}
-          title="Обновить рыночные данные"
+          title="Сканировать площадки (AgroRU, Food Star, ЦБ РФ, погода 4 хабов) и обновить модель"
         >
-          {loading ? '...' : '↺'}
+          {isBusy ? 'Скан…' : '📡 Скан'}
         </button>
       </div>
     </div>

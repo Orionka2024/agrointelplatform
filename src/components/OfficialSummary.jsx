@@ -20,10 +20,10 @@ export default function OfficialSummary() {
       </div>
       <div className="official-cards">
         <div>
-          <small>РФ · производители · без НДС и доставки</small>
+          <small>РФ и ЮФО · производители СХО · без НДС и доставки</small>
           <strong>{fmt(s.producer?.value)} ₽/кг</strong>
           <span>
-            {s.producer?.period ?? 'Нет данных'} · опубликовано {s.producer?.availableDate ?? '—'}
+            ЮФО: <strong>{fmt(s.producerSouth?.value)} ₽/кг</strong> ({s.producer?.period ?? 'Нет данных'}) · опубл. {s.producer?.availableDate ?? '—'}
           </span>
         </div>
         <div>

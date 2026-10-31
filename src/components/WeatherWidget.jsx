@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 
 const DISTRICTS = [
-  { id: 'gorodishche', name: 'Городищенский р-н', lat: 48.80, lng: 44.47, crops: '🧅 Лук, 🥕 Морковь, 🥔 Картофель, 🟣 Свекла', note: 'Крупнейший производитель лука и корнеплодов в РФ.' },
-  { id: 'bykovo', name: 'Быковский р-н', lat: 49.76, lng: 45.39, crops: '🍉 Арбуз, 🍈 Дыня', note: 'Центр российского бахчеводства, знаменитые быковские арбузы.' },
-  { id: 'srednyaya_ahtuba', name: 'Среднеахтубинский р-н', lat: 48.71, lng: 44.86, crops: '🥬 Капуста, 🍅 Томаты', note: 'Специализация на открытом грунте и ранних овощах.' }
+  { id: 'gorodishche', btn: 'Городищенский', name: 'Городищенский р-н (Волгоград)', lat: 48.80, lng: 44.47, crops: '🧅 Лук, 🥕 Морковь, 🥔 Картофель, 🟣 Свекла', note: 'Крупнейший производитель лука и корнеплодов в РФ (базис EXW).' },
+  { id: 'zhambyl_kz', btn: '🇰🇿 Тараз (КЗ)', name: 'Жамбылская обл. · Тараз (Казахстан)', lat: 42.90, lng: 71.37, crops: '🧅 Лук репчатый (48% импорта РФ)', note: 'Главный коридор осенне-зимнего транзита лука в Россию; морозы < −8°C режут отгрузки из буртов.' },
+  { id: 'termez_uz', btn: '🇺🇿 Термез (УЗ)', name: 'Сурхандарья · Термез (Узбекистан)', lat: 37.22, lng: 67.28, crops: '🧅 Ранний озимый («августовский») лук', note: 'Формирует ценовой потолок в РФ с первой половины апреля при заходе раннего урожая.' },
+  { id: 'bykovo', btn: 'Быковский', name: 'Быковский р-н (Волгоград)', lat: 49.76, lng: 45.39, crops: '🍉 Арбуз, 🍈 Дыня', note: 'Центр российского бахчеводства, знаменитые быковские арбузы.' },
+  { id: 'srednyaya_ahtuba', btn: 'Среднеахтубинский', name: 'Среднеахтубинский р-н (Волгоград)', lat: 48.71, lng: 44.86, crops: '🥬 Капуста, 🍅 Томаты', note: 'Специализация на открытом грунте и ранних овощах.' },
 ];
 
 function weatherDesc(code) {
@@ -18,9 +20,24 @@ function weatherDesc(code) {
   return { icon: '🌡️', text: 'Ясно' };
 }
 
-function getImpact(maxTemp, minTemp, prec) {
+function getImpact(maxTemp, minTemp, prec, districtId) {
+  if (districtId === 'zhambyl_kz') {
+    if (minTemp <= -8) {
+      return { cls: 'up', title: 'Импортный шок КЗ: Мороз в буртах', desc: 'Риск промерзания полевых буртов в Жамбылской обл. Сокращение транзита фур в РФ поддерживает рост цен на складах Волгограда.' };
+    }
+    if (minTemp <= -1) {
+      return { cls: 'info', title: 'Переход транзита КЗ на термосы', desc: 'Ночные заморозки в Таразе удорожают автодоставку в РФ (+1.0..1.5 ₽/кг к импортному паритету).' };
+    }
+    return { cls: 'warn', title: 'Активный осенний транзит из КЗ', desc: 'Мягкая сухая погода в Южном Казахстане благоприятствует бесперебойной отгрузке лука в РФ, сдерживая осенний рост цен.' };
+  }
+  if (districtId === 'termez_uz') {
+    if (minTemp <= -3) {
+      return { cls: 'up', title: 'Риск задержки раннего лука УЗ', desc: 'Заморозки в Сурхандарье тормозят вегетацию озимого лука — окно высоких цен хранения в РФ весной может продлиться.' };
+    }
+    return { cls: 'info', title: 'Штатная вегетация раннего лука УЗ', desc: 'Тёплый фон в Термезе способствует развитию озимых посевов под стандартный старт экспорта в РФ со второй декады апреля.' };
+  }
   if (minTemp <= 0) {
-    return { cls: 'dn', title: 'Опасность: Ночные заморозки', desc: 'Риск подмерзания неубранных корнеплодов и капусты в поле. Ускорить закладку в овощехранилища.' };
+    return { cls: 'dn', title: 'Ночные заморозки · Сброс холодных ангаров', desc: 'Риск подмерзания партий во временных неотапливаемых ангарах создаёт краткосрочный навес предложения; стационарные склады в норме.' };
   }
   if (maxTemp > 33 && prec === 0) {
     return { cls: 'dn', title: 'Опасность: Суховей / Жара', desc: 'Критическая температура для налива плодов. Риск засухи. Требуется усиленный полив.' };
@@ -29,13 +46,22 @@ function getImpact(maxTemp, minTemp, prec) {
     return { cls: 'warn', title: 'Ограничение: Осенняя распутица', desc: 'Сильные осадки затрудняют выход техники в поле и снижают лежкость корнеплодов при закладке на хранение.' };
   }
   if (maxTemp < 12) {
-    return { cls: 'info', title: 'Завершение сезона · Озимый сев', desc: 'Температурный режим оптимален для укоренения озимого чеснока и охлаждения вентиляционных камер хранения.' };
+    return { cls: 'info', title: 'Охлаждение вентиляционных камер', desc: 'Холодный наружный воздух снижает затраты электроэнергии на набор целевого режима хранения (0..+1°C) для лука.' };
   }
-  return { cls: 'up', title: 'Благоприятное окно уборки', desc: 'Сухая осенняя погода оптимальна для доуборки поздних культур, закладки на хранение и зяблевой вспашки.' };
+  return { cls: 'up', title: 'Благоприятное окно отгрузок', desc: 'Сухая погода оптимальна для плановой вентиляции хранилищ и бесперебойной логистики по трассе М-6.' };
 }
 
 function buildFallbackWeather(districtId) {
-  const offset = districtId === 'bykovo' ? -1 : districtId === 'srednyaya_ahtuba' ? 1 : 0;
+  const offset =
+    districtId === 'termez_uz'
+      ? 10
+      : districtId === 'zhambyl_kz'
+        ? 3
+        : districtId === 'bykovo'
+          ? -1
+          : districtId === 'srednyaya_ahtuba'
+            ? 1
+            : 0;
   const baseMax = [12, 11, 9, 10, 8, 7, 9];
   const baseMin = [4, 3, 2, 1, 0, -1, 2];
   const basePrec = [0.0, 1.2, 4.5, 0.0, 0.0, 0.4, 0.0];
@@ -49,8 +75,8 @@ function buildFallbackWeather(districtId) {
     time,
     temperature_2m_max: baseMax.map(t => t + offset),
     temperature_2m_min: baseMin.map(t => t + offset),
-    precipitation_sum: basePrec,
-    weathercode: baseCode,
+    precipitation_sum: districtId === 'termez_uz' ? [0, 0, 0.4, 0, 0, 0, 0] : basePrec,
+    weathercode: districtId === 'termez_uz' ? [0, 1, 2, 0, 0, 1, 0] : baseCode,
   };
 }
 
@@ -60,7 +86,7 @@ export default function WeatherWidget() {
   const [loading, setLoading] = useState(false);
   const [usingFallback, setUsingFallback] = useState(false);
 
-  const district = DISTRICTS.find(d => d.id === activeDistrictId);
+  const district = DISTRICTS.find(d => d.id === activeDistrictId) || DISTRICTS[0];
 
   useEffect(() => {
     let active = true;
@@ -105,20 +131,21 @@ export default function WeatherWidget() {
     const avgMax = next3DaysMax.reduce((a, b) => a + b, 0) / next3DaysMax.length;
     const minT = Math.min(...next3DaysMin);
     const totalPrec = weatherData.precipitation_sum.slice(0, 3).reduce((a, b) => a + b, 0);
-    impact = getImpact(avgMax, minT, totalPrec);
+    impact = getImpact(avgMax, minT, totalPrec, activeDistrictId);
   }
 
   return (
     <div className="panel" style={{ marginTop: 10 }}>
-      <div className="panel-hd">
+      <div className="panel-hd" style={{ flexWrap: 'wrap', gap: 6 }}>
         <span className="panel-title">
-          ☀️ Погода в сырьевых зонах (Волгоградская обл.) · 7 дней
+          ☀️ Погодный радар: сырьевые зоны Волгограда и коридоры импорта (КЗ / УЗ) · 7 дней
           {usingFallback ? ' (резервный расчёт)' : ''}
         </span>
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {DISTRICTS.map(d => (
             <button
               key={d.id}
+              type="button"
               onClick={() => setActiveDistrictId(d.id)}
               style={{
                 padding: '4px 8px',
@@ -131,7 +158,7 @@ export default function WeatherWidget() {
                 fontWeight: activeDistrictId === d.id ? 600 : 400
               }}
             >
-              {d.name.split(' ')[0]}
+              {d.btn}
             </button>
           ))}
         </div>

@@ -203,8 +203,30 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     { id: 'indicators', label: 'Сезонные индикаторы', status: demo ? 'demo' : indicators.length ? 'observed' : 'unavailable', asOf: indicators.length ? indicators.map(i => i.observationDate).sort().pop() : null, n: indicators.length },
   ];
 
+  const verifiedObservations = demo
+    ? []
+    : observations
+        .filter(isVerified)
+        .slice()
+        .sort((a, b) => (a.observationDate < b.observationDate ? 1 : a.observationDate > b.observationDate ? -1 : 0))
+        .slice(0, 20)
+        .map((o) => ({
+          id: o.id,
+          observationDate: o.observationDate,
+          market: o.market,
+          kind: o.kind,
+          geography: o.geography,
+          deliveryBasis: o.deliveryBasis,
+          priceRubKg: o.priceRubKg,
+          priceExVatRubKg: o.priceExVatRubKg,
+          vat: o.vat,
+          source: o.source,
+          verifiedAt: o.verification?.verifiedAt || null,
+        }));
+
   return {
     mode: demo ? 'demo' : 'observed', today, storeAvailable, evidence,
+    verifiedObservations,
     monitoring: monitorMarket(observations, indicators, today),
     assumptions, bridge, vatRate, sensitivities: sens,
     prices, series, bridgeValidation, bridgeResult, empirical, spread,

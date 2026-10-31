@@ -6,6 +6,7 @@ import { CROP_PROFILES, CROP_TYPES, getCropProfile } from '../../shared/cropProf
 import { buildUserPriceCsv } from '../../shared/localBasis.js';
 import { warehouseToMoscow, BRIDGE_LABELS } from '../../shared/bridge.js';
 import { buildWeeklyDecisionPlan, buildCatBoostShapCards } from '../../shared/weeklyDecisionPlan.js';
+import { upsertStoredUserPrice } from '../utils/userPriceStore.js';
 import MonthlySalesPlanTable from './MonthlySalesPlanTable';
 
 const OfficialMarket = lazy(() => import('./OfficialMarket'));
@@ -18,28 +19,35 @@ const SCENARIO_PRESETS = [
     label: '⚖️ Базовый баланс (0%)',
     deltaPct: 0,
     cls: '',
-    desc: 'Штатный осенний транзит из Казахстана (Жамбылская обл.) и плановое истощение запасов к марту.',
+    desc: 'Штатный осенний транзит из Казахстана, декабрьский пик сетей, новогодняя пауза 1–14 янв., пик в марте и апрельский разворот под ранний лук УЗ.',
   },
   {
     id: 'kz_quota',
-    label: '🚨 Квота / Заморозки КЗ (+22%)',
+    label: '🚨 Квота / Заморозки КЗ (+22% зима)',
     deltaPct: 22,
     cls: 'dn',
-    desc: 'Ограничение вывоза лука из Казахстана или вымерзание буртов в ЦА (аналог января–марта 2023 г.).',
+    desc: 'Ограничение вывоза лука из Казахстана или вымерзание буртов в Таразе (янв.–март, аналог сезона 2023 г.).',
   },
   {
     id: 'fx_weak',
-    label: '💱 Ослабление рубля (+10%)',
+    label: '💱 Слабый рубль (+10% паритет)',
     deltaPct: 10,
     cls: 'warn',
-    desc: 'Удорожание импортного паритета (рост KZT/RUB и USD/RUB) повышает ценовой потолок весной.',
+    desc: 'Удорожание импортного паритета (рост KZT, UZS и USD к рублю) поднимает весенний потолок цен.',
   },
   {
     id: 'dumping',
-    label: '📉 Избыточный импорт (−14%)',
+    label: '📉 Сброс ангаров / импорт (−14% осень)',
     deltaPct: -14,
     cls: 'warn',
-    desc: 'Ускоренный сброс несохранных партий из временных неотапливаемых ангаров давит на опт.',
+    desc: 'Ускоренная распродажа несохранных партий из холодных ангаров и дешёвый транзит КЗ давят на ноябрь–январь.',
+  },
+  {
+    id: 'uz_early',
+    label: '🇺🇿 Ранний лук УЗ (−13% апр.)',
+    deltaPct: -13,
+    cls: 'warn',
+    desc: 'Тёплая весна в Сурхандарье (Термез) сдвигает заход раннего узбекского лука на конец марта — более резкая просадка апреля.',
   },
 ];
 
@@ -117,8 +125,8 @@ function OffSeasonPlanningView({ cropProfile }) {
   );
 }
 
-export default function Forecast({ onNavigateToImport }) {
-  const { model, importData, updateAssumptions } = useMarket();
+export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) {
+  const { model, signals, demo, setDemo, importData, updateAssumptions } = useMarket();
 
   const [activeCrop, setActiveCrop] = useState('onion');
   const [activeTab, setActiveTab] = useState('forecast'); // 'forecast' | 'official' | 'bridge' | 'validation'
@@ -158,6 +166,8 @@ export default function Forecast({ onNavigateToImport }) {
     bridge: model.bridge,
     storageParams: activeCrop === 'onion' ? (model.storage?.params ?? cropProfile.storageParams) : cropProfile.storageParams,
     scenarioDeltaPct: 0,
+    scenarioId: 'base',
+    liveSignals: signals,
   });
 
   const decisionPlan = buildWeeklyDecisionPlan({
@@ -169,6 +179,8 @@ export default function Forecast({ onNavigateToImport }) {
     bridge: model.bridge,
     storageParams: activeCrop === 'onion' ? (model.storage?.params ?? cropProfile.storageParams) : cropProfile.storageParams,
     scenarioDeltaPct: activePreset.deltaPct,
+    scenarioId: simId,
+    liveSignals: signals,
   });
 
   const shapCards =
@@ -177,6 +189,7 @@ export default function Forecast({ onNavigateToImport }) {
           officialForecast,
           officialSnapshotData: snap,
           macro: model.macro,
+          signals,
         })
       : [
           {
@@ -241,20 +254,22 @@ export default function Forecast({ onNavigateToImport }) {
     setSavingPrice(true);
     setPriceStatus('');
     try {
+      if (demo) {
+        setDemo(false);
+      }
       if (activeCrop === 'onion') {
-        const csv = buildUserPriceCsv(
-          [{ basis: 'warehouse', date: model.today, price: val, vat: 'excl' }],
-          model.today
-        );
+        const entry = { basis: 'warehouse', date: model.today, price: val, vat: 'excl' };
+        upsertStoredUserPrice(entry);
+        const csv = buildUserPriceCsv([entry], model.today);
         await importData('prices', csv);
-        setPriceStatus(`Сохранено как подтверждённая сделка склада (${val.toFixed(2)} ₽/кг)`);
+        setPriceStatus(`Сохранено как подтверждённая сделка склада (${val.toFixed(2)} ₽/кг без НДС) — все панели пересчитаны.`);
       } else {
         await updateAssumptions({
           manualPrices: {
             [activeCrop]: { value: val, vat: 'excl', asOf: model.today, note: 'Стартовая цена склада' },
           },
         });
-        setPriceStatus(`Сохранено для культуры «${cropProfile.label}» (${val.toFixed(2)} ₽/кг)`);
+        setPriceStatus(`Сохранено для культуры «${cropProfile.label}» (${val.toFixed(2)} ₽/кг без НДС) — таблица «Обзор» обновлена.`);
       }
       setPriceDraft('');
     } catch (e) {
@@ -369,6 +384,16 @@ export default function Forecast({ onNavigateToImport }) {
                     >
                       {savingPrice ? 'Сохранение…' : '💾 Зафиксировать цену'}
                     </button>
+                    {activeCrop === 'onion' && signals?.analytics?.impliedDealSpotExVat && (
+                      <button
+                        type="button"
+                        className="cash-reset-btn"
+                        onClick={() => setPriceDraft(String(signals.analytics.impliedDealSpotExVat))}
+                        title="Подставить расчётный спот площадок Волгограда (AgroRU / Авито / AgroServer за вычетом торга) для просмотра траектории"
+                      >
+                        📡 Спот досок ({signals.analytics.impliedDealSpotExVat.toFixed(1)} ₽)
+                      </button>
+                    )}
                     {priceDraft !== '' && (
                       <button
                         type="button"
@@ -380,11 +405,28 @@ export default function Forecast({ onNavigateToImport }) {
                     )}
                   </div>
                   {priceStatus && (
-                    <span style={{ fontSize: 11, color: 'var(--green)', fontWeight: 500 }}>{priceStatus}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, color: 'var(--green)', fontWeight: 500 }}>{priceStatus}</span>
+                      {onNavigateToDashboard && (
+                        <button
+                          type="button"
+                          className="cash-reset-btn"
+                          onClick={onNavigateToDashboard}
+                          style={{
+                            borderColor: 'var(--green-border)',
+                            background: 'var(--green-bg)',
+                            color: 'var(--green)',
+                            fontWeight: 600,
+                          }}
+                        >
+                          📊 Открыть «Обзор» с новой ценой →
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span className={`badge ${activeCrop === 'onion' ? 'up' : 'info'}`}>
                     {activeCrop === 'onion'
                       ? `CatBoost GBDT (${officialForecast.modelVersion})`
@@ -397,6 +439,50 @@ export default function Forecast({ onNavigateToImport }) {
                   )}
                 </div>
               </div>
+
+              {cropProfile.locationBasis && (
+                <details className="vlg-basis-details">
+                  <summary>
+                    📍 Спецификация стартовой точки: {cropProfile.locationBasis.location} — {cropProfile.locationBasis.rangeExVat} ({cropProfile.locationBasis.rangeInclVat10})
+                  </summary>
+                  <div className="vlg-basis-body">
+                    <p>
+                      <strong>Эталонная партия:</strong> {cropProfile.locationBasis.spec}. Оферты досок объявлений (<code>ask</code>) служат для рыночной сверки и не записываются автоматически в ряд подтверждённых сделок (<code>transaction</code>).
+                    </p>
+                    <p style={{ color: 'var(--amber)' }}>
+                      <strong>Фильтр сопоставимости:</strong> {cropProfile.locationBasis.excludedSpecs}
+                    </p>
+                    <div
+                      className="table-wrapper vlg-reconcile-wrap"
+                      role="region"
+                      tabIndex={0}
+                      aria-labelledby="vlg-basis-caption"
+                    >
+                      <table className="tbl sticky-hd vlg-reconcile-tbl">
+                        <caption id="vlg-basis-caption" className="vlg-tbl-caption">
+                          Сверка ценовых уровней по локации Волгоград — Москва (конец октября 2026 г.)
+                        </caption>
+                        <thead>
+                          <tr>
+                            <th scope="col">Звено / базис</th>
+                            <th scope="col">Уровень цены</th>
+                            <th scope="col">Источник и условия партии</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {cropProfile.locationBasis.tiers.map((t) => (
+                            <tr key={t.tier}>
+                              <th scope="row" className="sticky-col">{t.tier}</th>
+                              <td className="mono fw">{t.price}</td>
+                              <td style={{ color: 'var(--txt2)' }}>{t.detail}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </details>
+              )}
 
               {/* Scenario Simulator Strip */}
               <div className="import-sim-panel">
@@ -487,7 +573,7 @@ export default function Forecast({ onNavigateToImport }) {
                       26-недельный прогноз · отгрузка из хранилища ({cropProfile.label})
                     </span>
                     <span className="badge up">
-                      {activeCrop === 'onion' ? 'Holdout MAE: 2.5–3.5 ₽' : '26 недель'}
+                      {activeCrop === 'onion' ? 'Динамика РЦ + КЗ/УЗ · MAE 2.5–3.5 ₽' : '26 недель'}
                     </span>
                   </div>
 
@@ -500,14 +586,15 @@ export default function Forecast({ onNavigateToImport }) {
                     <table className="tbl sticky-hd">
                       <thead>
                         <tr>
-                          <th className="pl sticky-col">Неделя · Дата</th>
-                          <th style={{ minWidth: 92 }}>Тренд</th>
-                          <th>Цена склада</th>
-                          <th>Чистыми</th>
-                          <th>Опт Москва</th>
-                          <th>Спред</th>
-                          <th>Фаза сезона</th>
-                          <th>80% коридор</th>
+                          <th scope="col" className="pl sticky-col">Неделя · Дата</th>
+                          <th scope="col" style={{ minWidth: 82 }}>Тренд</th>
+                          <th scope="col">Цена склада</th>
+                          <th scope="col">Δ нед.</th>
+                          <th scope="col">Чистыми</th>
+                          <th scope="col">Опт Москва</th>
+                          <th scope="col">Спред</th>
+                          <th scope="col">Фаза сезона</th>
+                          <th scope="col">80% коридор</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -515,13 +602,15 @@ export default function Forecast({ onNavigateToImport }) {
                           const span = Math.max(1, maxWh - minWh);
                           const pctBar = Math.min(100, Math.max(12, Math.round(((w.whPrice - minWh) / span) * 88 + 12)));
                           const barColor = w.gainVsNow >= 1.0 ? 'var(--green)' : w.gainVsNow >= 0 ? '#2563EB' : '#EF9F27';
+                          const dCls = w.wowDelta > 0.08 ? 'up' : w.wowDelta < -0.08 ? 'dn' : 'neu';
+                          const dArrow = w.wowDelta > 0.08 ? '▲ +' : w.wowDelta < -0.08 ? '▼ ' : '';
                           return (
                             <tr key={w.h}>
-                              <td className="pl mono sticky-col" style={{ whiteSpace: 'nowrap', fontWeight: 500 }}>
+                              <th scope="row" className="pl mono sticky-col" style={{ whiteSpace: 'nowrap', fontWeight: 500 }}>
                                 W+{w.h} · {w.shortDate}
-                              </td>
+                              </th>
                               <td>
-                                <div className="bar-wrap" style={{ minWidth: 78 }}>
+                                <div className="bar-wrap" style={{ minWidth: 70 }}>
                                   <div
                                     className="bar-fill"
                                     style={{ width: `${pctBar}%`, background: barColor }}
@@ -530,6 +619,14 @@ export default function Forecast({ onNavigateToImport }) {
                               </td>
                               <td className="mono" style={{ fontWeight: 600, color: 'var(--blue)', whiteSpace: 'nowrap' }}>
                                 {w.whPrice.toFixed(1)} ₽
+                              </td>
+                              <td style={{ whiteSpace: 'nowrap' }}>
+                                <span
+                                  className={`fc-delta-pill ${dCls}`}
+                                  title={`Изменение к предыдущей неделе: ${w.wowDelta >= 0 ? '+' : ''}${w.wowDelta.toFixed(2)} ₽/кг (${w.wowPct >= 0 ? '+' : ''}${w.wowPct}%)`}
+                                >
+                                  {dArrow}{w.wowDelta.toFixed(1)} ₽
+                                </span>
                               </td>
                               <td
                                 className="mono"

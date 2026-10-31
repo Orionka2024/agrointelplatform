@@ -12,6 +12,8 @@ import { localBasis, applyBasis, buildUserPriceCsv } from '../shared/localBasis.
 import { buildWeeklySeries } from '../shared/series.js';
 import importHandler from '../api/import.js';
 import marketHandler from '../api/market.js';
+import signalsHandler from '../api/signals.js';
+import { parseAgroRuVolgogradHtml, buildDefaultMarketSignals } from '../shared/marketSignals.js';
 
 test('Official sources retain original files, hashes, source cells and distinct price bases', () => {
   for (const s of history.sources) {
@@ -35,6 +37,12 @@ test('Official sources retain original files, hashes, source cells and distinct 
   }
   assert.equal(history.acreage.rows.find((r) => r.year === 2024).areaHa, 55000);
   assert.ok(!history.acreage.rows.some((r) => r.year === 2022 && r.yieldTHa));
+  const snapOct = officialSnapshot('2026-10-30');
+  assert.equal(snapOct.producerSouth?.period, '2026-09');
+  assert.equal(snapOct.producerSouth?.value, 17.53219);
+  assert.equal(snapOct.producerSouth?.cell, 'K1663');
+  assert.equal(officialSnapshot('2026-10-22').producerSouth, null);
+  assert.ok(CROP_PROFILES.onion.locationBasis?.tiers?.length >= 6);
 });
 
 test('National aggregates do not silently enter warehouse transaction series', () => {
@@ -238,3 +246,92 @@ test('Adding a user-attested actual price stores verified observation and calibr
   assert.ok(cal && cal.n >= 1);
   assert.ok(Math.abs(cal.factor - 15.4 / 18.11816) < 1e-5);
 });
+
+test('AgroRU Volgograd HTML parser accepts clean 2026 5+ cm offers, strips VAT, and filters out archives, 2nd grade, and peeled vacuum', () => {
+  const sampleHtml = `
+    <div class="tovar-list__card">
+      <a class="tovar-list__card-link" href="/doska/1">Лук репчатый Манас 5-8 см оптом</a>
+      <div class="tovar-list__card-price">16,5 ₽ / кг</div>
+      <div class="tovar-list__card-desc">Отгрузка от 20 тонн, сетка 30 кг, безнал с НДС</div>
+      <a class="tovar-list__seller-name">КФХ Городище</a>
+      <div class="tovar-list__card-meta">Волгоград · 24 октября 2026</div>
+    </div>
+    <div class="tovar-list__card">
+      <a class="tovar-list__card-link" href="/doska/2">Лук репчатый 1 сорт 6+</a>
+      <div class="tovar-list__card-price">15.4 ₽ / кг</div>
+      <div class="tovar-list__card-desc">Склад сухой, без НДС, от 20 т</div>
+      <a class="tovar-list__seller-name">Агро-Волга</a>
+      <div class="tovar-list__card-meta">Волжский · 28 октября 2026</div>
+    </div>
+    <div class="tovar-list__card">
+      <a class="tovar-list__card-link" href="/doska/3">Лук на чистку 2-го сорта калибр 3-4</a>
+      <div class="tovar-list__card-price">9 ₽ / кг</div>
+      <div class="tovar-list__card-desc">Мелкий лук на переработку</div>
+      <div class="tovar-list__card-meta">Городище · 25 октября 2026</div>
+    </div>
+    <div class="tovar-list__card">
+      <a class="tovar-list__card-link" href="/doska/4">Лук очищенный в вакуумной упаковке</a>
+      <div class="tovar-list__card-price">58 ₽ / кг</div>
+      <div class="tovar-list__card-desc">Для ресторанов HoReCa</div>
+      <div class="tovar-list__card-meta">Волгоград · 29 октября 2026</div>
+    </div>
+    <div class="tovar-list__card">
+      <a class="tovar-list__card-link" href="/doska/5">Лук репчатый старое объявление</a>
+      <div class="tovar-list__card-price">14 ₽ / кг</div>
+      <div class="tovar-list__card-desc">Оптом от 20 т</div>
+      <div class="tovar-list__card-meta">Волгоград · 12 октября 2023</div>
+    </div>
+  `;
+  const parsed = parseAgroRuVolgogradHtml(sampleHtml, { referenceYear: 2026, minMonth: 8 });
+  assert.equal(parsed.totalScanned, 5);
+  assert.equal(parsed.acceptedCount, 2);
+  assert.equal(parsed.rejectedCount, 3);
+  // 16.5 / 1.1 = 15.00 ex-VAT; (15.00 + 15.40) / 2 = 15.20
+  assert.equal(parsed.offers[0].priceExVat, 15.0);
+  assert.equal(parsed.medianExVat, 15.2);
+});
+
+test('/api/signals returns FX parities (KZ, UZ, EG), 4 weather hubs, and spot radar without polluting verified deals', async () => {
+  let sigOut = null;
+  const res = { setHeader() {}, status() { return this; }, end() { return this; }, json(d) { sigOut = d; return this; } };
+  await signalsHandler({ method: 'GET', url: '/api/signals?offline=1&today=2026-10-31&baseWh=15.5' }, res);
+  assert.ok(sigOut && sigOut.fx.usdRub.value > 0 && sigOut.fx.kztRub.value > 0 && sigOut.fx.uzsPer10k.value > 0);
+  assert.ok(sigOut.weatherHubs.volgograd && sigOut.weatherHubs.zhambyl && sigOut.weatherHubs.surkhandarya && sigOut.weatherHubs.moscow);
+  assert.ok(sigOut.analytics.parity.kzLandedVolgogradExVat > 12);
+  assert.ok(sigOut.analytics.parity.uzEarlyLandedSouthExVat > 15);
+  assert.ok(sigOut.spotChannels.length >= 4);
+});
+
+test('26-week onion trajectory reflects KZ autumn cap, pre-NY retail surge, Jan 1-14 New Year dip, March peak, and April UZ rollover', () => {
+  const sig = buildDefaultMarketSignals('2026-10-30', 15.5);
+  const plan = buildWeeklyDecisionPlan({
+    cropId: 'onion',
+    cropProfile: CROP_PROFILES.onion,
+    officialForecast: forecast,
+    today: '2026-10-30',
+    baseWarehousePrice: 15.5,
+    bridge: { truckCostRub: 135000, truckPayloadKg: 20000, packagingRubKg: 1.2, handlingRubKg: 0.5, transitLossPct: 1.5, marginRubKg: 2.0, moscowVatRate: 0.1 },
+    storageParams: CROP_PROFILES.onion.storageParams,
+    scenarioId: 'base',
+    liveSignals: sig,
+  });
+
+  const novMid = plan.weeks.find((w) => w.targetDate === '2026-11-09');
+  const decPreNy = plan.weeks.find((w) => w.targetDate === '2026-12-21');
+  const janNyPause = plan.weeks.find((w) => w.targetDate === '2027-01-04');
+  const marPeak = plan.weeks.find((w) => w.targetDate === '2027-03-15');
+  const aprLate = plan.weeks.find((w) => w.targetDate === '2027-04-26');
+
+  assert.ok(novMid && decPreNy && janNyPause && marPeak && aprLate);
+  // 1) Nov stays restrained near starting basis due to KZ transit + shed clearing
+  assert.ok(novMid.whPrice <= 15.8, `Expected restrained Nov price, got ${novMid.whPrice}`);
+  // 2) Pre-New-Year retail procurement peak exceeds Jan 1-14 holiday lull (non-monotonic dip!)
+  assert.ok(decPreNy.whPrice > janNyPause.whPrice, `Expected Dec 21 (${decPreNy.whPrice}) > Jan 04 NY pause (${janNyPause.whPrice})`);
+  assert.ok(janNyPause.wowDelta < 0, `Expected negative WoW delta on Jan 04, got ${janNyPause.wowDelta}`);
+  // 3) Seasonal cold-storage peak in March inside realistic corridor
+  assert.ok(marPeak.whPrice > 19 && marPeak.whPrice < 28, `Expected March peak in (19,28), got ${marPeak.whPrice}`);
+  // 4) April bends downward as early Uzbekistan & Egypt crop enters market
+  assert.ok(aprLate.whPrice < marPeak.whPrice - 1.5, `Expected April rollover (${aprLate.whPrice}) below March peak (${marPeak.whPrice})`);
+  assert.ok(aprLate.wowDelta < 0, `Expected negative WoW delta in late April, got ${aprLate.wowDelta}`);
+});
+

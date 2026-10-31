@@ -6,6 +6,13 @@ export { history as officialHistory, forecast as officialForecast, drivers as of
 
 export function officialSnapshot(today) {
   const producer = history.producer.monthly.filter((r) => r.availableDate <= today && r.period <= today.slice(0, 7));
+  const producerSouth = (history.producer.regional || []).filter(
+    (r) =>
+      r.region &&
+      r.region.trim() === 'Южный федеральный округ' &&
+      r.availableDate <= today &&
+      r.period <= today.slice(0, 7)
+  );
   const retail = history.retail.weekly.filter((r) => r.availableDate <= today && r.date <= today);
   const usdRub = (drivers.usdRub || []).filter((r) => r.availableDate <= today);
   const kztRub = (drivers.kztRub || []).filter((r) => r.availableDate <= today);
@@ -16,6 +23,7 @@ export function officialSnapshot(today) {
   return {
     collectedAt: history.collectedAt,
     producer: producer.at(-1) ?? null,
+    producerSouth: producerSouth.at(-1) ?? null,
     retail: retail.at(-1) ?? null,
     producerCount: producer.length,
     retailCount: retail.length,

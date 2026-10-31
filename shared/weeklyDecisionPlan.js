@@ -37,6 +37,184 @@ function interpolateKnots(knots, targetMs) {
 }
 
 /**
+ * Calendar-aware weekly onion market micro-regime (log-price offset + agronomic/commercial phase).
+ * Captures real intra-seasonal Russian wholesale mechanics that monthly averages smooth over:
+ *  1) Nov: Kazakhstan (Zhambyl) autumn transit + Volgograd unheated shed clearing before frosts
+ *  2) Dec 11–26: Pre-New-Year federal retail DC procurement surge
+ *  3) Dec 29–Jan 15: Russian New Year wholesale pause & interregional trucking lull
+ *  4) Late Jan–Mar: Post-holiday DC restocking + KZ clamp depletion -> March cold-storage peak
+ *  5) Apr: Early new-crop onion arrivals from Surkhandarya (Uzbekistan) & Egypt rolling old-crop prices down
+ */
+function evaluateOnionWeeklyRegime(targetDate, liveSignals) {
+  const [, month, day] = targetDate.split('-').map(Number);
+  const imp = liveSignals?.analytics?.impulses || {};
+  const kzCap = (imp.kzAutumnCapPct ?? -1.5) * 0.0035;
+  const vlgFrostDump = (imp.vlgFrostDumpPct ?? 0) * 0.0045;
+  const vlgTight = (imp.vlgWinterTighteningPct ?? 0) * 0.004;
+  const kzFrost = (imp.kzFrostShockPct ?? 0) * 0.0045;
+  const fxShift = (imp.fxParityShiftPct ?? 0) * 0.0025;
+  const uzEarly = (imp.uzWarmSpringShiftPct ?? 0) * 0.005;
+
+  // Late Oct / Nov 1–23: Autumn KZ transit + unheated shed liquidation
+  if (month === 10 || (month === 11 && day <= 23)) {
+    const base =
+      month === 10
+        ? -0.006
+        : day <= 7
+          ? -0.012
+          : day <= 15
+            ? -0.028
+            : -0.020;
+    return {
+      logOffset: base + kzCap + vlgFrostDump,
+      driverTag: 'KZ_TRANSIT_SHEDS',
+      phase: {
+        tag: 'Транзит КЗ · Сброс ангаров',
+        desc: 'Активный ввоз из Жамбылской обл. КЗ и разгрузка неотапливаемых ангаров ЮФО до морозов сдерживают спот',
+      },
+    };
+  }
+
+  // Nov 24 – Dec 10: Field/shed closure, shift onto ventilated stationary warehouses
+  if ((month === 11 && day >= 24) || (month === 12 && day <= 10)) {
+    const base = month === 11 ? -0.005 : 0.010;
+    return {
+      logOffset: base + kzCap * 0.4 + vlgTight * 0.5,
+      driverTag: 'STORAGE_SHIFT',
+      phase: {
+        tag: 'Переход на венткамеры',
+        desc: 'Слабые партии с поля распроданы; отгрузки переходят на стационарные вентилируемые склады',
+      },
+    };
+  }
+
+  // Dec 11 – Dec 26: Pre-New-Year retail chain & regional DC procurement wave
+  if (month === 12 && day >= 11 && day <= 26) {
+    const base = day <= 17 ? 0.028 : 0.048;
+    return {
+      logOffset: base + vlgTight,
+      driverTag: 'PRE_NY_SURGE',
+      phase: {
+        tag: 'Предновогодний пик сетей',
+        desc: 'Федеральные сети и РЦ формируют праздничный запас до закрытия трасс в конце декабря',
+      },
+    };
+  }
+
+  // Dec 27 – Dec 31: Pre-holiday closing of procurement gates
+  if (month === 12 && day >= 27) {
+    return {
+      logOffset: 0.018,
+      driverTag: 'NY_GATE_CLOSE',
+      phase: {
+        tag: 'Закрытие реестров РЦ',
+        desc: 'Завершение предновогодней приёмки сетей; спотовые отгрузки переходят в режим паузы',
+      },
+    };
+  }
+
+  // Jan 1 – Jan 15: Russian New Year wholesale pause & DC inventory drawdown
+  if (month === 1 && day <= 15) {
+    const base = day <= 8 ? -0.028 : -0.018;
+    return {
+      logOffset: base,
+      driverTag: 'NY_PAUSE',
+      phase: {
+        tag: 'Новогодняя пауза · Каникулы РЦ',
+        desc: 'Простой оптовых баз и межрегионального транспорта; сети расходуют декабрьские запасы',
+      },
+    };
+  }
+
+  // Jan 16 – Feb 14: Post-holiday DC restocking + winter reefer logistics
+  if ((month === 1 && day >= 16) || (month === 2 && day <= 14)) {
+    const base = month === 1 ? 0.008 : 0.022;
+    return {
+      logOffset: base + vlgTight + kzFrost * 0.6 + fxShift * 0.5,
+      driverTag: 'WINTER_RESTOCK',
+      phase: {
+        tag: 'Пополнение РЦ · Реф-логистика',
+        desc: 'Восстановление закупок сетей после каникул; перевозка только тёплыми рефрижераторами',
+      },
+    };
+  }
+
+  // Feb 15 – Mar 24: KZ clamp depletion & peak cold-storage scarcity
+  if ((month === 2 && day >= 15) || (month === 3 && day <= 24)) {
+    const base = month === 2 ? 0.036 : day <= 12 ? 0.052 : 0.058;
+    return {
+      logOffset: base + vlgTight + kzFrost + fxShift,
+      driverTag: 'SPRING_DEFICIT_PEAK',
+      phase: {
+        tag: 'Пик дефицита · Истощение КЗ',
+        desc: 'Бурты в Казахстане исчерпаны; на рынке торгуется только качественный лук из холодильников (0..+1°C)',
+      },
+    };
+  }
+
+  // Mar 25 – Mar 31: Pre-import plateau & first early UZ quotes
+  if (month === 3 && day >= 25) {
+    return {
+      logOffset: 0.022 + fxShift + uzEarly,
+      driverTag: 'PRE_UZ_TURN',
+      phase: {
+        tag: 'Пиковое плато · Оферты УЗ',
+        desc: 'Первые котировки озимого лука из Сурхандарьи (УЗ) останавливают рост цен старого урожая',
+      },
+    };
+  }
+
+  // Apr – May: Progressive early-crop arrival from Uzbekistan (Surkhandarya) & Egypt
+  if (month === 4 || month === 5) {
+    const dayProgress = month === 4 ? day : 30 + day;
+    const rollover = -0.015 - Math.min(0.135, dayProgress * 0.0038);
+    return {
+      logOffset: rollover + uzEarly + fxShift * 0.8,
+      driverTag: 'UZ_EG_EARLY_CROP',
+      phase: {
+        tag: 'Ранний лук УЗ/Египет · Зачистка',
+        desc: 'Массовый заход свежего лука из Узбекистана и Египта снижает цену зимовавших партий',
+      },
+    };
+  }
+
+  return {
+    logOffset: 0,
+    driverTag: 'SEASONAL_NORMAL',
+    phase: { tag: 'Плановое хранение', desc: 'Стандартный режим реализации' },
+  };
+}
+
+function computeScenarioMultiplier(scenarioId, scenarioDeltaPct, targetDate, idx) {
+  const [, month, day] = targetDate.split('-').map(Number);
+  if (scenarioId === 'kz_quota') {
+    // KZ export restriction / clamp freeze hits hardest in Jan–Mar when transit dries up
+    const w =
+      month === 11 ? 0.25 : month === 12 ? 0.45 : month === 1 ? 0.80 : month === 2 || month === 3 ? 1.0 : 0.65;
+    return 1 + (22 / 100) * w;
+  }
+  if (scenarioId === 'fx_weak') {
+    // Weak RUB raises import parity progressively as import share climbs toward spring
+    const w = month === 11 ? 0.40 : month === 12 ? 0.60 : month === 1 || month === 2 ? 0.85 : 1.10;
+    return 1 + (10 / 100) * w;
+  }
+  if (scenarioId === 'dumping') {
+    // Excess unheated-shed dumping & cheap autumn imports hit Nov–Jan hardest, fading as weak stock rots out
+    const w = month === 11 || month === 12 ? 1.0 : month === 1 ? 0.75 : month === 2 ? 0.55 : 0.35;
+    return 1 + (-14 / 100) * w;
+  }
+  if (scenarioId === 'uz_early') {
+    // Warm spring in Surkhandarya pulls early Uzbek onion arrivals 2 weeks forward (late Mar – May)
+    if (month === 3 && day >= 20) return 1 - 0.06;
+    if (month === 4 || month === 5) return 1 - 0.13;
+    return 1;
+  }
+  if (!scenarioDeltaPct) return 1;
+  const ramp = Math.min(1, 0.35 + (0.65 * idx) / 6);
+  return 1 + (scenarioDeltaPct / 100) * ramp;
+}
+
+/**
  * Builds the 26-week warehouse & Moscow trajectory and the 5-stage monthly sales plan.
  */
 export function buildWeeklyDecisionPlan({
@@ -48,6 +226,8 @@ export function buildWeeklyDecisionPlan({
   bridge,
   storageParams,
   scenarioDeltaPct = 0,
+  scenarioId = null,
+  liveSignals = null,
 }) {
   const startMonday = weekStart(today);
   const startMs = parseUtcMs(today);
@@ -77,7 +257,12 @@ export function buildWeeklyDecisionPlan({
     });
 
     for (const r of officialForecast.rows) {
-      const pt = r.catboostPoint ?? r.point;
+      const cbPt = r.catboostPoint ?? r.point;
+      const eqPt = r.point ?? r.catboostPoint;
+      // Blend short-lead GBDT momentum with seasonal-equilibrium rollover at longer leads (Apr–Jun)
+      const lead = r.lead ?? 3;
+      const wCb = lead <= 3 ? 1 : Math.exp(-Math.max(0, (lead - 3.5) * 0.52));
+      const pt = cbPt > 0 && eqPt > 0 ? wCb * cbPt + (1 - wCb) * eqPt : (cbPt ?? eqPt);
       if (!(pt > 0)) continue;
       const q80 = r.catboostQ80 ?? r.validation?.q80 ?? firstQ80;
       const mae = r.catboostHoldoutMae ?? r.validation?.final?.mae ?? firstMae;
@@ -99,6 +284,7 @@ export function buildWeeklyDecisionPlan({
   const sellNowEval = evaluateStorage(pStart, pStart, storageAtHorizon(storageParams, 0));
   const sellNowNet = sellNowEval?.sellNowProceeds ?? Math.max(0, pStart - (storageParams?.sellNowCostRubKg ?? 0.2));
 
+  let prevWh = pStart;
   const weeks = Array.from({ length: 26 }, (_, idx) => {
     const h = idx + 1;
     const targetDate = addWeeks(startMonday, h);
@@ -108,10 +294,12 @@ export function buildWeeklyDecisionPlan({
     let relBand80 = null;
     let relMae = null;
     let skillPct = null;
+    let onionRegime = null;
 
     if (isOnionCatBoost) {
       const k = interpolateKnots(knots, targetMs);
-      baseWh = Math.exp(k.logP) * basisFactor;
+      onionRegime = evaluateOnionWeeklyRegime(targetDate, liveSignals);
+      baseWh = Math.exp(k.logP + onionRegime.logOffset) * basisFactor;
       relBand80 = k.relBand80;
       relMae = k.relMae;
       skillPct = k.skillPct;
@@ -120,11 +308,15 @@ export function buildWeeklyDecisionPlan({
       baseWh = pStart * mult;
     }
 
-    // Scenario shock transmits progressively over the first 6 weeks
-    const ramp = Math.min(1, 0.35 + (0.65 * idx) / 6);
-    const scenarioMultiplier = 1 + (scenarioDeltaPct / 100) * ramp;
+    const scenarioMultiplier =
+      cropId === 'onion'
+        ? computeScenarioMultiplier(scenarioId, scenarioDeltaPct, targetDate, idx)
+        : 1 + (scenarioDeltaPct / 100) * Math.min(1, 0.35 + (0.65 * idx) / 6);
     const whPrice = +(baseWh * scenarioMultiplier).toFixed(2);
     const baseWhRounded = +baseWh.toFixed(2);
+    const wowDelta = +(whPrice - prevWh).toFixed(2);
+    const wowPct = prevWh > 0 ? +(((whPrice - prevWh) / prevWh) * 100).toFixed(1) : 0;
+    prevWh = whPrice;
 
     const months = +((idx + 1) / 4.33).toFixed(2);
     const horizonStorage = storageAtHorizon(storageParams, months);
@@ -140,9 +332,11 @@ export function buildWeeklyDecisionPlan({
     const mskExVat = +(mskCalc?.moscowExVat ?? (whPrice + 8.5)).toFixed(2);
     const spread = +(mskPrice - whPrice).toFixed(2);
 
-    const phase = cropProfile?.getPhase
-      ? cropProfile.getPhase(idx)
-      : { tag: 'Плановое хранение', desc: '' };
+    const phase = onionRegime?.phase
+      ? onionRegime.phase
+      : cropProfile?.getPhase
+        ? cropProfile.getPhase(idx)
+        : { tag: 'Плановое хранение', desc: '' };
 
     const lo80 = relBand80 !== null ? +Math.max(0, whPrice * (1 - relBand80)).toFixed(1) : null;
     const hi80 = relBand80 !== null ? +(whPrice * (1 + relBand80)).toFixed(1) : null;
@@ -156,6 +350,9 @@ export function buildWeeklyDecisionPlan({
       months,
       baseWhPrice: baseWhRounded,
       whPrice,
+      wowDelta,
+      wowPct,
+      driverTag: onionRegime?.driverTag || null,
       scenarioDeltaRub: +(whPrice - baseWhRounded).toFixed(2),
       netPerKg,
       gainVsNow,
@@ -275,7 +472,7 @@ export function buildWeeklyDecisionPlan({
  * Formats exact TreeSHAP + seasonal-equilibrium attributions from saved officialForecast
  * into rich factor cards for the UI.
  */
-export function buildCatBoostShapCards({ officialForecast, officialSnapshotData, macro }) {
+export function buildCatBoostShapCards({ officialForecast, officialSnapshotData, macro, signals = null }) {
   const springRow =
     officialForecast?.rows?.find((r) => r.targetMonth === '2027-03') ||
     officialForecast?.rows?.[4] ||
@@ -290,42 +487,56 @@ export function buildCatBoostShapCards({ officialForecast, officialSnapshotData,
     weather: 0.015,
   };
 
+  const spotConsensus = signals?.analytics?.impliedDealSpotExVat;
+  const kzParity = signals?.analytics?.parity?.kzLandedVolgogradExVat;
+  const uzParity = signals?.analytics?.parity?.uzEarlyLandedSouthExVat;
+  const kztVal = signals?.fx?.kztRub?.value ?? macro?.kztRub?.value ?? officialSnapshotData?.drivers?.kztRub?.value ?? 0.189;
+  const uzsVal = signals?.fx?.uzsPer10k?.value;
+  const usdVal = signals?.fx?.usdRub?.value ?? macro?.usdRub?.value ?? officialSnapshotData?.drivers?.usdRub?.value ?? 89.5;
+  const zhmMin = signals?.weatherHubs?.zhambyl?.minTemp10d ?? officialSnapshotData?.drivers?.weather?.zhambyl?.tempMinC ?? 4.5;
+  const vlgMin = signals?.weatherHubs?.volgograd?.minTemp10d ?? officialSnapshotData?.drivers?.weather?.volgograd?.tempMinC ?? 2.1;
+  const foodStarCh = signals?.spotChannels?.find((c) => c.id === 'foodstar_msk');
+
   // Combine empirical historical feature importance across ensemble + local exact Shapley impact
   const raw = [
     {
       key: 'seasonality',
-      label: 'Сезонное истощение запасов в хранилищах РФ',
+      label: 'Сезонное истощение складов РФ и спот ЮФО',
       absWeight: Math.max(0.06, Math.abs(fl.seasonality)),
       signedLog: fl.seasonality,
       color: '#1A56A8',
-      currentVal: `${officialSnapshotData?.producer?.value?.toFixed(2) ?? '18.12'} ₽/кг (РФ) · 15.5 ₽ (ЮФО)`,
-      asOf: `Росстат · ${officialSnapshotData?.producer?.period ?? '2026-09'}`,
-      source: 'Росстат (69 мес. цен СХО)',
-      trend: 'Переход с временных ангаров на холодильное хранение в декабре–марте',
+      currentVal: spotConsensus
+        ? `Спот Волгоград: ~${spotConsensus.toFixed(1)} ₽ · СХО ЮФО: ${officialSnapshotData?.producerSouth?.value?.toFixed(2) ?? '17.53'} ₽`
+        : `${officialSnapshotData?.producer?.value?.toFixed(2) ?? '18.12'} ₽/кг (РФ) · 15.5 ₽ (ЮФО)`,
+      asOf: spotConsensus ? `AgroRU/Авито + Росстат` : `Росстат · ${officialSnapshotData?.producer?.period ?? '2026-09'}`,
+      source: 'Росстат (69 мес.) + спот-мониторинг Волгограда',
+      trend: 'Ноябрь: сброс холодных ангаров; 1–14 янв.: новогодняя пауза РЦ; март: пик холодильников',
       highlight: false,
     },
     {
       key: 'import_fx',
-      label: 'Импортный паритет Казахстана и курс KZT / USD',
+      label: 'Импортный паритет КЗ (Тараз) и УЗ (Термез)',
       absWeight: Math.max(0.045, Math.abs(fl.import_fx) + 0.04),
       signedLog: fl.import_fx,
       color: '#2563EB',
-      currentVal: `KZT: ${(macro?.kztRub?.value ?? officialSnapshotData?.drivers?.kztRub?.value ?? 0.189).toFixed(3)} ₽ · USD: ${(macro?.usdRub?.value ?? officialSnapshotData?.drivers?.usdRub?.value ?? 89.5).toFixed(1)} ₽`,
-      asOf: `ЦБ РФ · ${officialSnapshotData?.drivers?.usdRub?.period ?? '2026-09'}`,
-      source: 'Банк России (KZT/RUB, USD/RUB)',
-      trend: 'Осенью экспорт Жамбылской обл. сдерживает цены; весной истощение КЗ открывает рост',
+      currentVal: kzParity
+        ? `КЗ в Волг.: ${kzParity.toFixed(1)} ₽ · УЗ (апр.): ${uzParity.toFixed(1)} ₽ · KZT ${kztVal.toFixed(3)}${uzsVal ? ` · 10k UZS ${uzsVal.toFixed(1)} ₽` : ''}`
+        : `KZT: ${kztVal.toFixed(3)} ₽ · USD: ${usdVal.toFixed(1)} ₽`,
+      asOf: signals?.fx?.status === 'live' ? `ЦБ РФ LIVE · ${signals.fx.asOf}` : `ЦБ РФ · ${officialSnapshotData?.drivers?.usdRub?.period ?? '2026-10'}`,
+      source: 'Банк России (KZT, UZS, USD) + логистический паритет',
+      trend: 'В ноябре транзит из Жамбыла держит потолок; в апреле ранний лук Сурхандарьи разворачивает цены вниз',
       highlight: true,
     },
     {
       key: 'equilibrium',
-      label: 'Возврат к 24-месячному равновесию и инерция',
+      label: 'Возврат к 24-месячному равновесию и смена урожая',
       absWeight: Math.max(0.035, Math.abs(fl.equilibrium)),
       signedLog: fl.equilibrium,
       color: '#0D7C4A',
-      currentVal: `База отсечки: ${officialForecast?.inputCutoff ?? '2026-09'}`,
+      currentVal: `База отсечки: ${officialForecast?.inputCutoff ?? '2026-09'} (РФ ${officialSnapshotData?.producer?.value?.toFixed(2) ?? '18.12'} ₽)`,
       asOf: `Weibull + GBDT`,
       source: 'Десезонализированный уровень цен (24 мес.)',
-      trend: 'Текущая осенняя цена ниже двухлетней медианы — потенциал восстановления к весне',
+      trend: 'Зимой действует премия за хранение, с конца марта — плавный разворот под новый урожай',
       highlight: false,
     },
     {
@@ -334,34 +545,34 @@ export function buildCatBoostShapCards({ officialForecast, officialSnapshotData,
       absWeight: Math.max(0.025, Math.abs(fl.financing) + 0.02),
       signedLog: fl.financing,
       color: '#C0303A',
-      currentVal: `${(macro?.keyRate?.value ?? officialSnapshotData?.drivers?.keyRate?.value ?? 14.0).toFixed(1)}% годовых`,
-      asOf: `ЦБ РФ · ${officialSnapshotData?.drivers?.keyRate?.period ?? '2026-09'}`,
+      currentVal: `${(macro?.keyRate?.value ?? signals?.fx?.keyRate?.value ?? officialSnapshotData?.drivers?.keyRate?.value ?? 18.0).toFixed(1)}% годовых`,
+      asOf: `ЦБ РФ · ${officialSnapshotData?.drivers?.keyRate?.period ?? '2026-10'}`,
       source: 'Банк России (ключевая ставка)',
-      trend: 'Дорогие оборотные кредиты ускоряют осенний сбыт и сжимают весеннее предложение',
+      trend: 'Дорогие оборотные кредиты ускоряют осенний сбыт и сжимают предложение весной',
       highlight: false,
     },
     {
       key: 'retail_demand',
-      label: 'Рознично-оптовый мультипликатор федеральных сетей',
+      label: 'Спрос сетей, HoReCa Москвы и календарь РЦ',
       absWeight: Math.max(0.022, Math.abs(fl.retail_demand) + 0.018),
       signedLog: fl.retail_demand,
       color: '#8C5E00',
-      currentVal: `Розница РФ: ${officialSnapshotData?.retail?.value?.toFixed(2) ?? '49.19'} ₽/кг`,
+      currentVal: `Розница РФ: ${officialSnapshotData?.retail?.value?.toFixed(2) ?? '49.19'} ₽${foodStarCh?.quotedPrice ? ` · HoReCa МСК: ${foodStarCh.quotedPrice.toFixed(0)} ₽` : ''}`,
       asOf: `Росстат · ${officialSnapshotData?.retail?.date ?? '2026-10-26'}`,
-      source: 'Росстат (246 недель потребительских цен)',
-      trend: 'Мультипликатор розница/склад 2.7× подтверждает запас платежеспособного спроса сетей',
+      source: 'Росстат (246 нед.) + прайс дистрибьюторов Москвы',
+      trend: 'Пик отгрузок сетей 14–26 декабря сменяется просадкой спроса на каникулах 1–14 января',
       highlight: false,
     },
     {
       key: 'weather',
-      label: 'Погодный риск заморозков (Жамбыл КЗ / Волгоград)',
+      label: 'Погодный радар 10 дн. (Волгоград / Жамбыл / Термез)',
       absWeight: Math.max(0.018, Math.abs(fl.weather) + 0.014),
       signedLog: fl.weather,
       color: '#6366F1',
-      currentVal: `Жамбыл tMin: ${officialSnapshotData?.drivers?.weather?.zhambyl?.tempMinC?.toFixed(1) ?? '4.5'}°C · Волг.: ${officialSnapshotData?.drivers?.weather?.volgograd?.tempMinC?.toFixed(1) ?? '2.1'}°C`,
-      asOf: `ERA5 · ${officialSnapshotData?.drivers?.weather?.zhambyl?.period ?? '2026-09'}`,
-      source: 'Open-Meteo ERA5 Archive (81 мес.)',
-      trend: 'Морозы ниже −12°C в буртах Южного Казахстана (как в янв. 2023: −27.6°C) вызывают скачок цен',
+      currentVal: `Волг. min: ${Number(vlgMin).toFixed(1)}°C · Тараз КЗ: ${Number(zhmMin).toFixed(1)}°C`,
+      asOf: signals?.weatherHubs?.volgograd?.status === 'live' ? 'Open-Meteo LIVE (10 дн.)' : `ERA5 / Open-Meteo`,
+      source: 'Open-Meteo 10d Forecast + ERA5 (81 мес.)',
+      trend: 'Морозы < −3°C в Волгограде форсируют сброс ангаров; < −10°C в Таразе режут импорт КЗ',
       highlight: false,
     },
   ];
