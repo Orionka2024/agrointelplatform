@@ -1,19 +1,23 @@
 {
-  "schema": 1,
-  "modelVersion": "rosstat-monthly-2.0.0",
-  "issueDate": "2026-10-29",
+  "schema": 2,
+  "modelVersion": "rosstat-catboost-3.0.0",
+  "issueDate": "2026-10-30",
   "target": "РФ · лук · цена производителей сельхозорганизаций",
   "unit": "RUB/kg",
   "vat": "excluded",
   "frequency": "monthly",
   "inputCutoff": "2026-09",
+  "lastValue": 18.11816,
   "n": 69,
   "sourceHashes": [
     "20db1ef775436ce03153a69526fab118c7f2dc6f4c3d99590f67dfd33cf9605f",
     "00d654ae5a923141a7a7179df3348d1bf8156b10524a93b98306a922ada10121",
     "a8a75b2573654e81e0097a8345923736b21678c65f0862125dcf03d7496743ae",
-    "c28a9ada0a014a8c1c61f248e1275bda8003b9c38752d992f638e3473fcf6138",
-    "3d5725b7e754fbfc8e66d5d02db8449d1c80e27322042604fd400451c17eb0a3"
+    "087b6e86ec75958df95ec7d8b5691326422431b63619a87f75f4d800ade371dc",
+    "058b00ce1fa7db8a5b06e708ef7dca1e35b25f35262747099f2651d2cadde60f",
+    "8a6c5c8c6d1a782f71bf4edab6cc94a1cb2204086b184e97657d289b99ae3284",
+    "fa2bbcc1ace1c6dd0061368f981bb527cfe039b2ddc476417c3e6d5c5fe6617a",
+    "41049d0432ef1fa2bceb424e7a6a405970b7abe66058742b6ee90fb5e9671b00"
   ],
   "drivers": {
     "usdRubLast": {
@@ -22,13 +26,39 @@
       "value": 85.11026818181818,
       "availableDate": "2026-10-01"
     },
+    "kztRubLast": {
+      "period": "2026-09",
+      "n": 22,
+      "value": 0.18876704545454545,
+      "availableDate": "2026-10-01"
+    },
     "keyRateLast": {
       "period": "2026-09",
       "n": 22,
       "value": 14,
       "availableDate": "2026-10-01"
     },
-    "sourceNote": "Official Bank of Russia series. Monthly USD/RUB = mean of daily official rates; key rate = level at last quoted day of month. Complete months only; no interpolation."
+    "weatherLast": {
+      "volgograd": {
+        "period": "2026-09",
+        "n": 30,
+        "tempMeanC": 18.96,
+        "tempMinC": 9.1,
+        "frostDays12C": 0,
+        "precipMm": 51.3,
+        "availableDate": "2026-10-06"
+      },
+      "zhambyl": {
+        "period": "2026-09",
+        "n": 30,
+        "tempMeanC": 20.62,
+        "tempMinC": 8.2,
+        "frostDays12C": 0,
+        "precipMm": 2.1,
+        "availableDate": "2026-10-06"
+      }
+    },
+    "sourceNote": "Official Bank of Russia (USD/RUB, KZT/RUB, KeyRate) and Open-Meteo ERA5 (Volgograd & Zhambyl/Taraz onion belt) monthly series. Complete months only; no interpolation."
   },
   "evaluationType": "latest_vintage_hindcast",
   "status": "research_benchmark",
@@ -37,44 +67,88 @@
       "h": 1,
       "lead": 2,
       "targetMonth": "2026-11",
-      "point": 18.781136313771103,
-      "changePct": 3.6591812511375554,
+      "point": 19.962969128141975,
+      "changePct": 10.18209977250435,
       "interval80": {
-        "lo": 9.495995714638742,
-        "hi": 28.066276912903465
+        "lo": 7.60983448991794,
+        "hi": 32.31610376636601
       },
       "interval95": null,
+      "catboostPoint": 20.006221655001326,
+      "catboostQ80": 10.95175599801427,
+      "catboostInterval80": {
+        "lo": 9.054465656987055,
+        "hi": 30.957977653015597
+      },
+      "catboostHoldoutMae": 3.0328695152386245,
+      "catboostShap": {
+        "treesUsed": 16,
+        "factorLogs": {
+          "seasonality": -0.018908059812367903,
+          "equilibrium": 0.11500829693799068,
+          "import_fx": 0,
+          "financing": 0,
+          "retail_demand": 0.0030283205973261136,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          -0.033513474309064525,
+          0.003028914588029564,
+          0,
+          0,
+          0.0030283205973261136,
+          0
+        ],
+        "baseValue": 0.029620533316079684
+      },
       "validation": {
-        "selected": "ratio",
+        "selected": "eq_carry",
         "lead": 2,
         "comparisons": [
           {
             "id": "seasonal",
-            "n": 16,
-            "mae": 7.515669375,
-            "naiveMAE": 8.856746250000002,
-            "ratio": 0.8485813144979736
+            "n": 32,
+            "mae": 7.9763240625,
+            "naiveMAE": 7.1998321875,
+            "ratio": 1.1078486074089486
           },
           {
             "id": "ratio",
-            "n": 15,
-            "mae": 6.3265555959449635,
-            "naiveMAE": 9.177596000000001,
-            "ratio": 0.6893477982627436
+            "n": 19,
+            "mae": 6.438797296432122,
+            "naiveMAE": 7.972454210526315,
+            "ratio": 0.8076305145698733
           },
           {
             "id": "season_ridge",
-            "n": 14,
-            "mae": 7.661204666179391,
-            "naiveMAE": 9.11263857142857,
-            "ratio": 0.8407229811791338
+            "n": 18,
+            "mae": 6.677948750868162,
+            "naiveMAE": 7.854979444444442,
+            "ratio": 0.8501548346623932
+          },
+          {
+            "id": "eq_carry",
+            "n": 32,
+            "mae": 5.701376570350998,
+            "naiveMAE": 7.1998321875,
+            "ratio": 0.7918763134853966
           },
           {
             "id": "drivers",
-            "n": 14,
-            "mae": 8.46075215302281,
-            "naiveMAE": 9.11263857142857,
-            "ratio": 0.9284634836226621
+            "n": 18,
+            "mae": 7.2628220087878885,
+            "naiveMAE": 7.854979444444442,
+            "ratio": 0.924613751080486
+          },
+          {
+            "id": "catboost",
+            "n": 32,
+            "mae": 5.879106888218037,
+            "naiveMAE": 7.1998321875,
+            "ratio": 0.8165616552042779
           }
         ],
         "finalAll": [
@@ -103,19 +177,32 @@
             "naiveMAE": 2.5242991666666668
           },
           {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.8796373545650087,
+            "naiveMAE": 2.5242991666666668
+          },
+          {
             "id": "drivers",
             "n": 12,
             "mae": 3.081444070749145,
             "naiveMAE": 2.5242991666666668
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 3.0328695152386245,
+            "naiveMAE": 2.5242991666666668
           }
         ],
         "usesDrivers": true,
-        "calibrationN": 12,
-        "q80": 9.285140599132362,
+        "calibrationN": 8,
+        "q80": 12.353134638224034,
         "q95": null,
+        "catboostQ80": 10.95175599801427,
         "final": {
           "n": 12,
-          "mae": 4.71852506801133,
+          "mae": 2.8796373545650087,
           "directionAccuracy": 0.5833333333333334
         },
         "naiveFinal": {
@@ -123,12 +210,12 @@
           "mae": 2.5242991666666668,
           "directionAccuracy": 0
         },
-        "finalCoverage80": 0.9166666666666666,
+        "finalCoverage80": 1,
         "finalCoverage95": null,
         "beatsNaive": false,
         "split": {
-          "tuningEnds": "2024-05",
-          "calibrationStarts": "2024-08",
+          "tuningEnds": "2024-09",
+          "calibrationStarts": "2024-12",
           "calibrationEnds": "2025-07",
           "finalStarts": "2025-10",
           "finalEnds": "2026-09"
@@ -138,109 +225,109 @@
             "origin": "2025-08",
             "target": "2025-10",
             "targetIndex": 57,
-            "point": 13.084675401377245,
+            "point": 18.147685047059692,
             "actual": 19.36223,
             "base": 17.41229,
-            "abs": 6.277554598622755
+            "abs": 1.214544952940308
           },
           {
             "origin": "2025-09",
             "target": "2025-11",
             "targetIndex": 58,
-            "point": 23.178401788482056,
+            "point": 20.70736793793188,
             "actual": 20.73939,
             "base": 20.61935,
-            "abs": 2.4390117884820555
+            "abs": 0.032022062068119084
           },
           {
             "origin": "2025-10",
             "target": "2025-12",
             "targetIndex": 59,
-            "point": 25.571584979229506,
+            "point": 20.48931289221898,
             "actual": 22.58749,
             "base": 19.36223,
-            "abs": 2.984094979229507
+            "abs": 2.0981771077810194
           },
           {
             "origin": "2025-11",
             "target": "2026-01",
             "targetIndex": 60,
-            "point": 22.72276820485731,
+            "point": 20.48634526893195,
             "actual": 23.7437,
             "base": 20.73939,
-            "abs": 1.0209317951426904
+            "abs": 3.2573547310680517
           },
           {
             "origin": "2025-12",
             "target": "2026-02",
             "targetIndex": 61,
-            "point": 27.82089011206128,
+            "point": 22.824111952253595,
             "actual": 23.99835,
             "base": 22.58749,
-            "abs": 3.822540112061283
+            "abs": 1.1742380477464032
           },
           {
             "origin": "2026-01",
             "target": "2026-03",
             "targetIndex": 62,
-            "point": 30.16271930589995,
+            "point": 23.849729702131206,
             "actual": 23.98861,
             "base": 23.7437,
-            "abs": 6.17410930589995
+            "abs": 0.13888029786879486
           },
           {
             "origin": "2026-02",
             "target": "2026-04",
             "targetIndex": 63,
-            "point": 26.24942914856346,
+            "point": 25.426231333904486,
             "actual": 23.40147,
             "base": 23.99835,
-            "abs": 2.8479591485634614
+            "abs": 2.024761333904486
           },
           {
             "origin": "2026-03",
             "target": "2026-05",
             "targetIndex": 64,
-            "point": 24.97429616949912,
+            "point": 26.87646820685471,
             "actual": 21.86035,
             "base": 23.98861,
-            "abs": 3.113946169499119
+            "abs": 5.01611820685471
           },
           {
             "origin": "2026-04",
             "target": "2026-06",
             "targetIndex": 65,
-            "point": 29.206171263234427,
+            "point": 27.03215431089901,
             "actual": 19.44375,
             "base": 23.40147,
-            "abs": 9.762421263234426
+            "abs": 7.5884043108990085
           },
           {
             "origin": "2026-05",
             "target": "2026-07",
             "targetIndex": 66,
-            "point": 16.744823250168757,
+            "point": 21.385003296849344,
             "actual": 25.6189,
             "base": 21.86035,
-            "abs": 8.874076749831243
+            "abs": 4.233896703150656
           },
           {
             "origin": "2026-06",
             "target": "2026-08",
             "targetIndex": 67,
-            "point": 10.633150846816525,
+            "point": 18.652589043971457,
             "actual": 17.04963,
             "base": 19.44375,
-            "abs": 6.4164791531834755
+            "abs": 1.602959043971456
           },
           {
             "origin": "2026-07",
             "target": "2026-09",
             "targetIndex": 68,
-            "point": 21.00733575238599,
+            "point": 24.29245145652709,
             "actual": 18.11816,
             "base": 25.6189,
-            "abs": 2.8891757523859916
+            "abs": 6.17429145652709
           }
         ]
       }
@@ -249,44 +336,88 @@
       "h": 2,
       "lead": 3,
       "targetMonth": "2026-12",
-      "point": 22.58749,
-      "changePct": 24.667681486420246,
+      "point": 21.132492685670407,
+      "changePct": 16.63707951398159,
       "interval80": {
-        "lo": 4.638830000000002,
-        "hi": 40.53614999999999
+        "lo": 8.402985453054594,
+        "hi": 33.861999918286216
       },
       "interval95": null,
+      "catboostPoint": 21.132492685670407,
+      "catboostQ80": 12.729507232615813,
+      "catboostInterval80": {
+        "lo": 8.402985453054594,
+        "hi": 33.861999918286216
+      },
+      "catboostHoldoutMae": 3.2675306082498863,
+      "catboostShap": {
+        "treesUsed": 24,
+        "factorLogs": {
+          "seasonality": -0.01583304138141363,
+          "equilibrium": 0.16583623884917845,
+          "import_fx": 0,
+          "financing": 0,
+          "retail_demand": 0.0038938460306464223,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          -0.03581797290825633,
+          0.008986932284095061,
+          0,
+          0,
+          0.0038938460306464223,
+          0
+        ],
+        "baseValue": 0.039785244156848615
+      },
       "validation": {
-        "selected": "seasonal",
+        "selected": "catboost",
         "lead": 3,
         "comparisons": [
           {
             "id": "seasonal",
-            "n": 13,
-            "mae": 6.597306923076923,
-            "naiveMAE": 12.517462307692309,
-            "ratio": 0.5270482755136962
+            "n": 29,
+            "mae": 8.108574482758621,
+            "naiveMAE": 8.411570344827584,
+            "ratio": 0.9639786805973417
           },
           {
             "id": "ratio",
-            "n": 12,
-            "mae": 8.088962931838639,
-            "naiveMAE": 12.837417499999999,
-            "ratio": 0.6301082699724176
+            "n": 16,
+            "mae": 8.501428329299827,
+            "naiveMAE": 10.299158749999998,
+            "ratio": 0.8254488095253244
           },
           {
             "id": "season_ridge",
-            "n": 10,
-            "mae": 10.207528252333194,
-            "naiveMAE": 12.785101000000001,
-            "ratio": 0.7983924610633263
+            "n": 14,
+            "mae": 8.666206921382331,
+            "naiveMAE": 9.899181428571428,
+            "ratio": 0.8754468219331313
+          },
+          {
+            "id": "eq_carry",
+            "n": 29,
+            "mae": 6.657706144827243,
+            "naiveMAE": 8.411570344827584,
+            "ratio": 0.7914938438244385
           },
           {
             "id": "drivers",
-            "n": 10,
-            "mae": 12.224883008184444,
-            "naiveMAE": 12.785101000000001,
-            "ratio": 0.9561819658823534
+            "n": 14,
+            "mae": 10.238665922387721,
+            "naiveMAE": 9.899181428571428,
+            "ratio": 1.0342941985926695
+          },
+          {
+            "id": "catboost",
+            "n": 29,
+            "mae": 6.58971311513795,
+            "naiveMAE": 8.411570344827584,
+            "ratio": 0.7834105696078587
           }
         ],
         "finalAll": [
@@ -315,19 +446,32 @@
             "naiveMAE": 2.908560833333334
           },
           {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 3.0921458265102117,
+            "naiveMAE": 2.908560833333334
+          },
+          {
             "id": "drivers",
             "n": 12,
             "mae": 3.585458763075349,
             "naiveMAE": 2.908560833333334
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 3.2675306082498863,
+            "naiveMAE": 2.908560833333334
           }
         ],
         "usesDrivers": true,
-        "calibrationN": 12,
-        "q80": 17.948659999999997,
+        "calibrationN": 8,
+        "q80": 12.729507232615813,
         "q95": null,
+        "catboostQ80": 12.729507232615813,
         "final": {
           "n": 12,
-          "mae": 6.522448333333334,
+          "mae": 3.2675306082498863,
           "directionAccuracy": 0.6666666666666666
         },
         "naiveFinal": {
@@ -335,12 +479,12 @@
           "mae": 2.908560833333334,
           "directionAccuracy": 0
         },
-        "finalCoverage80": 0.9166666666666666,
+        "finalCoverage80": 1,
         "finalCoverage95": null,
         "beatsNaive": false,
         "split": {
-          "tuningEnds": "2024-03",
-          "calibrationStarts": "2024-07",
+          "tuningEnds": "2024-07",
+          "calibrationStarts": "2024-11",
           "calibrationEnds": "2025-06",
           "finalStarts": "2025-10",
           "finalEnds": "2026-09"
@@ -350,109 +494,109 @@
             "origin": "2025-07",
             "target": "2025-10",
             "targetIndex": 57,
-            "point": 18.95735,
+            "point": 20.87011227961817,
             "actual": 19.36223,
             "base": 24.54934,
-            "abs": 0.4048799999999986
+            "abs": 1.507882279618169
           },
           {
             "origin": "2025-08",
             "target": "2025-11",
             "targetIndex": 58,
-            "point": 21.76611,
+            "point": 19.283561038085146,
             "actual": 20.73939,
             "base": 17.41229,
-            "abs": 1.026720000000001
+            "abs": 1.455828961914854
           },
           {
             "origin": "2025-09",
             "target": "2025-12",
             "targetIndex": 59,
-            "point": 27.43998,
+            "point": 20.747447122925884,
             "actual": 22.58749,
             "base": 20.61935,
-            "abs": 4.8524899999999995
+            "abs": 1.840042877074115
           },
           {
             "origin": "2025-10",
             "target": "2026-01",
             "targetIndex": 60,
-            "point": 29.82872,
+            "point": 20.61937853516848,
             "actual": 23.7437,
             "base": 19.36223,
-            "abs": 6.08502
+            "abs": 3.124321464831521
           },
           {
             "origin": "2025-11",
             "target": "2026-02",
             "targetIndex": 61,
-            "point": 33.88984,
+            "point": 22.123229167059428,
             "actual": 23.99835,
             "base": 20.73939,
-            "abs": 9.891490000000001
+            "abs": 1.8751208329405706
           },
           {
             "origin": "2025-12",
             "target": "2026-03",
             "targetIndex": 62,
-            "point": 32.69857,
+            "point": 23.522283851680577,
             "actual": 23.98861,
             "base": 22.58749,
-            "abs": 8.709959999999995
+            "abs": 0.46632614831942476
           },
           {
             "origin": "2026-01",
             "target": "2026-04",
             "targetIndex": 63,
-            "point": 31.75136,
+            "point": 26.462306369003628,
             "actual": 23.40147,
             "base": 23.7437,
-            "abs": 8.349889999999998
+            "abs": 3.0608363690036278
           },
           {
             "origin": "2026-02",
             "target": "2026-05",
             "targetIndex": 64,
-            "point": 35.62459,
+            "point": 28.49921194986112,
             "actual": 21.86035,
             "base": 23.99835,
-            "abs": 13.764239999999997
+            "abs": 6.63886194986112
           },
           {
             "origin": "2026-03",
             "target": "2026-06",
             "targetIndex": 65,
-            "point": 40.69503,
+            "point": 30.519320846530174,
             "actual": 19.44375,
             "base": 23.98861,
-            "abs": 21.25128
+            "abs": 11.075570846530173
           },
           {
             "origin": "2026-04",
             "target": "2026-07",
             "targetIndex": 66,
-            "point": 24.54934,
+            "point": 23.66818861809464,
             "actual": 25.6189,
             "base": 23.40147,
-            "abs": 1.0695599999999992
+            "abs": 1.9507113819053608
           },
           {
             "origin": "2026-05",
             "target": "2026-08",
             "targetIndex": 67,
-            "point": 17.41229,
+            "point": 21.217406005189027,
             "actual": 17.04963,
             "base": 21.86035,
-            "abs": 0.3626599999999982
+            "abs": 4.167776005189026
           },
           {
             "origin": "2026-06",
             "target": "2026-09",
             "targetIndex": 68,
-            "point": 20.61935,
+            "point": 20.165248181810668,
             "actual": 18.11816,
             "base": 19.44375,
-            "abs": 2.501190000000001
+            "abs": 2.0470881818106683
           }
         ]
       }
@@ -461,44 +605,88 @@
       "h": 3,
       "lead": 4,
       "targetMonth": "2027-01",
-      "point": 23.7437,
-      "changePct": 31.04917938686931,
+      "point": 22.99830313430569,
+      "changePct": 26.935092384136627,
       "interval80": {
-        "lo": 5.795040000000004,
-        "hi": 41.692359999999994
+        "lo": 9.544888338636781,
+        "hi": 36.4517179299746
       },
       "interval95": null,
+      "catboostPoint": 22.99830313430569,
+      "catboostQ80": 13.453414795668909,
+      "catboostInterval80": {
+        "lo": 9.544888338636781,
+        "hi": 36.4517179299746
+      },
+      "catboostHoldoutMae": 3.5439393404761694,
+      "catboostShap": {
+        "treesUsed": 25,
+        "factorLogs": {
+          "seasonality": 0.04175424847502072,
+          "equilibrium": 0.1941379809874404,
+          "import_fx": 0,
+          "financing": 0,
+          "retail_demand": 0.0026134567708287833,
+          "weather": 0
+        },
+        "phi": [
+          -0.0010488619862447273,
+          0,
+          0,
+          0.023108158942241133,
+          0.0061072133941512865,
+          0,
+          0,
+          0.0026134567708287833,
+          0
+        ],
+        "baseValue": 0.03736143409739195
+      },
       "validation": {
-        "selected": "seasonal",
+        "selected": "catboost",
         "lead": 4,
         "comparisons": [
           {
             "id": "seasonal",
-            "n": 10,
-            "mae": 6.6270750000000005,
-            "naiveMAE": 15.979325000000003,
-            "ratio": 0.41472809395891247
+            "n": 26,
+            "mae": 7.4301811538461555,
+            "naiveMAE": 10.301179999999999,
+            "ratio": 0.7212941773511536
           },
           {
             "id": "ratio",
-            "n": 9,
-            "mae": 11.341543197540366,
-            "naiveMAE": 16.52491666666667,
-            "ratio": 0.6863298270313233
+            "n": 13,
+            "mae": 9.800135967063047,
+            "naiveMAE": 13.12374461538462,
+            "ratio": 0.746748451320411
           },
           {
             "id": "season_ridge",
-            "n": 6,
-            "mae": 11.696722405561792,
-            "naiveMAE": 14.836375000000002,
-            "ratio": 0.7883814210386155
+            "n": 10,
+            "mae": 8.626453440038409,
+            "naiveMAE": 11.090268,
+            "ratio": 0.777839943997603
+          },
+          {
+            "id": "eq_carry",
+            "n": 26,
+            "mae": 7.338867113451026,
+            "naiveMAE": 10.301179999999999,
+            "ratio": 0.7124297520721924
           },
           {
             "id": "drivers",
-            "n": 6,
-            "mae": 14.980452507314856,
-            "naiveMAE": 14.836375000000002,
-            "ratio": 1.009711099059902
+            "n": 10,
+            "mae": 10.579758827864593,
+            "naiveMAE": 11.090268,
+            "ratio": 0.9539678236688773
+          },
+          {
+            "id": "catboost",
+            "n": 26,
+            "mae": 7.108001128513669,
+            "naiveMAE": 10.301179999999999,
+            "ratio": 0.6900181463204865
           }
         ],
         "finalAll": [
@@ -527,32 +715,45 @@
             "naiveMAE": 5.025324166666667
           },
           {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 3.402345699758282,
+            "naiveMAE": 5.025324166666667
+          },
+          {
             "id": "drivers",
             "n": 12,
             "mae": 4.638415102843819,
             "naiveMAE": 5.025324166666667
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 3.5439393404761694,
+            "naiveMAE": 5.025324166666667
           }
         ],
         "usesDrivers": true,
-        "calibrationN": 12,
-        "q80": 17.948659999999997,
+        "calibrationN": 8,
+        "q80": 13.453414795668909,
         "q95": null,
+        "catboostQ80": 13.453414795668909,
         "final": {
           "n": 12,
-          "mae": 6.522448333333334,
-          "directionAccuracy": 0.8333333333333334
+          "mae": 3.5439393404761694,
+          "directionAccuracy": 0.75
         },
         "naiveFinal": {
           "n": 12,
           "mae": 5.025324166666667,
           "directionAccuracy": 0
         },
-        "finalCoverage80": 0.9166666666666666,
+        "finalCoverage80": 1,
         "finalCoverage95": null,
-        "beatsNaive": false,
+        "beatsNaive": true,
         "split": {
-          "tuningEnds": "2024-01",
-          "calibrationStarts": "2024-06",
+          "tuningEnds": "2024-05",
+          "calibrationStarts": "2024-10",
           "calibrationEnds": "2025-05",
           "finalStarts": "2025-10",
           "finalEnds": "2026-09"
@@ -562,109 +763,109 @@
             "origin": "2025-06",
             "target": "2025-10",
             "targetIndex": 57,
-            "point": 18.95735,
+            "point": 21.73146829062239,
             "actual": 19.36223,
             "base": 40.69503,
-            "abs": 0.4048799999999986
+            "abs": 2.369238290622391
           },
           {
             "origin": "2025-07",
             "target": "2025-11",
             "targetIndex": 58,
-            "point": 21.76611,
+            "point": 21.699977929792304,
             "actual": 20.73939,
             "base": 24.54934,
-            "abs": 1.026720000000001
+            "abs": 0.9605879297923039
           },
           {
             "origin": "2025-08",
             "target": "2025-12",
             "targetIndex": 59,
-            "point": 27.43998,
+            "point": 19.90072737477567,
             "actual": 22.58749,
             "base": 17.41229,
-            "abs": 4.8524899999999995
+            "abs": 2.686762625224329
           },
           {
             "origin": "2025-09",
             "target": "2026-01",
             "targetIndex": 60,
-            "point": 29.82872,
+            "point": 20.605368188549512,
             "actual": 23.7437,
             "base": 20.61935,
-            "abs": 6.08502
+            "abs": 3.138331811450488
           },
           {
             "origin": "2025-10",
             "target": "2026-02",
             "targetIndex": 61,
-            "point": 33.88984,
+            "point": 21.66560203603679,
             "actual": 23.99835,
             "base": 19.36223,
-            "abs": 9.891490000000001
+            "abs": 2.3327479639632074
           },
           {
             "origin": "2025-11",
             "target": "2026-03",
             "targetIndex": 62,
-            "point": 32.69857,
+            "point": 22.07772937842667,
             "actual": 23.98861,
             "base": 20.73939,
-            "abs": 8.709959999999995
+            "abs": 1.9108806215733303
           },
           {
             "origin": "2025-12",
             "target": "2026-04",
             "targetIndex": 63,
-            "point": 31.75136,
+            "point": 25.392522887451758,
             "actual": 23.40147,
             "base": 22.58749,
-            "abs": 8.349889999999998
+            "abs": 1.9910528874517581
           },
           {
             "origin": "2026-01",
             "target": "2026-05",
             "targetIndex": 64,
-            "point": 35.62459,
+            "point": 28.253593958253028,
             "actual": 21.86035,
             "base": 23.7437,
-            "abs": 13.764239999999997
+            "abs": 6.393243958253027
           },
           {
             "origin": "2026-02",
             "target": "2026-06",
             "targetIndex": 65,
-            "point": 40.69503,
+            "point": 30.17265044962501,
             "actual": 19.44375,
             "base": 23.99835,
-            "abs": 21.25128
+            "abs": 10.728900449625009
           },
           {
             "origin": "2026-03",
             "target": "2026-07",
             "targetIndex": 66,
-            "point": 24.54934,
+            "point": 24.29674631520068,
             "actual": 25.6189,
             "base": 23.98861,
-            "abs": 1.0695599999999992
+            "abs": 1.3221536847993214
           },
           {
             "origin": "2026-04",
             "target": "2026-08",
             "targetIndex": 67,
-            "point": 17.41229,
+            "point": 22.148483366437866,
             "actual": 17.04963,
             "base": 23.40147,
-            "abs": 0.3626599999999982
+            "abs": 5.098853366437865
           },
           {
             "origin": "2026-05",
             "target": "2026-09",
             "targetIndex": 68,
-            "point": 20.61935,
+            "point": 21.712678496521004,
             "actual": 18.11816,
             "base": 21.86035,
-            "abs": 2.501190000000001
+            "abs": 3.5945184965210046
           }
         ]
       }
@@ -676,41 +877,85 @@
       "point": 23.99835,
       "changePct": 32.45467530919255,
       "interval80": {
-        "lo": 3.8032799999999973,
-        "hi": 44.19342
+        "lo": 11.14901,
+        "hi": 36.84769
       },
       "interval95": null,
+      "catboostPoint": 24.221611081646266,
+      "catboostQ80": 13.230853903639517,
+      "catboostInterval80": {
+        "lo": 10.99075717800675,
+        "hi": 37.452464985285786
+      },
+      "catboostHoldoutMae": 3.326548236459358,
+      "catboostShap": {
+        "treesUsed": 28,
+        "factorLogs": {
+          "seasonality": 0.07386997847763027,
+          "equilibrium": 0.2164605258778045,
+          "import_fx": 0,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          -0.007941496999350284,
+          0,
+          0,
+          0.026456667365536143,
+          0.005772534124596201,
+          0,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.04346656638947047
+      },
       "validation": {
         "selected": "seasonal",
         "lead": 5,
         "comparisons": [
           {
             "id": "seasonal",
-            "n": 7,
-            "mae": 7.814285714285715,
-            "naiveMAE": 20.625857142857143,
-            "ratio": 0.3788587140967302
+            "n": 23,
+            "mae": 6.927912608695654,
+            "naiveMAE": 11.592456956521739,
+            "ratio": 0.5976224569717394
           },
           {
             "id": "ratio",
-            "n": 6,
-            "mae": 15.339834580612346,
-            "naiveMAE": 21.102833333333333,
-            "ratio": 0.7269087680459502
+            "n": 10,
+            "mae": 10.790954235738663,
+            "naiveMAE": 15.178450999999999,
+            "ratio": 0.710939096205447
           },
           {
             "id": "season_ridge",
-            "n": 2,
-            "mae": 24.969091365193197,
-            "naiveMAE": 32.1255,
-            "ratio": null
+            "n": 6,
+            "mae": 10.82861417335554,
+            "naiveMAE": 14.903084999999999,
+            "ratio": 0.726602188295614
+          },
+          {
+            "id": "eq_carry",
+            "n": 23,
+            "mae": 7.7776521339000775,
+            "naiveMAE": 11.592456956521739,
+            "ratio": 0.670923529245842
           },
           {
             "id": "drivers",
-            "n": 2,
-            "mae": 29.420148206780446,
-            "naiveMAE": 32.1255,
-            "ratio": null
+            "n": 6,
+            "mae": 12.66924507761315,
+            "naiveMAE": 14.903084999999999,
+            "ratio": 0.8501088920591374
+          },
+          {
+            "id": "catboost",
+            "n": 23,
+            "mae": 7.584916321522659,
+            "naiveMAE": 11.592456956521739,
+            "ratio": 0.6542975617654118
           }
         ],
         "finalAll": [
@@ -739,16 +984,29 @@
             "naiveMAE": 6.170720833333334
           },
           {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 3.1397350626361806,
+            "naiveMAE": 6.170720833333334
+          },
+          {
             "id": "drivers",
             "n": 12,
             "mae": 5.552251649433245,
             "naiveMAE": 6.170720833333334
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 3.326548236459358,
+            "naiveMAE": 6.170720833333334
           }
         ],
         "usesDrivers": true,
-        "calibrationN": 12,
-        "q80": 20.19507,
+        "calibrationN": 8,
+        "q80": 12.849339999999998,
         "q95": null,
+        "catboostQ80": 13.230853903639517,
         "final": {
           "n": 12,
           "mae": 6.522448333333334,
@@ -759,12 +1017,12 @@
           "mae": 6.170720833333334,
           "directionAccuracy": 0
         },
-        "finalCoverage80": 0.9166666666666666,
+        "finalCoverage80": 0.8333333333333334,
         "finalCoverage95": null,
         "beatsNaive": false,
         "split": {
-          "tuningEnds": "2023-11",
-          "calibrationStarts": "2024-05",
+          "tuningEnds": "2024-03",
+          "calibrationStarts": "2024-09",
           "calibrationEnds": "2025-04",
           "finalStarts": "2025-10",
           "finalEnds": "2026-09"
@@ -885,44 +1143,88 @@
       "h": 5,
       "lead": 6,
       "targetMonth": "2027-03",
-      "point": 18.11816,
-      "changePct": 0,
+      "point": 23.98861,
+      "changePct": 32.400917090918725,
       "interval80": {
-        "lo": 6.532980000000002,
-        "hi": 29.703339999999997
+        "lo": 11.139270000000003,
+        "hi": 36.83795
       },
       "interval95": null,
+      "catboostPoint": 24.049997317856114,
+      "catboostQ80": 14.293916195658237,
+      "catboostInterval80": {
+        "lo": 9.756081122197877,
+        "hi": 38.34391351351435
+      },
+      "catboostHoldoutMae": 3.0394114791733835,
+      "catboostShap": {
+        "treesUsed": 28,
+        "factorLogs": {
+          "seasonality": 0.07936005630049783,
+          "equilibrium": 0.25313569630454985,
+          "import_fx": -0.050021868606528574,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0.0007462508246887792
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          0.02837132635688739,
+          0,
+          -0.050021868606528574,
+          0,
+          0,
+          0.0007462508246887792
+        ],
+        "baseValue": 0.05632387274320559
+      },
       "validation": {
-        "selected": "naive",
+        "selected": "seasonal",
         "lead": 6,
         "comparisons": [
           {
             "id": "seasonal",
-            "n": 4,
-            "mae": 8.395750000000001,
-            "naiveMAE": 12.86175,
-            "ratio": null
+            "n": 20,
+            "mae": 6.9725875,
+            "naiveMAE": 11.506137500000001,
+            "ratio": 0.6059885430710349
           },
           {
             "id": "ratio",
-            "n": 3,
-            "mae": 6.524102450100155,
-            "naiveMAE": 5.565,
-            "ratio": null
+            "n": 7,
+            "mae": 10.71631320878302,
+            "naiveMAE": 13.699250000000001,
+            "ratio": 0.7822554671812705
           },
           {
             "id": "season_ridge",
-            "n": 0,
-            "mae": null,
-            "naiveMAE": null,
+            "n": 2,
+            "mae": 15.956866819523412,
+            "naiveMAE": 19.315875,
             "ratio": null
           },
           {
+            "id": "eq_carry",
+            "n": 20,
+            "mae": 8.173635451869908,
+            "naiveMAE": 11.506137500000001,
+            "ratio": 0.7103717865243577
+          },
+          {
             "id": "drivers",
-            "n": 0,
-            "mae": null,
-            "naiveMAE": null,
+            "n": 2,
+            "mae": 21.013528713202167,
+            "naiveMAE": 19.315875,
             "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 20,
+            "mae": 8.298965261327421,
+            "naiveMAE": 11.506137500000001,
+            "ratio": 0.7212642175819141
           }
         ],
         "finalAll": [
@@ -951,32 +1253,45 @@
             "naiveMAE": 6.595095
           },
           {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.8112894752980786,
+            "naiveMAE": 6.595095
+          },
+          {
             "id": "drivers",
             "n": 12,
             "mae": 6.054692983208876,
             "naiveMAE": 6.595095
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 3.0394114791733835,
+            "naiveMAE": 6.595095
           }
         ],
         "usesDrivers": true,
-        "calibrationN": 12,
-        "q80": 11.585179999999998,
+        "calibrationN": 8,
+        "q80": 12.849339999999998,
         "q95": null,
+        "catboostQ80": 14.293916195658237,
         "final": {
           "n": 12,
-          "mae": 6.595095,
-          "directionAccuracy": 0
+          "mae": 6.522448333333334,
+          "directionAccuracy": 0.8333333333333334
         },
         "naiveFinal": {
           "n": 12,
           "mae": 6.595095,
           "directionAccuracy": 0
         },
-        "finalCoverage80": 0.75,
+        "finalCoverage80": 0.8333333333333334,
         "finalCoverage95": null,
-        "beatsNaive": false,
+        "beatsNaive": true,
         "split": {
-          "tuningEnds": "2023-09",
-          "calibrationStarts": "2024-04",
+          "tuningEnds": "2024-01",
+          "calibrationStarts": "2024-08",
           "calibrationEnds": "2025-03",
           "finalStarts": "2025-10",
           "finalEnds": "2026-09"
@@ -986,109 +1301,109 @@
             "origin": "2025-04",
             "target": "2025-10",
             "targetIndex": 57,
-            "point": 31.75136,
+            "point": 18.95735,
             "actual": 19.36223,
             "base": 31.75136,
-            "abs": 12.389129999999998
+            "abs": 0.4048799999999986
           },
           {
             "origin": "2025-05",
             "target": "2025-11",
             "targetIndex": 58,
-            "point": 35.62459,
+            "point": 21.76611,
             "actual": 20.73939,
             "base": 35.62459,
-            "abs": 14.885199999999998
+            "abs": 1.026720000000001
           },
           {
             "origin": "2025-06",
             "target": "2025-12",
             "targetIndex": 59,
-            "point": 40.69503,
+            "point": 27.43998,
             "actual": 22.58749,
             "base": 40.69503,
-            "abs": 18.107540000000004
+            "abs": 4.8524899999999995
           },
           {
             "origin": "2025-07",
             "target": "2026-01",
             "targetIndex": 60,
-            "point": 24.54934,
+            "point": 29.82872,
             "actual": 23.7437,
             "base": 24.54934,
-            "abs": 0.8056400000000004
+            "abs": 6.08502
           },
           {
             "origin": "2025-08",
             "target": "2026-02",
             "targetIndex": 61,
-            "point": 17.41229,
+            "point": 33.88984,
             "actual": 23.99835,
             "base": 17.41229,
-            "abs": 6.58606
+            "abs": 9.891490000000001
           },
           {
             "origin": "2025-09",
             "target": "2026-03",
             "targetIndex": 62,
-            "point": 20.61935,
+            "point": 32.69857,
             "actual": 23.98861,
             "base": 20.61935,
-            "abs": 3.3692600000000006
+            "abs": 8.709959999999995
           },
           {
             "origin": "2025-10",
             "target": "2026-04",
             "targetIndex": 63,
-            "point": 19.36223,
+            "point": 31.75136,
             "actual": 23.40147,
             "base": 19.36223,
-            "abs": 4.0392399999999995
+            "abs": 8.349889999999998
           },
           {
             "origin": "2025-11",
             "target": "2026-05",
             "targetIndex": 64,
-            "point": 20.73939,
+            "point": 35.62459,
             "actual": 21.86035,
             "base": 20.73939,
-            "abs": 1.1209600000000002
+            "abs": 13.764239999999997
           },
           {
             "origin": "2025-12",
             "target": "2026-06",
             "targetIndex": 65,
-            "point": 22.58749,
+            "point": 40.69503,
             "actual": 19.44375,
             "base": 22.58749,
-            "abs": 3.1437399999999975
+            "abs": 21.25128
           },
           {
             "origin": "2026-01",
             "target": "2026-07",
             "targetIndex": 66,
-            "point": 23.7437,
+            "point": 24.54934,
             "actual": 25.6189,
             "base": 23.7437,
-            "abs": 1.8751999999999995
+            "abs": 1.0695599999999992
           },
           {
             "origin": "2026-02",
             "target": "2026-08",
             "targetIndex": 67,
-            "point": 23.99835,
+            "point": 17.41229,
             "actual": 17.04963,
             "base": 23.99835,
-            "abs": 6.948719999999998
+            "abs": 0.3626599999999982
           },
           {
             "origin": "2026-03",
             "target": "2026-09",
             "targetIndex": 68,
-            "point": 23.98861,
+            "point": 20.61935,
             "actual": 18.11816,
             "base": 23.98861,
-            "abs": 5.870450000000002
+            "abs": 2.501190000000001
           }
         ]
       }
@@ -1097,29 +1412,59 @@
       "h": 6,
       "lead": 7,
       "targetMonth": "2027-04",
-      "point": 18.11816,
-      "changePct": 0,
+      "point": 23.40147,
+      "changePct": 29.16030104602234,
       "interval80": {
-        "lo": 7.913159999999998,
-        "hi": 28.32316
+        "lo": 10.552130000000002,
+        "hi": 36.25081
       },
       "interval95": null,
+      "catboostPoint": 25.38395300278065,
+      "catboostQ80": 12.217254811930562,
+      "catboostInterval80": {
+        "lo": 13.166698190850088,
+        "hi": 37.601207814711216
+      },
+      "catboostHoldoutMae": 2.8432432344832734,
+      "catboostShap": {
+        "treesUsed": 30,
+        "factorLogs": {
+          "seasonality": 0.1411945642539683,
+          "equilibrium": 0.27258403470282017,
+          "import_fx": -0.07657614633300394,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          0.028151621639778482,
+          0,
+          -0.07657614633300394,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.06537725460934768
+      },
       "validation": {
-        "selected": "naive",
+        "selected": "seasonal",
         "lead": 7,
         "comparisons": [
           {
             "id": "seasonal",
-            "n": 1,
-            "mae": 3.5649999999999977,
-            "naiveMAE": 1.1469999999999985,
-            "ratio": null
+            "n": 17,
+            "mae": 7.032529411764706,
+            "naiveMAE": 9.799882352941177,
+            "ratio": 0.7176136568266126
           },
           {
             "id": "ratio",
-            "n": 0,
-            "mae": null,
-            "naiveMAE": null,
+            "n": 4,
+            "mae": 10.67871513914967,
+            "naiveMAE": 12.1835,
             "ratio": null
           },
           {
@@ -1130,11 +1475,25 @@
             "ratio": null
           },
           {
+            "id": "eq_carry",
+            "n": 17,
+            "mae": 8.43871074152047,
+            "naiveMAE": 9.799882352941177,
+            "ratio": 0.8611032701824031
+          },
+          {
             "id": "drivers",
             "n": 0,
             "mae": null,
             "naiveMAE": null,
             "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 17,
+            "mae": 8.476815285592942,
+            "naiveMAE": 9.799882352941177,
+            "ratio": 0.864991535643165
           }
         ],
         "finalAll": [
@@ -1163,32 +1522,45 @@
             "naiveMAE": 6.970466666666666
           },
           {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.6845646715213554,
+            "naiveMAE": 6.970466666666666
+          },
+          {
             "id": "drivers",
             "n": 12,
             "mae": 6.920589805394909,
             "naiveMAE": 6.970466666666666
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.8432432344832734,
+            "naiveMAE": 6.970466666666666
           }
         ],
         "usesDrivers": true,
-        "calibrationN": 12,
-        "q80": 10.205000000000002,
+        "calibrationN": 8,
+        "q80": 12.849339999999998,
         "q95": null,
+        "catboostQ80": 12.217254811930562,
         "final": {
           "n": 12,
-          "mae": 6.970466666666666,
-          "directionAccuracy": 0
+          "mae": 6.522448333333334,
+          "directionAccuracy": 0.8333333333333334
         },
         "naiveFinal": {
           "n": 12,
           "mae": 6.970466666666666,
           "directionAccuracy": 0
         },
-        "finalCoverage80": 0.6666666666666666,
+        "finalCoverage80": 0.8333333333333334,
         "finalCoverage95": null,
-        "beatsNaive": false,
+        "beatsNaive": true,
         "split": {
-          "tuningEnds": "2023-07",
-          "calibrationStarts": "2024-03",
+          "tuningEnds": "2023-11",
+          "calibrationStarts": "2024-07",
           "calibrationEnds": "2025-02",
           "finalStarts": "2025-10",
           "finalEnds": "2026-09"
@@ -1198,109 +1570,109 @@
             "origin": "2025-03",
             "target": "2025-10",
             "targetIndex": 57,
-            "point": 32.69857,
+            "point": 18.95735,
             "actual": 19.36223,
             "base": 32.69857,
-            "abs": 13.336339999999996
+            "abs": 0.4048799999999986
           },
           {
             "origin": "2025-04",
             "target": "2025-11",
             "targetIndex": 58,
-            "point": 31.75136,
+            "point": 21.76611,
             "actual": 20.73939,
             "base": 31.75136,
-            "abs": 11.011969999999998
+            "abs": 1.026720000000001
           },
           {
             "origin": "2025-05",
             "target": "2025-12",
             "targetIndex": 59,
-            "point": 35.62459,
+            "point": 27.43998,
             "actual": 22.58749,
             "base": 35.62459,
-            "abs": 13.037099999999999
+            "abs": 4.8524899999999995
           },
           {
             "origin": "2025-06",
             "target": "2026-01",
             "targetIndex": 60,
-            "point": 40.69503,
+            "point": 29.82872,
             "actual": 23.7437,
             "base": 40.69503,
-            "abs": 16.951330000000002
+            "abs": 6.08502
           },
           {
             "origin": "2025-07",
             "target": "2026-02",
             "targetIndex": 61,
-            "point": 24.54934,
+            "point": 33.88984,
             "actual": 23.99835,
             "base": 24.54934,
-            "abs": 0.5509900000000023
+            "abs": 9.891490000000001
           },
           {
             "origin": "2025-08",
             "target": "2026-03",
             "targetIndex": 62,
-            "point": 17.41229,
+            "point": 32.69857,
             "actual": 23.98861,
             "base": 17.41229,
-            "abs": 6.576320000000003
+            "abs": 8.709959999999995
           },
           {
             "origin": "2025-09",
             "target": "2026-04",
             "targetIndex": 63,
-            "point": 20.61935,
+            "point": 31.75136,
             "actual": 23.40147,
             "base": 20.61935,
-            "abs": 2.782119999999999
+            "abs": 8.349889999999998
           },
           {
             "origin": "2025-10",
             "target": "2026-05",
             "targetIndex": 64,
-            "point": 19.36223,
+            "point": 35.62459,
             "actual": 21.86035,
             "base": 19.36223,
-            "abs": 2.49812
+            "abs": 13.764239999999997
           },
           {
             "origin": "2025-11",
             "target": "2026-06",
             "targetIndex": 65,
-            "point": 20.73939,
+            "point": 40.69503,
             "actual": 19.44375,
             "base": 20.73939,
-            "abs": 1.2956399999999988
+            "abs": 21.25128
           },
           {
             "origin": "2025-12",
             "target": "2026-07",
             "targetIndex": 66,
-            "point": 22.58749,
+            "point": 24.54934,
             "actual": 25.6189,
             "base": 22.58749,
-            "abs": 3.031410000000001
+            "abs": 1.0695599999999992
           },
           {
             "origin": "2026-01",
             "target": "2026-08",
             "targetIndex": 67,
-            "point": 23.7437,
+            "point": 17.41229,
             "actual": 17.04963,
             "base": 23.7437,
-            "abs": 6.69407
+            "abs": 0.3626599999999982
           },
           {
             "origin": "2026-02",
             "target": "2026-09",
             "targetIndex": 68,
-            "point": 23.99835,
+            "point": 20.61935,
             "actual": 18.11816,
             "base": 23.99835,
-            "abs": 5.880189999999999
+            "abs": 2.501190000000001
           }
         ]
       }
@@ -1309,29 +1681,59 @@
       "h": 7,
       "lead": 8,
       "targetMonth": "2027-05",
-      "point": 18.11816,
-      "changePct": 0,
+      "point": 21.86035,
+      "changePct": 20.654360045390916,
       "interval80": {
-        "lo": 5.96537,
-        "hi": 30.27095
+        "lo": 0,
+        "hi": 57.09563
       },
       "interval95": null,
+      "catboostPoint": 26.1572555444638,
+      "catboostQ80": 9.865130077126473,
+      "catboostInterval80": {
+        "lo": 16.29212546733733,
+        "hi": 36.022385621590274
+      },
+      "catboostHoldoutMae": 2.915965821020419,
+      "catboostShap": {
+        "treesUsed": 27,
+        "factorLogs": {
+          "seasonality": 0.16478347067667573,
+          "equilibrium": 0.27547515466313266,
+          "import_fx": -0.07304676483901533,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          0.02631532720062642,
+          0,
+          -0.07304676483901533,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.06174033645773872
+      },
       "validation": {
-        "selected": "naive",
+        "selected": "seasonal",
         "lead": 8,
         "comparisons": [
           {
             "id": "seasonal",
-            "n": 0,
-            "mae": null,
-            "naiveMAE": null,
-            "ratio": null
+            "n": 14,
+            "mae": 6.894428571428572,
+            "naiveMAE": 9.445285714285715,
+            "ratio": 0.7299333000589863
           },
           {
             "id": "ratio",
-            "n": 0,
-            "mae": null,
-            "naiveMAE": null,
+            "n": 1,
+            "mae": 10.52991524282327,
+            "naiveMAE": 5.1240000000000006,
             "ratio": null
           },
           {
@@ -1342,11 +1744,25 @@
             "ratio": null
           },
           {
+            "id": "eq_carry",
+            "n": 14,
+            "mae": 9.059262208236968,
+            "naiveMAE": 9.445285714285715,
+            "ratio": 0.959130563359783
+          },
+          {
             "id": "drivers",
             "n": 0,
             "mae": null,
             "naiveMAE": null,
             "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 14,
+            "mae": 9.123487074203206,
+            "naiveMAE": 9.445285714285715,
+            "ratio": 0.9659302376003515
           }
         ],
         "finalAll": [
@@ -1375,32 +1791,45 @@
             "naiveMAE": 7.3452975
           },
           {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.671341058472825,
+            "naiveMAE": 7.3452975
+          },
+          {
             "id": "drivers",
             "n": 12,
             "mae": 8.908401957369792,
             "naiveMAE": 7.3452975
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.915965821020419,
+            "naiveMAE": 7.3452975
           }
         ],
         "usesDrivers": true,
-        "calibrationN": 12,
-        "q80": 12.15279,
+        "calibrationN": 8,
+        "q80": 35.23528,
         "q95": null,
+        "catboostQ80": 9.865130077126473,
         "final": {
           "n": 12,
-          "mae": 7.3452975,
-          "directionAccuracy": 0
+          "mae": 6.522448333333334,
+          "directionAccuracy": 0.9166666666666666
         },
         "naiveFinal": {
           "n": 12,
           "mae": 7.3452975,
           "directionAccuracy": 0
         },
-        "finalCoverage80": 0.8333333333333334,
+        "finalCoverage80": 1,
         "finalCoverage95": null,
-        "beatsNaive": false,
+        "beatsNaive": true,
         "split": {
-          "tuningEnds": "2023-05",
-          "calibrationStarts": "2024-02",
+          "tuningEnds": "2023-09",
+          "calibrationStarts": "2024-06",
           "calibrationEnds": "2025-01",
           "finalStarts": "2025-10",
           "finalEnds": "2026-09"
@@ -1410,109 +1839,109 @@
             "origin": "2025-02",
             "target": "2025-10",
             "targetIndex": 57,
-            "point": 33.88984,
+            "point": 18.95735,
             "actual": 19.36223,
             "base": 33.88984,
-            "abs": 14.52761
+            "abs": 0.4048799999999986
           },
           {
             "origin": "2025-03",
             "target": "2025-11",
             "targetIndex": 58,
-            "point": 32.69857,
+            "point": 21.76611,
             "actual": 20.73939,
             "base": 32.69857,
-            "abs": 11.959179999999996
+            "abs": 1.026720000000001
           },
           {
             "origin": "2025-04",
             "target": "2025-12",
             "targetIndex": 59,
-            "point": 31.75136,
+            "point": 27.43998,
             "actual": 22.58749,
             "base": 31.75136,
-            "abs": 9.16387
+            "abs": 4.8524899999999995
           },
           {
             "origin": "2025-05",
             "target": "2026-01",
             "targetIndex": 60,
-            "point": 35.62459,
+            "point": 29.82872,
             "actual": 23.7437,
             "base": 35.62459,
-            "abs": 11.880889999999997
+            "abs": 6.08502
           },
           {
             "origin": "2025-06",
             "target": "2026-02",
             "targetIndex": 61,
-            "point": 40.69503,
+            "point": 33.88984,
             "actual": 23.99835,
             "base": 40.69503,
-            "abs": 16.696680000000004
+            "abs": 9.891490000000001
           },
           {
             "origin": "2025-07",
             "target": "2026-03",
             "targetIndex": 62,
-            "point": 24.54934,
+            "point": 32.69857,
             "actual": 23.98861,
             "base": 24.54934,
-            "abs": 0.5607299999999995
+            "abs": 8.709959999999995
           },
           {
             "origin": "2025-08",
             "target": "2026-04",
             "targetIndex": 63,
-            "point": 17.41229,
+            "point": 31.75136,
             "actual": 23.40147,
             "base": 17.41229,
-            "abs": 5.989180000000001
+            "abs": 8.349889999999998
           },
           {
             "origin": "2025-09",
             "target": "2026-05",
             "targetIndex": 64,
-            "point": 20.61935,
+            "point": 35.62459,
             "actual": 21.86035,
             "base": 20.61935,
-            "abs": 1.2409999999999997
+            "abs": 13.764239999999997
           },
           {
             "origin": "2025-10",
             "target": "2026-06",
             "targetIndex": 65,
-            "point": 19.36223,
+            "point": 40.69503,
             "actual": 19.44375,
             "base": 19.36223,
-            "abs": 0.08152000000000115
+            "abs": 21.25128
           },
           {
             "origin": "2025-11",
             "target": "2026-07",
             "targetIndex": 66,
-            "point": 20.73939,
+            "point": 24.54934,
             "actual": 25.6189,
             "base": 20.73939,
-            "abs": 4.87951
+            "abs": 1.0695599999999992
           },
           {
             "origin": "2025-12",
             "target": "2026-08",
             "targetIndex": 67,
-            "point": 22.58749,
+            "point": 17.41229,
             "actual": 17.04963,
             "base": 22.58749,
-            "abs": 5.5378599999999985
+            "abs": 0.3626599999999982
           },
           {
             "origin": "2026-01",
             "target": "2026-09",
             "targetIndex": 68,
-            "point": 23.7437,
+            "point": 20.61935,
             "actual": 18.11816,
             "base": 23.7437,
-            "abs": 5.625540000000001
+            "abs": 2.501190000000001
           }
         ]
       }
@@ -1521,23 +1950,53 @@
       "h": 8,
       "lead": 9,
       "targetMonth": "2027-06",
-      "point": 18.11816,
-      "changePct": 0,
+      "point": 19.44375,
+      "changePct": 7.316361043284769,
       "interval80": {
-        "lo": 1.287659999999999,
-        "hi": 34.948660000000004
+        "lo": 0,
+        "hi": 54.679030000000004
       },
       "interval95": null,
+      "catboostPoint": 26.846918041145166,
+      "catboostQ80": 9.988170032950418,
+      "catboostInterval80": {
+        "lo": 16.85874800819475,
+        "hi": 36.83508807409558
+      },
+      "catboostHoldoutMae": 2.574715194365012,
+      "catboostShap": {
+        "treesUsed": 26,
+        "factorLogs": {
+          "seasonality": 0.1792692689471507,
+          "equilibrium": 0.2790593907152931,
+          "import_fx": -0.0650923798155871,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          0.028134740745179004,
+          0,
+          -0.0650923798155871,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.06137347175907842
+      },
       "validation": {
-        "selected": "naive",
+        "selected": "seasonal",
         "lead": 9,
         "comparisons": [
           {
             "id": "seasonal",
-            "n": 0,
-            "mae": null,
-            "naiveMAE": null,
-            "ratio": null
+            "n": 11,
+            "mae": 7.259454545454546,
+            "naiveMAE": 8.057181818181819,
+            "ratio": 0.9009917747012829
           },
           {
             "id": "ratio",
@@ -1554,11 +2013,25 @@
             "ratio": null
           },
           {
+            "id": "eq_carry",
+            "n": 11,
+            "mae": 9.816484444345845,
+            "naiveMAE": 8.057181818181819,
+            "ratio": 1.2183521069605239
+          },
+          {
             "id": "drivers",
             "n": 0,
             "mae": null,
             "naiveMAE": null,
             "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 11,
+            "mae": 9.816484444345845,
+            "naiveMAE": 8.057181818181819,
+            "ratio": 1.2183521069605239
           }
         ],
         "finalAll": [
@@ -1587,20 +2060,33 @@
             "naiveMAE": 7.604635833333334
           },
           {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.6291678623892123,
+            "naiveMAE": 7.604635833333334
+          },
+          {
             "id": "drivers",
             "n": 12,
             "mae": 11.805387220048134,
             "naiveMAE": 7.604635833333334
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.574715194365012,
+            "naiveMAE": 7.604635833333334
           }
         ],
         "usesDrivers": true,
-        "calibrationN": 12,
-        "q80": 16.8305,
+        "calibrationN": 8,
+        "q80": 35.23528,
         "q95": null,
+        "catboostQ80": 9.988170032950418,
         "final": {
           "n": 12,
-          "mae": 7.604635833333334,
-          "directionAccuracy": 0
+          "mae": 6.522448333333334,
+          "directionAccuracy": 0.8333333333333334
         },
         "naiveFinal": {
           "n": 12,
@@ -1609,10 +2095,10 @@
         },
         "finalCoverage80": 1,
         "finalCoverage95": null,
-        "beatsNaive": false,
+        "beatsNaive": true,
         "split": {
-          "tuningEnds": "2023-03",
-          "calibrationStarts": "2024-01",
+          "tuningEnds": "2023-07",
+          "calibrationStarts": "2024-05",
           "calibrationEnds": "2024-12",
           "finalStarts": "2025-10",
           "finalEnds": "2026-09"
@@ -1622,109 +2108,109 @@
             "origin": "2025-01",
             "target": "2025-10",
             "targetIndex": 57,
-            "point": 29.82872,
+            "point": 18.95735,
             "actual": 19.36223,
             "base": 29.82872,
-            "abs": 10.46649
+            "abs": 0.4048799999999986
           },
           {
             "origin": "2025-02",
             "target": "2025-11",
             "targetIndex": 58,
-            "point": 33.88984,
+            "point": 21.76611,
             "actual": 20.73939,
             "base": 33.88984,
-            "abs": 13.15045
+            "abs": 1.026720000000001
           },
           {
             "origin": "2025-03",
             "target": "2025-12",
             "targetIndex": 59,
-            "point": 32.69857,
+            "point": 27.43998,
             "actual": 22.58749,
             "base": 32.69857,
-            "abs": 10.111079999999998
+            "abs": 4.8524899999999995
           },
           {
             "origin": "2025-04",
             "target": "2026-01",
             "targetIndex": 60,
-            "point": 31.75136,
+            "point": 29.82872,
             "actual": 23.7437,
             "base": 31.75136,
-            "abs": 8.007659999999998
+            "abs": 6.08502
           },
           {
             "origin": "2025-05",
             "target": "2026-02",
             "targetIndex": 61,
-            "point": 35.62459,
+            "point": 33.88984,
             "actual": 23.99835,
             "base": 35.62459,
-            "abs": 11.62624
+            "abs": 9.891490000000001
           },
           {
             "origin": "2025-06",
             "target": "2026-03",
             "targetIndex": 62,
-            "point": 40.69503,
+            "point": 32.69857,
             "actual": 23.98861,
             "base": 40.69503,
-            "abs": 16.70642
+            "abs": 8.709959999999995
           },
           {
             "origin": "2025-07",
             "target": "2026-04",
             "targetIndex": 63,
-            "point": 24.54934,
+            "point": 31.75136,
             "actual": 23.40147,
             "base": 24.54934,
-            "abs": 1.147870000000001
+            "abs": 8.349889999999998
           },
           {
             "origin": "2025-08",
             "target": "2026-05",
             "targetIndex": 64,
-            "point": 17.41229,
+            "point": 35.62459,
             "actual": 21.86035,
             "base": 17.41229,
-            "abs": 4.448060000000002
+            "abs": 13.764239999999997
           },
           {
             "origin": "2025-09",
             "target": "2026-06",
             "targetIndex": 65,
-            "point": 20.61935,
+            "point": 40.69503,
             "actual": 19.44375,
             "base": 20.61935,
-            "abs": 1.1755999999999993
+            "abs": 21.25128
           },
           {
             "origin": "2025-10",
             "target": "2026-07",
             "targetIndex": 66,
-            "point": 19.36223,
+            "point": 24.54934,
             "actual": 25.6189,
             "base": 19.36223,
-            "abs": 6.25667
+            "abs": 1.0695599999999992
           },
           {
             "origin": "2025-11",
             "target": "2026-08",
             "targetIndex": 67,
-            "point": 20.73939,
+            "point": 17.41229,
             "actual": 17.04963,
             "base": 20.73939,
-            "abs": 3.6897599999999997
+            "abs": 0.3626599999999982
           },
           {
             "origin": "2025-12",
             "target": "2026-09",
             "targetIndex": 68,
-            "point": 22.58749,
+            "point": 20.61935,
             "actual": 18.11816,
             "base": 22.58749,
-            "abs": 4.469329999999999
+            "abs": 2.501190000000001
           }
         ]
       }
@@ -1736,20 +2222,50 @@
       "point": 18.11816,
       "changePct": 0,
       "interval80": {
-        "lo": 2.7004199999999976,
-        "hi": 33.5359
+        "lo": 0,
+        "hi": 50.21081000000001
       },
       "interval95": null,
+      "catboostPoint": 24.319101967930024,
+      "catboostQ80": 10.007013954768631,
+      "catboostInterval80": {
+        "lo": 14.312088013161393,
+        "hi": 34.326115922698655
+      },
+      "catboostHoldoutMae": 2.5081601240087976,
+      "catboostShap": {
+        "treesUsed": 21,
+        "factorLogs": {
+          "seasonality": 0.07089934144958215,
+          "equilibrium": 0.2771165933614603,
+          "import_fx": -0.05366855426051922,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          0.025757610110153786,
+          0,
+          -0.05366855426051922,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.05711727810159861
+      },
       "validation": {
         "selected": "naive",
         "lead": 10,
         "comparisons": [
           {
             "id": "seasonal",
-            "n": 0,
-            "mae": null,
-            "naiveMAE": null,
-            "ratio": null
+            "n": 8,
+            "mae": 6.516,
+            "naiveMAE": 3.9296250000000006,
+            "ratio": 1.6581734898368163
           },
           {
             "id": "ratio",
@@ -1766,11 +2282,25 @@
             "ratio": null
           },
           {
+            "id": "eq_carry",
+            "n": 8,
+            "mae": 8.366507873992777,
+            "naiveMAE": 3.9296250000000006,
+            "ratio": 2.129085567705004
+          },
+          {
             "id": "drivers",
             "n": 0,
             "mae": null,
             "naiveMAE": null,
             "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 8,
+            "mae": 8.366507873992777,
+            "naiveMAE": 3.9296250000000006,
+            "ratio": 2.129085567705004
           }
         ],
         "finalAll": [
@@ -1799,16 +2329,29 @@
             "naiveMAE": 7.396723333333334
           },
           {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.5267422981069103,
+            "naiveMAE": 7.396723333333334
+          },
+          {
             "id": "drivers",
             "n": 12,
             "mae": 13.872859254115964,
             "naiveMAE": 7.396723333333334
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.5081601240087976,
+            "naiveMAE": 7.396723333333334
           }
         ],
         "usesDrivers": true,
-        "calibrationN": 12,
-        "q80": 15.417740000000002,
+        "calibrationN": 8,
+        "q80": 32.092650000000006,
         "q95": null,
+        "catboostQ80": 10.007013954768631,
         "final": {
           "n": 12,
           "mae": 7.396723333333334,
@@ -1819,12 +2362,12 @@
           "mae": 7.396723333333334,
           "directionAccuracy": 0
         },
-        "finalCoverage80": 0.9166666666666666,
+        "finalCoverage80": 1,
         "finalCoverage95": null,
         "beatsNaive": false,
         "split": {
-          "tuningEnds": "2023-01",
-          "calibrationStarts": "2023-12",
+          "tuningEnds": "2023-05",
+          "calibrationStarts": "2024-04",
           "calibrationEnds": "2024-11",
           "finalStarts": "2025-10",
           "finalEnds": "2026-09"
@@ -1948,20 +2491,50 @@
       "point": 18.11816,
       "changePct": 0,
       "interval80": {
-        "lo": 3.0135099999999966,
-        "hi": 33.22281
+        "lo": 0,
+        "hi": 55.301230000000004
       },
       "interval95": null,
+      "catboostPoint": 20.95482221546863,
+      "catboostQ80": 7.626700879892699,
+      "catboostInterval80": {
+        "lo": 13.328121335575933,
+        "hi": 28.58152309536133
+      },
+      "catboostHoldoutMae": 2.535300646329208,
+      "catboostShap": {
+        "treesUsed": 21,
+        "factorLogs": {
+          "seasonality": -0.10098414151439311,
+          "equilibrium": 0.27996237165996,
+          "import_fx": -0.0335241831197261,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          -0.04204342442535122,
+          0,
+          -0.0335241831197261,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.058648848946245925
+      },
       "validation": {
         "selected": "naive",
         "lead": 11,
         "comparisons": [
           {
             "id": "seasonal",
-            "n": 0,
-            "mae": null,
-            "naiveMAE": null,
-            "ratio": null
+            "n": 81,
+            "mae": 6.715308641975308,
+            "naiveMAE": 6.105160493827159,
+            "ratio": 1.0999397393017039
           },
           {
             "id": "ratio",
@@ -1978,11 +2551,25 @@
             "ratio": null
           },
           {
+            "id": "eq_carry",
+            "n": 81,
+            "mae": 6.291912211279273,
+            "naiveMAE": 6.105160493827159,
+            "ratio": 1.0305891577528445
+          },
+          {
             "id": "drivers",
             "n": 0,
             "mae": null,
             "naiveMAE": null,
             "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 81,
+            "mae": 6.216906463757435,
+            "naiveMAE": 6.105160493827159,
+            "ratio": 1.0183035269987186
           }
         ],
         "finalAll": [
@@ -2011,16 +2598,29 @@
             "naiveMAE": 7.678216666666667
           },
           {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.5565925414313697,
+            "naiveMAE": 7.678216666666667
+          },
+          {
             "id": "drivers",
             "n": 12,
             "mae": 16.718024126873733,
             "naiveMAE": 7.678216666666667
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.535300646329208,
+            "naiveMAE": 7.678216666666667
           }
         ],
         "usesDrivers": true,
-        "calibrationN": 12,
-        "q80": 15.104650000000003,
+        "calibrationN": 8,
+        "q80": 37.18307,
         "q95": null,
+        "catboostQ80": 7.626700879892699,
         "final": {
           "n": 12,
           "mae": 7.678216666666667,
@@ -2031,12 +2631,12 @@
           "mae": 7.678216666666667,
           "directionAccuracy": 0
         },
-        "finalCoverage80": 0.9166666666666666,
+        "finalCoverage80": 1,
         "finalCoverage95": null,
         "beatsNaive": false,
         "split": {
-          "tuningEnds": "2022-11",
-          "calibrationStarts": "2023-11",
+          "tuningEnds": "2023-03",
+          "calibrationStarts": "2024-03",
           "calibrationEnds": "2024-10",
           "finalStarts": "2025-10",
           "finalEnds": "2026-09"
@@ -2157,23 +2757,53 @@
       "h": 11,
       "lead": 12,
       "targetMonth": "2027-09",
-      "point": 18.11816,
-      "changePct": 0,
+      "point": 22.285151228302915,
+      "changePct": 22.998975769630658,
       "interval80": {
-        "lo": 0,
-        "hi": 38.313230000000004
+        "lo": 14.983154675954687,
+        "hi": 29.587147780651144
       },
       "interval95": null,
+      "catboostPoint": 22.285151228302915,
+      "catboostQ80": 7.301996552348228,
+      "catboostInterval80": {
+        "lo": 14.983154675954687,
+        "hi": 29.587147780651144
+      },
+      "catboostHoldoutMae": 2.8027078247152324,
+      "catboostShap": {
+        "treesUsed": 20,
+        "factorLogs": {
+          "seasonality": -0.040579685973572636,
+          "equilibrium": 0.27904268549085565,
+          "import_fx": -0.03145715724380044,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          -0.040579685973572636,
+          0,
+          -0.03145715724380044,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.05700306106108208
+      },
       "validation": {
-        "selected": "naive",
+        "selected": "catboost",
         "lead": 12,
         "comparisons": [
           {
             "id": "seasonal",
-            "n": 0,
-            "mae": null,
-            "naiveMAE": null,
-            "ratio": null
+            "n": 65,
+            "mae": 6.307984615384615,
+            "naiveMAE": 6.294153846153845,
+            "ratio": 1.00219739929605
           },
           {
             "id": "ratio",
@@ -2190,11 +2820,25 @@
             "ratio": null
           },
           {
+            "id": "eq_carry",
+            "n": 65,
+            "mae": 5.46397821719374,
+            "naiveMAE": 6.294153846153845,
+            "ratio": 0.8681036960246216
+          },
+          {
             "id": "drivers",
             "n": 0,
             "mae": null,
             "naiveMAE": null,
             "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 65,
+            "mae": 5.405736989110053,
+            "naiveMAE": 6.294153846153845,
+            "ratio": 0.858850470014063
           }
         ],
         "finalAll": [
@@ -2223,20 +2867,33 @@
             "naiveMAE": 6.522448333333334
           },
           {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.5355456075430425,
+            "naiveMAE": 6.522448333333334
+          },
+          {
             "id": "drivers",
             "n": 12,
             "mae": 16.409154320954944,
             "naiveMAE": 6.522448333333334
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.8027078247152324,
+            "naiveMAE": 6.522448333333334
           }
         ],
         "usesDrivers": true,
-        "calibrationN": 10,
-        "q80": 20.19507,
+        "calibrationN": 8,
+        "q80": 7.301996552348228,
         "q95": null,
+        "catboostQ80": 7.301996552348228,
         "final": {
           "n": 12,
-          "mae": 6.522448333333334,
-          "directionAccuracy": 0
+          "mae": 2.8027078247152324,
+          "directionAccuracy": 0.8333333333333334
         },
         "naiveFinal": {
           "n": 12,
@@ -2245,10 +2902,10 @@
         },
         "finalCoverage80": 0.9166666666666666,
         "finalCoverage95": null,
-        "beatsNaive": false,
+        "beatsNaive": true,
         "split": {
-          "tuningEnds": "2022-09",
-          "calibrationStarts": "2023-10",
+          "tuningEnds": "2023-01",
+          "calibrationStarts": "2024-02",
           "calibrationEnds": "2024-09",
           "finalStarts": "2025-10",
           "finalEnds": "2026-09"
@@ -2258,109 +2915,109 @@
             "origin": "2024-10",
             "target": "2025-10",
             "targetIndex": 57,
-            "point": 18.95735,
+            "point": 18.976704256729203,
             "actual": 19.36223,
             "base": 18.95735,
-            "abs": 0.4048799999999986
+            "abs": 0.38552574327079725
           },
           {
             "origin": "2024-11",
             "target": "2025-11",
             "targetIndex": 58,
-            "point": 21.76611,
+            "point": 20.162692741472846,
             "actual": 20.73939,
             "base": 21.76611,
-            "abs": 1.026720000000001
+            "abs": 0.5766972585271546
           },
           {
             "origin": "2024-12",
             "target": "2025-12",
             "targetIndex": 59,
-            "point": 27.43998,
+            "point": 20.64680607897456,
             "actual": 22.58749,
             "base": 27.43998,
-            "abs": 4.8524899999999995
+            "abs": 1.940683921025439
           },
           {
             "origin": "2025-01",
             "target": "2026-01",
             "targetIndex": 60,
-            "point": 29.82872,
+            "point": 20.510216318724936,
             "actual": 23.7437,
             "base": 29.82872,
-            "abs": 6.08502
+            "abs": 3.2334836812750645
           },
           {
             "origin": "2025-02",
             "target": "2026-02",
             "targetIndex": 61,
-            "point": 33.88984,
+            "point": 23.659459207233386,
             "actual": 23.99835,
             "base": 33.88984,
-            "abs": 9.891490000000001
+            "abs": 0.3388907927666125
           },
           {
             "origin": "2025-03",
             "target": "2026-03",
             "targetIndex": 62,
-            "point": 32.69857,
+            "point": 23.684058582032144,
             "actual": 23.98861,
             "base": 32.69857,
-            "abs": 8.709959999999995
+            "abs": 0.3045514179678577
           },
           {
             "origin": "2025-04",
             "target": "2026-04",
             "targetIndex": 63,
-            "point": 31.75136,
+            "point": 25.95329279140491,
             "actual": 23.40147,
             "base": 31.75136,
-            "abs": 8.349889999999998
+            "abs": 2.551822791404909
           },
           {
             "origin": "2025-05",
             "target": "2026-05",
             "targetIndex": 64,
-            "point": 35.62459,
+            "point": 27.74845589514182,
             "actual": 21.86035,
             "base": 35.62459,
-            "abs": 13.764239999999997
+            "abs": 5.88810589514182
           },
           {
             "origin": "2025-06",
             "target": "2026-06",
             "targetIndex": 65,
-            "point": 40.69503,
+            "point": 29.150378029926657,
             "actual": 19.44375,
             "base": 40.69503,
-            "abs": 21.25128
+            "abs": 9.706628029926655
           },
           {
             "origin": "2025-07",
             "target": "2026-07",
             "targetIndex": 66,
-            "point": 24.54934,
+            "point": 23.09704210276065,
             "actual": 25.6189,
             "base": 24.54934,
-            "abs": 1.0695599999999992
+            "abs": 2.52185789723935
           },
           {
             "origin": "2025-08",
             "target": "2026-08",
             "targetIndex": 67,
-            "point": 17.41229,
+            "point": 21.55803365413287,
             "actual": 17.04963,
             "base": 17.41229,
-            "abs": 0.3626599999999982
+            "abs": 4.50840365413287
           },
           {
             "origin": "2025-09",
             "target": "2026-09",
             "targetIndex": 68,
-            "point": 20.61935,
+            "point": 19.794002813904253,
             "actual": 18.11816,
             "base": 20.61935,
-            "abs": 2.501190000000001
+            "abs": 1.6758428139042536
           }
         ]
       }
@@ -2369,23 +3026,53 @@
       "h": 12,
       "lead": 13,
       "targetMonth": "2027-10",
-      "point": 18.11816,
-      "changePct": 0,
+      "point": 21.429467306823316,
+      "changePct": 18.276178744548655,
       "interval80": {
-        "lo": 0,
-        "hi": 49.95049
+        "lo": 16.98203140285262,
+        "hi": 25.876903210794012
       },
       "interval95": null,
+      "catboostPoint": 21.429467306823316,
+      "catboostQ80": 4.447435903970696,
+      "catboostInterval80": {
+        "lo": 16.98203140285262,
+        "hi": 25.876903210794012
+      },
+      "catboostHoldoutMae": 2.8235675792067156,
+      "catboostShap": {
+        "treesUsed": 23,
+        "factorLogs": {
+          "seasonality": -0.09587609781961873,
+          "equilibrium": 0.28817048780067406,
+          "import_fx": -0.0244421883671753,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          -0.052937180547823245,
+          0,
+          -0.0244421883671753,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.06573993032921562
+      },
       "validation": {
-        "selected": "naive",
+        "selected": "catboost",
         "lead": 13,
         "comparisons": [
           {
             "id": "seasonal",
-            "n": 0,
-            "mae": null,
-            "naiveMAE": null,
-            "ratio": null
+            "n": 45,
+            "mae": 7.005755555555554,
+            "naiveMAE": 7.096888888888887,
+            "ratio": 0.9871586923847696
           },
           {
             "id": "ratio",
@@ -2402,11 +3089,25 @@
             "ratio": null
           },
           {
+            "id": "eq_carry",
+            "n": 45,
+            "mae": 6.500274882609541,
+            "naiveMAE": 7.096888888888887,
+            "ratio": 0.9159330214097866
+          },
+          {
             "id": "drivers",
             "n": 0,
             "mae": null,
             "naiveMAE": null,
             "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 45,
+            "mae": 6.472558440699368,
+            "naiveMAE": 7.096888888888887,
+            "ratio": 0.9120275858951392
           }
         ],
         "finalAll": [
@@ -2435,32 +3136,45 @@
             "naiveMAE": 6.869426666666665
           },
           {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.647305260555217,
+            "naiveMAE": 6.869426666666665
+          },
+          {
             "id": "drivers",
             "n": 12,
             "mae": 15.390498718617403,
+            "naiveMAE": 6.869426666666665
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.8235675792067156,
             "naiveMAE": 6.869426666666665
           }
         ],
         "usesDrivers": true,
         "calibrationN": 8,
-        "q80": 31.832330000000002,
+        "q80": 4.447435903970696,
         "q95": null,
+        "catboostQ80": 4.447435903970696,
         "final": {
           "n": 12,
-          "mae": 6.869426666666665,
-          "directionAccuracy": 0
+          "mae": 2.8235675792067156,
+          "directionAccuracy": 0.9166666666666666
         },
         "naiveFinal": {
           "n": 12,
           "mae": 6.869426666666665,
           "directionAccuracy": 0
         },
-        "finalCoverage80": 1,
+        "finalCoverage80": 0.8333333333333334,
         "finalCoverage95": null,
-        "beatsNaive": false,
+        "beatsNaive": true,
         "split": {
-          "tuningEnds": "2022-07",
-          "calibrationStarts": "2023-09",
+          "tuningEnds": "2022-11",
+          "calibrationStarts": "2024-01",
           "calibrationEnds": "2024-08",
           "finalStarts": "2025-10",
           "finalEnds": "2026-09"
@@ -2470,109 +3184,109 @@
             "origin": "2024-09",
             "target": "2025-10",
             "targetIndex": 57,
-            "point": 21.11339,
+            "point": 18.888257991248835,
             "actual": 19.36223,
             "base": 21.11339,
-            "abs": 1.7511599999999987
+            "abs": 0.47397200875116496
           },
           {
             "origin": "2024-10",
             "target": "2025-11",
             "targetIndex": 58,
-            "point": 18.95735,
+            "point": 20.037801557385606,
             "actual": 20.73939,
             "base": 18.95735,
-            "abs": 1.7820399999999985
+            "abs": 0.7015884426143941
           },
           {
             "origin": "2024-11",
             "target": "2025-12",
             "targetIndex": 59,
-            "point": 21.76611,
+            "point": 19.309913747824496,
             "actual": 22.58749,
             "base": 21.76611,
-            "abs": 0.8213799999999978
+            "abs": 3.2775762521755034
           },
           {
             "origin": "2024-12",
             "target": "2026-01",
             "targetIndex": 60,
-            "point": 27.43998,
+            "point": 19.5810006506535,
             "actual": 23.7437,
             "base": 27.43998,
-            "abs": 3.696279999999998
+            "abs": 4.1626993493465
           },
           {
             "origin": "2025-01",
             "target": "2026-02",
             "targetIndex": 61,
-            "point": 29.82872,
+            "point": 21.19895939440869,
             "actual": 23.99835,
             "base": 29.82872,
-            "abs": 5.830370000000002
+            "abs": 2.7993906055913094
           },
           {
             "origin": "2025-02",
             "target": "2026-03",
             "targetIndex": 62,
-            "point": 33.88984,
+            "point": 23.274497773304226,
             "actual": 23.98861,
             "base": 33.88984,
-            "abs": 9.901229999999998
+            "abs": 0.7141122266957751
           },
           {
             "origin": "2025-03",
             "target": "2026-04",
             "targetIndex": 63,
-            "point": 32.69857,
+            "point": 24.79895391574781,
             "actual": 23.40147,
             "base": 32.69857,
-            "abs": 9.297099999999997
+            "abs": 1.3974839157478094
           },
           {
             "origin": "2025-04",
             "target": "2026-05",
             "targetIndex": 64,
-            "point": 31.75136,
+            "point": 25.361102497544174,
             "actual": 21.86035,
             "base": 31.75136,
-            "abs": 9.891009999999998
+            "abs": 3.5007524975441733
           },
           {
             "origin": "2025-05",
             "target": "2026-06",
             "targetIndex": 65,
-            "point": 35.62459,
+            "point": 25.609536376527668,
             "actual": 19.44375,
             "base": 35.62459,
-            "abs": 16.180839999999996
+            "abs": 6.165786376527667
           },
           {
             "origin": "2025-06",
             "target": "2026-07",
             "targetIndex": 66,
-            "point": 40.69503,
+            "point": 22.036887732970197,
             "actual": 25.6189,
             "base": 40.69503,
-            "abs": 15.076130000000003
+            "abs": 3.5820122670298034
           },
           {
             "origin": "2025-07",
             "target": "2026-08",
             "targetIndex": 67,
-            "point": 24.54934,
+            "point": 22.454995325992144,
             "actual": 17.04963,
             "base": 24.54934,
-            "abs": 7.49971
+            "abs": 5.405365325992143
           },
           {
             "origin": "2025-08",
             "target": "2026-09",
             "targetIndex": 68,
-            "point": 17.41229,
+            "point": 19.820231682464346,
             "actual": 18.11816,
             "base": 17.41229,
-            "abs": 0.7058700000000009
+            "abs": 1.7020716824643465
           }
         ]
       }
@@ -2588,16 +3302,46 @@
         "hi": 32.96249
       },
       "interval95": null,
+      "catboostPoint": 22.949260897414394,
+      "catboostQ80": 5.654468774428768,
+      "catboostInterval80": {
+        "lo": 17.294792122985626,
+        "hi": 28.603729671843162
+      },
+      "catboostHoldoutMae": 2.963056078229155,
+      "catboostShap": {
+        "treesUsed": 30,
+        "factorLogs": {
+          "seasonality": -0.06617650081540644,
+          "equilibrium": 0.3025474816927787,
+          "import_fx": 0,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0.009078193084539412,
+          0,
+          0,
+          -0.08157591601102598,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.07083328942146289
+      },
       "validation": {
         "selected": "naive",
         "lead": 14,
         "comparisons": [
           {
             "id": "seasonal",
-            "n": 0,
-            "mae": null,
-            "naiveMAE": null,
-            "ratio": null
+            "n": 28,
+            "mae": 8.389142857142852,
+            "naiveMAE": 7.70010714285714,
+            "ratio": 1.0894839125615132
           },
           {
             "id": "ratio",
@@ -2614,11 +3358,25 @@
             "ratio": null
           },
           {
+            "id": "eq_carry",
+            "n": 28,
+            "mae": 7.460680545738796,
+            "naiveMAE": 7.70010714285714,
+            "ratio": 0.9689060693992494
+          },
+          {
             "id": "drivers",
             "n": 0,
             "mae": null,
             "naiveMAE": null,
             "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 28,
+            "mae": 7.460680545738796,
+            "naiveMAE": 7.70010714285714,
+            "ratio": 0.9689060693992494
           }
         ],
         "finalAll": [
@@ -2647,16 +3405,29 @@
             "naiveMAE": 7.677040833333333
           },
           {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.756958980635042,
+            "naiveMAE": 7.677040833333333
+          },
+          {
             "id": "drivers",
             "n": 12,
             "mae": 11.920633830633873,
             "naiveMAE": 7.677040833333333
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.963056078229155,
+            "naiveMAE": 7.677040833333333
           }
         ],
         "usesDrivers": true,
-        "calibrationN": 6,
+        "calibrationN": 8,
         "q80": 14.844330000000003,
         "q95": null,
+        "catboostQ80": 5.654468774428768,
         "final": {
           "n": 12,
           "mae": 7.677040833333333,
@@ -2671,8 +3442,8 @@
         "finalCoverage95": null,
         "beatsNaive": false,
         "split": {
-          "tuningEnds": "2022-05",
-          "calibrationStarts": "2023-08",
+          "tuningEnds": "2022-09",
+          "calibrationStarts": "2023-12",
           "calibrationEnds": "2024-07",
           "finalStarts": "2025-10",
           "finalEnds": "2026-09"
@@ -2800,16 +3571,46 @@
         "hi": 27.27944
       },
       "interval95": null,
+      "catboostPoint": 22.819210088959267,
+      "catboostQ80": 5.166491035776641,
+      "catboostInterval80": {
+        "lo": 17.652719053182626,
+        "hi": 27.985701124735908
+      },
+      "catboostHoldoutMae": 2.9320515664952462,
+      "catboostShap": {
+        "treesUsed": 30,
+        "factorLogs": {
+          "seasonality": -0.0635989688167406,
+          "equilibrium": 0.29428694758948515,
+          "import_fx": 0,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0.020933181354267142,
+          0,
+          0,
+          -0.07614336857909747,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.050612241808875996
+      },
       "validation": {
         "selected": "naive",
         "lead": 15,
         "comparisons": [
           {
             "id": "seasonal",
-            "n": 0,
-            "mae": null,
-            "naiveMAE": null,
-            "ratio": null
+            "n": 15,
+            "mae": 11.183066666666663,
+            "naiveMAE": 9.829799999999997,
+            "ratio": 1.1376698067780286
           },
           {
             "id": "ratio",
@@ -2826,11 +3627,25 @@
             "ratio": null
           },
           {
+            "id": "eq_carry",
+            "n": 15,
+            "mae": 10.444917566805353,
+            "naiveMAE": 9.829799999999997,
+            "ratio": 1.0625768140557648
+          },
+          {
             "id": "drivers",
             "n": 0,
             "mae": null,
             "naiveMAE": null,
             "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 15,
+            "mae": 10.444917566805353,
+            "naiveMAE": 9.829799999999997,
+            "ratio": 1.0625768140557648
           }
         ],
         "finalAll": [
@@ -2859,16 +3674,29 @@
             "naiveMAE": 8.260504999999998
           },
           {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.7921743785550053,
+            "naiveMAE": 8.260504999999998
+          },
+          {
             "id": "drivers",
             "n": 12,
             "mae": 9.680100097536664,
             "naiveMAE": 8.260504999999998
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.9320515664952462,
+            "naiveMAE": 8.260504999999998
           }
         ],
         "usesDrivers": true,
-        "calibrationN": 4,
+        "calibrationN": 8,
         "q80": 9.161280000000001,
         "q95": null,
+        "catboostQ80": 5.166491035776641,
         "final": {
           "n": 12,
           "mae": 8.260504999999998,
@@ -2883,8 +3711,8 @@
         "finalCoverage95": null,
         "beatsNaive": false,
         "split": {
-          "tuningEnds": "2022-03",
-          "calibrationStarts": "2023-07",
+          "tuningEnds": "2022-07",
+          "calibrationStarts": "2023-11",
           "calibrationEnds": "2024-06",
           "finalStarts": "2025-10",
           "finalEnds": "2026-09"
@@ -3009,5 +3837,5 @@
     "С 2022 г. учитывать территориальные оговорки и изменения состава наблюдаемых организаций; средняя цена зависит от состава продаж.",
     "Номинальные цены; годовые средние не являются декабрьскими ценами или оценкой реальной маржи."
   ],
-  "id": "official-7e3ac8f888955b8434cb"
+  "id": "official-abcea69b3a6edbcad505"
 }

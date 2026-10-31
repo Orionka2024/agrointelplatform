@@ -1,0 +1,3841 @@
+{
+  "schema": 2,
+  "modelVersion": "rosstat-catboost-3.0.0",
+  "issueDate": "2026-10-30",
+  "target": "РФ · лук · цена производителей сельхозорганизаций",
+  "unit": "RUB/kg",
+  "vat": "excluded",
+  "frequency": "monthly",
+  "inputCutoff": "2026-09",
+  "lastValue": 18.11816,
+  "n": 69,
+  "sourceHashes": [
+    "20db1ef775436ce03153a69526fab118c7f2dc6f4c3d99590f67dfd33cf9605f",
+    "00d654ae5a923141a7a7179df3348d1bf8156b10524a93b98306a922ada10121",
+    "a8a75b2573654e81e0097a8345923736b21678c65f0862125dcf03d7496743ae",
+    "087b6e86ec75958df95ec7d8b5691326422431b63619a87f75f4d800ade371dc",
+    "058b00ce1fa7db8a5b06e708ef7dca1e35b25f35262747099f2651d2cadde60f",
+    "8a6c5c8c6d1a782f71bf4edab6cc94a1cb2204086b184e97657d289b99ae3284",
+    "fa2bbcc1ace1c6dd0061368f981bb527cfe039b2ddc476417c3e6d5c5fe6617a",
+    "41049d0432ef1fa2bceb424e7a6a405970b7abe66058742b6ee90fb5e9671b00"
+  ],
+  "drivers": {
+    "usdRubLast": {
+      "period": "2026-09",
+      "n": 22,
+      "value": 85.11026818181818,
+      "availableDate": "2026-10-01"
+    },
+    "kztRubLast": {
+      "period": "2026-09",
+      "n": 22,
+      "value": 0.18876704545454545,
+      "availableDate": "2026-10-01"
+    },
+    "keyRateLast": {
+      "period": "2026-09",
+      "n": 22,
+      "value": 14,
+      "availableDate": "2026-10-01"
+    },
+    "weatherLast": {
+      "volgograd": {
+        "period": "2026-09",
+        "n": 30,
+        "tempMeanC": 18.96,
+        "tempMinC": 9.1,
+        "frostDays12C": 0,
+        "precipMm": 51.3,
+        "availableDate": "2026-10-06"
+      },
+      "zhambyl": {
+        "period": "2026-09",
+        "n": 30,
+        "tempMeanC": 20.62,
+        "tempMinC": 8.2,
+        "frostDays12C": 0,
+        "precipMm": 2.1,
+        "availableDate": "2026-10-06"
+      }
+    },
+    "sourceNote": "Official Bank of Russia (USD/RUB, KZT/RUB, KeyRate) and Open-Meteo ERA5 (Volgograd & Zhambyl/Taraz onion belt) monthly series. Complete months only; no interpolation."
+  },
+  "evaluationType": "latest_vintage_hindcast",
+  "status": "research_benchmark",
+  "rows": [
+    {
+      "h": 1,
+      "lead": 2,
+      "targetMonth": "2026-11",
+      "point": 19.962969128141975,
+      "changePct": 10.18209977250435,
+      "interval80": {
+        "lo": 7.60983448991794,
+        "hi": 32.31610376636601
+      },
+      "interval95": null,
+      "catboostPoint": 20.006221655001326,
+      "catboostQ80": 10.95175599801427,
+      "catboostInterval80": {
+        "lo": 9.054465656987055,
+        "hi": 30.957977653015597
+      },
+      "catboostHoldoutMae": 3.0328695152386245,
+      "catboostShap": {
+        "treesUsed": 16,
+        "factorLogs": {
+          "seasonality": -0.018908059812367903,
+          "equilibrium": 0.11500829693799068,
+          "import_fx": 0,
+          "financing": 0,
+          "retail_demand": 0.0030283205973261136,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          -0.033513474309064525,
+          0.003028914588029564,
+          0,
+          0,
+          0.0030283205973261136,
+          0
+        ],
+        "baseValue": 0.029620533316079684
+      },
+      "validation": {
+        "selected": "eq_carry",
+        "lead": 2,
+        "comparisons": [
+          {
+            "id": "seasonal",
+            "n": 32,
+            "mae": 7.9763240625,
+            "naiveMAE": 7.1998321875,
+            "ratio": 1.1078486074089486
+          },
+          {
+            "id": "ratio",
+            "n": 19,
+            "mae": 6.438797296432122,
+            "naiveMAE": 7.972454210526315,
+            "ratio": 0.8076305145698733
+          },
+          {
+            "id": "season_ridge",
+            "n": 18,
+            "mae": 6.677948750868162,
+            "naiveMAE": 7.854979444444442,
+            "ratio": 0.8501548346623932
+          },
+          {
+            "id": "eq_carry",
+            "n": 32,
+            "mae": 5.701376570350998,
+            "naiveMAE": 7.1998321875,
+            "ratio": 0.7918763134853966
+          },
+          {
+            "id": "drivers",
+            "n": 18,
+            "mae": 7.2628220087878885,
+            "naiveMAE": 7.854979444444442,
+            "ratio": 0.924613751080486
+          },
+          {
+            "id": "catboost",
+            "n": 32,
+            "mae": 5.879106888218037,
+            "naiveMAE": 7.1998321875,
+            "ratio": 0.8165616552042779
+          }
+        ],
+        "finalAll": [
+          {
+            "id": "naive",
+            "n": 12,
+            "mae": 2.5242991666666668,
+            "naiveMAE": 2.5242991666666668
+          },
+          {
+            "id": "seasonal",
+            "n": 12,
+            "mae": 6.522448333333334,
+            "naiveMAE": 2.5242991666666668
+          },
+          {
+            "id": "ratio",
+            "n": 12,
+            "mae": 4.71852506801133,
+            "naiveMAE": 2.5242991666666668
+          },
+          {
+            "id": "season_ridge",
+            "n": 12,
+            "mae": 3.2806824851448866,
+            "naiveMAE": 2.5242991666666668
+          },
+          {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.8796373545650087,
+            "naiveMAE": 2.5242991666666668
+          },
+          {
+            "id": "drivers",
+            "n": 12,
+            "mae": 3.081444070749145,
+            "naiveMAE": 2.5242991666666668
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 3.0328695152386245,
+            "naiveMAE": 2.5242991666666668
+          }
+        ],
+        "usesDrivers": true,
+        "calibrationN": 8,
+        "q80": 12.353134638224034,
+        "q95": null,
+        "catboostQ80": 10.95175599801427,
+        "final": {
+          "n": 12,
+          "mae": 2.8796373545650087,
+          "directionAccuracy": 0.5833333333333334
+        },
+        "naiveFinal": {
+          "n": 12,
+          "mae": 2.5242991666666668,
+          "directionAccuracy": 0
+        },
+        "finalCoverage80": 1,
+        "finalCoverage95": null,
+        "beatsNaive": false,
+        "split": {
+          "tuningEnds": "2024-09",
+          "calibrationStarts": "2024-12",
+          "calibrationEnds": "2025-07",
+          "finalStarts": "2025-10",
+          "finalEnds": "2026-09"
+        },
+        "finalPredictions": [
+          {
+            "origin": "2025-08",
+            "target": "2025-10",
+            "targetIndex": 57,
+            "point": 18.147685047059692,
+            "actual": 19.36223,
+            "base": 17.41229,
+            "abs": 1.214544952940308
+          },
+          {
+            "origin": "2025-09",
+            "target": "2025-11",
+            "targetIndex": 58,
+            "point": 20.70736793793188,
+            "actual": 20.73939,
+            "base": 20.61935,
+            "abs": 0.032022062068119084
+          },
+          {
+            "origin": "2025-10",
+            "target": "2025-12",
+            "targetIndex": 59,
+            "point": 20.48931289221898,
+            "actual": 22.58749,
+            "base": 19.36223,
+            "abs": 2.0981771077810194
+          },
+          {
+            "origin": "2025-11",
+            "target": "2026-01",
+            "targetIndex": 60,
+            "point": 20.48634526893195,
+            "actual": 23.7437,
+            "base": 20.73939,
+            "abs": 3.2573547310680517
+          },
+          {
+            "origin": "2025-12",
+            "target": "2026-02",
+            "targetIndex": 61,
+            "point": 22.824111952253595,
+            "actual": 23.99835,
+            "base": 22.58749,
+            "abs": 1.1742380477464032
+          },
+          {
+            "origin": "2026-01",
+            "target": "2026-03",
+            "targetIndex": 62,
+            "point": 23.849729702131206,
+            "actual": 23.98861,
+            "base": 23.7437,
+            "abs": 0.13888029786879486
+          },
+          {
+            "origin": "2026-02",
+            "target": "2026-04",
+            "targetIndex": 63,
+            "point": 25.426231333904486,
+            "actual": 23.40147,
+            "base": 23.99835,
+            "abs": 2.024761333904486
+          },
+          {
+            "origin": "2026-03",
+            "target": "2026-05",
+            "targetIndex": 64,
+            "point": 26.87646820685471,
+            "actual": 21.86035,
+            "base": 23.98861,
+            "abs": 5.01611820685471
+          },
+          {
+            "origin": "2026-04",
+            "target": "2026-06",
+            "targetIndex": 65,
+            "point": 27.03215431089901,
+            "actual": 19.44375,
+            "base": 23.40147,
+            "abs": 7.5884043108990085
+          },
+          {
+            "origin": "2026-05",
+            "target": "2026-07",
+            "targetIndex": 66,
+            "point": 21.385003296849344,
+            "actual": 25.6189,
+            "base": 21.86035,
+            "abs": 4.233896703150656
+          },
+          {
+            "origin": "2026-06",
+            "target": "2026-08",
+            "targetIndex": 67,
+            "point": 18.652589043971457,
+            "actual": 17.04963,
+            "base": 19.44375,
+            "abs": 1.602959043971456
+          },
+          {
+            "origin": "2026-07",
+            "target": "2026-09",
+            "targetIndex": 68,
+            "point": 24.29245145652709,
+            "actual": 18.11816,
+            "base": 25.6189,
+            "abs": 6.17429145652709
+          }
+        ]
+      }
+    },
+    {
+      "h": 2,
+      "lead": 3,
+      "targetMonth": "2026-12",
+      "point": 21.132492685670407,
+      "changePct": 16.63707951398159,
+      "interval80": {
+        "lo": 8.402985453054594,
+        "hi": 33.861999918286216
+      },
+      "interval95": null,
+      "catboostPoint": 21.132492685670407,
+      "catboostQ80": 12.729507232615813,
+      "catboostInterval80": {
+        "lo": 8.402985453054594,
+        "hi": 33.861999918286216
+      },
+      "catboostHoldoutMae": 3.2675306082498863,
+      "catboostShap": {
+        "treesUsed": 24,
+        "factorLogs": {
+          "seasonality": -0.01583304138141363,
+          "equilibrium": 0.16583623884917845,
+          "import_fx": 0,
+          "financing": 0,
+          "retail_demand": 0.0038938460306464223,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          -0.03581797290825633,
+          0.008986932284095061,
+          0,
+          0,
+          0.0038938460306464223,
+          0
+        ],
+        "baseValue": 0.039785244156848615
+      },
+      "validation": {
+        "selected": "catboost",
+        "lead": 3,
+        "comparisons": [
+          {
+            "id": "seasonal",
+            "n": 29,
+            "mae": 8.108574482758621,
+            "naiveMAE": 8.411570344827584,
+            "ratio": 0.9639786805973417
+          },
+          {
+            "id": "ratio",
+            "n": 16,
+            "mae": 8.501428329299827,
+            "naiveMAE": 10.299158749999998,
+            "ratio": 0.8254488095253244
+          },
+          {
+            "id": "season_ridge",
+            "n": 14,
+            "mae": 8.666206921382331,
+            "naiveMAE": 9.899181428571428,
+            "ratio": 0.8754468219331313
+          },
+          {
+            "id": "eq_carry",
+            "n": 29,
+            "mae": 6.657706144827243,
+            "naiveMAE": 8.411570344827584,
+            "ratio": 0.7914938438244385
+          },
+          {
+            "id": "drivers",
+            "n": 14,
+            "mae": 10.238665922387721,
+            "naiveMAE": 9.899181428571428,
+            "ratio": 1.0342941985926695
+          },
+          {
+            "id": "catboost",
+            "n": 29,
+            "mae": 6.58971311513795,
+            "naiveMAE": 8.411570344827584,
+            "ratio": 0.7834105696078587
+          }
+        ],
+        "finalAll": [
+          {
+            "id": "naive",
+            "n": 12,
+            "mae": 2.908560833333334,
+            "naiveMAE": 2.908560833333334
+          },
+          {
+            "id": "seasonal",
+            "n": 12,
+            "mae": 6.522448333333334,
+            "naiveMAE": 2.908560833333334
+          },
+          {
+            "id": "ratio",
+            "n": 12,
+            "mae": 5.027473373386569,
+            "naiveMAE": 2.908560833333334
+          },
+          {
+            "id": "season_ridge",
+            "n": 12,
+            "mae": 3.8852859822242842,
+            "naiveMAE": 2.908560833333334
+          },
+          {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 3.0921458265102117,
+            "naiveMAE": 2.908560833333334
+          },
+          {
+            "id": "drivers",
+            "n": 12,
+            "mae": 3.585458763075349,
+            "naiveMAE": 2.908560833333334
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 3.2675306082498863,
+            "naiveMAE": 2.908560833333334
+          }
+        ],
+        "usesDrivers": true,
+        "calibrationN": 8,
+        "q80": 12.729507232615813,
+        "q95": null,
+        "catboostQ80": 12.729507232615813,
+        "final": {
+          "n": 12,
+          "mae": 3.2675306082498863,
+          "directionAccuracy": 0.6666666666666666
+        },
+        "naiveFinal": {
+          "n": 12,
+          "mae": 2.908560833333334,
+          "directionAccuracy": 0
+        },
+        "finalCoverage80": 1,
+        "finalCoverage95": null,
+        "beatsNaive": false,
+        "split": {
+          "tuningEnds": "2024-07",
+          "calibrationStarts": "2024-11",
+          "calibrationEnds": "2025-06",
+          "finalStarts": "2025-10",
+          "finalEnds": "2026-09"
+        },
+        "finalPredictions": [
+          {
+            "origin": "2025-07",
+            "target": "2025-10",
+            "targetIndex": 57,
+            "point": 20.87011227961817,
+            "actual": 19.36223,
+            "base": 24.54934,
+            "abs": 1.507882279618169
+          },
+          {
+            "origin": "2025-08",
+            "target": "2025-11",
+            "targetIndex": 58,
+            "point": 19.283561038085146,
+            "actual": 20.73939,
+            "base": 17.41229,
+            "abs": 1.455828961914854
+          },
+          {
+            "origin": "2025-09",
+            "target": "2025-12",
+            "targetIndex": 59,
+            "point": 20.747447122925884,
+            "actual": 22.58749,
+            "base": 20.61935,
+            "abs": 1.840042877074115
+          },
+          {
+            "origin": "2025-10",
+            "target": "2026-01",
+            "targetIndex": 60,
+            "point": 20.61937853516848,
+            "actual": 23.7437,
+            "base": 19.36223,
+            "abs": 3.124321464831521
+          },
+          {
+            "origin": "2025-11",
+            "target": "2026-02",
+            "targetIndex": 61,
+            "point": 22.123229167059428,
+            "actual": 23.99835,
+            "base": 20.73939,
+            "abs": 1.8751208329405706
+          },
+          {
+            "origin": "2025-12",
+            "target": "2026-03",
+            "targetIndex": 62,
+            "point": 23.522283851680577,
+            "actual": 23.98861,
+            "base": 22.58749,
+            "abs": 0.46632614831942476
+          },
+          {
+            "origin": "2026-01",
+            "target": "2026-04",
+            "targetIndex": 63,
+            "point": 26.462306369003628,
+            "actual": 23.40147,
+            "base": 23.7437,
+            "abs": 3.0608363690036278
+          },
+          {
+            "origin": "2026-02",
+            "target": "2026-05",
+            "targetIndex": 64,
+            "point": 28.49921194986112,
+            "actual": 21.86035,
+            "base": 23.99835,
+            "abs": 6.63886194986112
+          },
+          {
+            "origin": "2026-03",
+            "target": "2026-06",
+            "targetIndex": 65,
+            "point": 30.519320846530174,
+            "actual": 19.44375,
+            "base": 23.98861,
+            "abs": 11.075570846530173
+          },
+          {
+            "origin": "2026-04",
+            "target": "2026-07",
+            "targetIndex": 66,
+            "point": 23.66818861809464,
+            "actual": 25.6189,
+            "base": 23.40147,
+            "abs": 1.9507113819053608
+          },
+          {
+            "origin": "2026-05",
+            "target": "2026-08",
+            "targetIndex": 67,
+            "point": 21.217406005189027,
+            "actual": 17.04963,
+            "base": 21.86035,
+            "abs": 4.167776005189026
+          },
+          {
+            "origin": "2026-06",
+            "target": "2026-09",
+            "targetIndex": 68,
+            "point": 20.165248181810668,
+            "actual": 18.11816,
+            "base": 19.44375,
+            "abs": 2.0470881818106683
+          }
+        ]
+      }
+    },
+    {
+      "h": 3,
+      "lead": 4,
+      "targetMonth": "2027-01",
+      "point": 22.99830313430569,
+      "changePct": 26.935092384136627,
+      "interval80": {
+        "lo": 9.544888338636781,
+        "hi": 36.4517179299746
+      },
+      "interval95": null,
+      "catboostPoint": 22.99830313430569,
+      "catboostQ80": 13.453414795668909,
+      "catboostInterval80": {
+        "lo": 9.544888338636781,
+        "hi": 36.4517179299746
+      },
+      "catboostHoldoutMae": 3.5439393404761694,
+      "catboostShap": {
+        "treesUsed": 25,
+        "factorLogs": {
+          "seasonality": 0.04175424847502072,
+          "equilibrium": 0.1941379809874404,
+          "import_fx": 0,
+          "financing": 0,
+          "retail_demand": 0.0026134567708287833,
+          "weather": 0
+        },
+        "phi": [
+          -0.0010488619862447273,
+          0,
+          0,
+          0.023108158942241133,
+          0.0061072133941512865,
+          0,
+          0,
+          0.0026134567708287833,
+          0
+        ],
+        "baseValue": 0.03736143409739195
+      },
+      "validation": {
+        "selected": "catboost",
+        "lead": 4,
+        "comparisons": [
+          {
+            "id": "seasonal",
+            "n": 26,
+            "mae": 7.4301811538461555,
+            "naiveMAE": 10.301179999999999,
+            "ratio": 0.7212941773511536
+          },
+          {
+            "id": "ratio",
+            "n": 13,
+            "mae": 9.800135967063047,
+            "naiveMAE": 13.12374461538462,
+            "ratio": 0.746748451320411
+          },
+          {
+            "id": "season_ridge",
+            "n": 10,
+            "mae": 8.626453440038409,
+            "naiveMAE": 11.090268,
+            "ratio": 0.777839943997603
+          },
+          {
+            "id": "eq_carry",
+            "n": 26,
+            "mae": 7.338867113451026,
+            "naiveMAE": 10.301179999999999,
+            "ratio": 0.7124297520721924
+          },
+          {
+            "id": "drivers",
+            "n": 10,
+            "mae": 10.579758827864593,
+            "naiveMAE": 11.090268,
+            "ratio": 0.9539678236688773
+          },
+          {
+            "id": "catboost",
+            "n": 26,
+            "mae": 7.108001128513669,
+            "naiveMAE": 10.301179999999999,
+            "ratio": 0.6900181463204865
+          }
+        ],
+        "finalAll": [
+          {
+            "id": "naive",
+            "n": 12,
+            "mae": 5.025324166666667,
+            "naiveMAE": 5.025324166666667
+          },
+          {
+            "id": "seasonal",
+            "n": 12,
+            "mae": 6.522448333333334,
+            "naiveMAE": 5.025324166666667
+          },
+          {
+            "id": "ratio",
+            "n": 12,
+            "mae": 5.290858604661701,
+            "naiveMAE": 5.025324166666667
+          },
+          {
+            "id": "season_ridge",
+            "n": 12,
+            "mae": 5.094616083814194,
+            "naiveMAE": 5.025324166666667
+          },
+          {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 3.402345699758282,
+            "naiveMAE": 5.025324166666667
+          },
+          {
+            "id": "drivers",
+            "n": 12,
+            "mae": 4.638415102843819,
+            "naiveMAE": 5.025324166666667
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 3.5439393404761694,
+            "naiveMAE": 5.025324166666667
+          }
+        ],
+        "usesDrivers": true,
+        "calibrationN": 8,
+        "q80": 13.453414795668909,
+        "q95": null,
+        "catboostQ80": 13.453414795668909,
+        "final": {
+          "n": 12,
+          "mae": 3.5439393404761694,
+          "directionAccuracy": 0.75
+        },
+        "naiveFinal": {
+          "n": 12,
+          "mae": 5.025324166666667,
+          "directionAccuracy": 0
+        },
+        "finalCoverage80": 1,
+        "finalCoverage95": null,
+        "beatsNaive": true,
+        "split": {
+          "tuningEnds": "2024-05",
+          "calibrationStarts": "2024-10",
+          "calibrationEnds": "2025-05",
+          "finalStarts": "2025-10",
+          "finalEnds": "2026-09"
+        },
+        "finalPredictions": [
+          {
+            "origin": "2025-06",
+            "target": "2025-10",
+            "targetIndex": 57,
+            "point": 21.73146829062239,
+            "actual": 19.36223,
+            "base": 40.69503,
+            "abs": 2.369238290622391
+          },
+          {
+            "origin": "2025-07",
+            "target": "2025-11",
+            "targetIndex": 58,
+            "point": 21.699977929792304,
+            "actual": 20.73939,
+            "base": 24.54934,
+            "abs": 0.9605879297923039
+          },
+          {
+            "origin": "2025-08",
+            "target": "2025-12",
+            "targetIndex": 59,
+            "point": 19.90072737477567,
+            "actual": 22.58749,
+            "base": 17.41229,
+            "abs": 2.686762625224329
+          },
+          {
+            "origin": "2025-09",
+            "target": "2026-01",
+            "targetIndex": 60,
+            "point": 20.605368188549512,
+            "actual": 23.7437,
+            "base": 20.61935,
+            "abs": 3.138331811450488
+          },
+          {
+            "origin": "2025-10",
+            "target": "2026-02",
+            "targetIndex": 61,
+            "point": 21.66560203603679,
+            "actual": 23.99835,
+            "base": 19.36223,
+            "abs": 2.3327479639632074
+          },
+          {
+            "origin": "2025-11",
+            "target": "2026-03",
+            "targetIndex": 62,
+            "point": 22.07772937842667,
+            "actual": 23.98861,
+            "base": 20.73939,
+            "abs": 1.9108806215733303
+          },
+          {
+            "origin": "2025-12",
+            "target": "2026-04",
+            "targetIndex": 63,
+            "point": 25.392522887451758,
+            "actual": 23.40147,
+            "base": 22.58749,
+            "abs": 1.9910528874517581
+          },
+          {
+            "origin": "2026-01",
+            "target": "2026-05",
+            "targetIndex": 64,
+            "point": 28.253593958253028,
+            "actual": 21.86035,
+            "base": 23.7437,
+            "abs": 6.393243958253027
+          },
+          {
+            "origin": "2026-02",
+            "target": "2026-06",
+            "targetIndex": 65,
+            "point": 30.17265044962501,
+            "actual": 19.44375,
+            "base": 23.99835,
+            "abs": 10.728900449625009
+          },
+          {
+            "origin": "2026-03",
+            "target": "2026-07",
+            "targetIndex": 66,
+            "point": 24.29674631520068,
+            "actual": 25.6189,
+            "base": 23.98861,
+            "abs": 1.3221536847993214
+          },
+          {
+            "origin": "2026-04",
+            "target": "2026-08",
+            "targetIndex": 67,
+            "point": 22.148483366437866,
+            "actual": 17.04963,
+            "base": 23.40147,
+            "abs": 5.098853366437865
+          },
+          {
+            "origin": "2026-05",
+            "target": "2026-09",
+            "targetIndex": 68,
+            "point": 21.712678496521004,
+            "actual": 18.11816,
+            "base": 21.86035,
+            "abs": 3.5945184965210046
+          }
+        ]
+      }
+    },
+    {
+      "h": 4,
+      "lead": 5,
+      "targetMonth": "2027-02",
+      "point": 23.99835,
+      "changePct": 32.45467530919255,
+      "interval80": {
+        "lo": 11.14901,
+        "hi": 36.84769
+      },
+      "interval95": null,
+      "catboostPoint": 24.221611081646266,
+      "catboostQ80": 13.230853903639517,
+      "catboostInterval80": {
+        "lo": 10.99075717800675,
+        "hi": 37.452464985285786
+      },
+      "catboostHoldoutMae": 3.326548236459358,
+      "catboostShap": {
+        "treesUsed": 28,
+        "factorLogs": {
+          "seasonality": 0.07386997847763027,
+          "equilibrium": 0.2164605258778045,
+          "import_fx": 0,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          -0.007941496999350284,
+          0,
+          0,
+          0.026456667365536143,
+          0.005772534124596201,
+          0,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.04346656638947047
+      },
+      "validation": {
+        "selected": "seasonal",
+        "lead": 5,
+        "comparisons": [
+          {
+            "id": "seasonal",
+            "n": 23,
+            "mae": 6.927912608695654,
+            "naiveMAE": 11.592456956521739,
+            "ratio": 0.5976224569717394
+          },
+          {
+            "id": "ratio",
+            "n": 10,
+            "mae": 10.790954235738663,
+            "naiveMAE": 15.178450999999999,
+            "ratio": 0.710939096205447
+          },
+          {
+            "id": "season_ridge",
+            "n": 6,
+            "mae": 10.82861417335554,
+            "naiveMAE": 14.903084999999999,
+            "ratio": 0.726602188295614
+          },
+          {
+            "id": "eq_carry",
+            "n": 23,
+            "mae": 7.7776521339000775,
+            "naiveMAE": 11.592456956521739,
+            "ratio": 0.670923529245842
+          },
+          {
+            "id": "drivers",
+            "n": 6,
+            "mae": 12.66924507761315,
+            "naiveMAE": 14.903084999999999,
+            "ratio": 0.8501088920591374
+          },
+          {
+            "id": "catboost",
+            "n": 23,
+            "mae": 7.584916321522659,
+            "naiveMAE": 11.592456956521739,
+            "ratio": 0.6542975617654118
+          }
+        ],
+        "finalAll": [
+          {
+            "id": "naive",
+            "n": 12,
+            "mae": 6.170720833333334,
+            "naiveMAE": 6.170720833333334
+          },
+          {
+            "id": "seasonal",
+            "n": 12,
+            "mae": 6.522448333333334,
+            "naiveMAE": 6.170720833333334
+          },
+          {
+            "id": "ratio",
+            "n": 12,
+            "mae": 5.9748202626860945,
+            "naiveMAE": 6.170720833333334
+          },
+          {
+            "id": "season_ridge",
+            "n": 12,
+            "mae": 5.6707357127293845,
+            "naiveMAE": 6.170720833333334
+          },
+          {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 3.1397350626361806,
+            "naiveMAE": 6.170720833333334
+          },
+          {
+            "id": "drivers",
+            "n": 12,
+            "mae": 5.552251649433245,
+            "naiveMAE": 6.170720833333334
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 3.326548236459358,
+            "naiveMAE": 6.170720833333334
+          }
+        ],
+        "usesDrivers": true,
+        "calibrationN": 8,
+        "q80": 12.849339999999998,
+        "q95": null,
+        "catboostQ80": 13.230853903639517,
+        "final": {
+          "n": 12,
+          "mae": 6.522448333333334,
+          "directionAccuracy": 0.75
+        },
+        "naiveFinal": {
+          "n": 12,
+          "mae": 6.170720833333334,
+          "directionAccuracy": 0
+        },
+        "finalCoverage80": 0.8333333333333334,
+        "finalCoverage95": null,
+        "beatsNaive": false,
+        "split": {
+          "tuningEnds": "2024-03",
+          "calibrationStarts": "2024-09",
+          "calibrationEnds": "2025-04",
+          "finalStarts": "2025-10",
+          "finalEnds": "2026-09"
+        },
+        "finalPredictions": [
+          {
+            "origin": "2025-05",
+            "target": "2025-10",
+            "targetIndex": 57,
+            "point": 18.95735,
+            "actual": 19.36223,
+            "base": 35.62459,
+            "abs": 0.4048799999999986
+          },
+          {
+            "origin": "2025-06",
+            "target": "2025-11",
+            "targetIndex": 58,
+            "point": 21.76611,
+            "actual": 20.73939,
+            "base": 40.69503,
+            "abs": 1.026720000000001
+          },
+          {
+            "origin": "2025-07",
+            "target": "2025-12",
+            "targetIndex": 59,
+            "point": 27.43998,
+            "actual": 22.58749,
+            "base": 24.54934,
+            "abs": 4.8524899999999995
+          },
+          {
+            "origin": "2025-08",
+            "target": "2026-01",
+            "targetIndex": 60,
+            "point": 29.82872,
+            "actual": 23.7437,
+            "base": 17.41229,
+            "abs": 6.08502
+          },
+          {
+            "origin": "2025-09",
+            "target": "2026-02",
+            "targetIndex": 61,
+            "point": 33.88984,
+            "actual": 23.99835,
+            "base": 20.61935,
+            "abs": 9.891490000000001
+          },
+          {
+            "origin": "2025-10",
+            "target": "2026-03",
+            "targetIndex": 62,
+            "point": 32.69857,
+            "actual": 23.98861,
+            "base": 19.36223,
+            "abs": 8.709959999999995
+          },
+          {
+            "origin": "2025-11",
+            "target": "2026-04",
+            "targetIndex": 63,
+            "point": 31.75136,
+            "actual": 23.40147,
+            "base": 20.73939,
+            "abs": 8.349889999999998
+          },
+          {
+            "origin": "2025-12",
+            "target": "2026-05",
+            "targetIndex": 64,
+            "point": 35.62459,
+            "actual": 21.86035,
+            "base": 22.58749,
+            "abs": 13.764239999999997
+          },
+          {
+            "origin": "2026-01",
+            "target": "2026-06",
+            "targetIndex": 65,
+            "point": 40.69503,
+            "actual": 19.44375,
+            "base": 23.7437,
+            "abs": 21.25128
+          },
+          {
+            "origin": "2026-02",
+            "target": "2026-07",
+            "targetIndex": 66,
+            "point": 24.54934,
+            "actual": 25.6189,
+            "base": 23.99835,
+            "abs": 1.0695599999999992
+          },
+          {
+            "origin": "2026-03",
+            "target": "2026-08",
+            "targetIndex": 67,
+            "point": 17.41229,
+            "actual": 17.04963,
+            "base": 23.98861,
+            "abs": 0.3626599999999982
+          },
+          {
+            "origin": "2026-04",
+            "target": "2026-09",
+            "targetIndex": 68,
+            "point": 20.61935,
+            "actual": 18.11816,
+            "base": 23.40147,
+            "abs": 2.501190000000001
+          }
+        ]
+      }
+    },
+    {
+      "h": 5,
+      "lead": 6,
+      "targetMonth": "2027-03",
+      "point": 23.98861,
+      "changePct": 32.400917090918725,
+      "interval80": {
+        "lo": 11.139270000000003,
+        "hi": 36.83795
+      },
+      "interval95": null,
+      "catboostPoint": 24.049997317856114,
+      "catboostQ80": 14.293916195658237,
+      "catboostInterval80": {
+        "lo": 9.756081122197877,
+        "hi": 38.34391351351435
+      },
+      "catboostHoldoutMae": 3.0394114791733835,
+      "catboostShap": {
+        "treesUsed": 28,
+        "factorLogs": {
+          "seasonality": 0.07936005630049783,
+          "equilibrium": 0.25313569630454985,
+          "import_fx": -0.050021868606528574,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0.0007462508246887792
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          0.02837132635688739,
+          0,
+          -0.050021868606528574,
+          0,
+          0,
+          0.0007462508246887792
+        ],
+        "baseValue": 0.05632387274320559
+      },
+      "validation": {
+        "selected": "seasonal",
+        "lead": 6,
+        "comparisons": [
+          {
+            "id": "seasonal",
+            "n": 20,
+            "mae": 6.9725875,
+            "naiveMAE": 11.506137500000001,
+            "ratio": 0.6059885430710349
+          },
+          {
+            "id": "ratio",
+            "n": 7,
+            "mae": 10.71631320878302,
+            "naiveMAE": 13.699250000000001,
+            "ratio": 0.7822554671812705
+          },
+          {
+            "id": "season_ridge",
+            "n": 2,
+            "mae": 15.956866819523412,
+            "naiveMAE": 19.315875,
+            "ratio": null
+          },
+          {
+            "id": "eq_carry",
+            "n": 20,
+            "mae": 8.173635451869908,
+            "naiveMAE": 11.506137500000001,
+            "ratio": 0.7103717865243577
+          },
+          {
+            "id": "drivers",
+            "n": 2,
+            "mae": 21.013528713202167,
+            "naiveMAE": 19.315875,
+            "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 20,
+            "mae": 8.298965261327421,
+            "naiveMAE": 11.506137500000001,
+            "ratio": 0.7212642175819141
+          }
+        ],
+        "finalAll": [
+          {
+            "id": "naive",
+            "n": 12,
+            "mae": 6.595095,
+            "naiveMAE": 6.595095
+          },
+          {
+            "id": "seasonal",
+            "n": 12,
+            "mae": 6.522448333333334,
+            "naiveMAE": 6.595095
+          },
+          {
+            "id": "ratio",
+            "n": 12,
+            "mae": 5.373787944570895,
+            "naiveMAE": 6.595095
+          },
+          {
+            "id": "season_ridge",
+            "n": 12,
+            "mae": 5.721211522111204,
+            "naiveMAE": 6.595095
+          },
+          {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.8112894752980786,
+            "naiveMAE": 6.595095
+          },
+          {
+            "id": "drivers",
+            "n": 12,
+            "mae": 6.054692983208876,
+            "naiveMAE": 6.595095
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 3.0394114791733835,
+            "naiveMAE": 6.595095
+          }
+        ],
+        "usesDrivers": true,
+        "calibrationN": 8,
+        "q80": 12.849339999999998,
+        "q95": null,
+        "catboostQ80": 14.293916195658237,
+        "final": {
+          "n": 12,
+          "mae": 6.522448333333334,
+          "directionAccuracy": 0.8333333333333334
+        },
+        "naiveFinal": {
+          "n": 12,
+          "mae": 6.595095,
+          "directionAccuracy": 0
+        },
+        "finalCoverage80": 0.8333333333333334,
+        "finalCoverage95": null,
+        "beatsNaive": true,
+        "split": {
+          "tuningEnds": "2024-01",
+          "calibrationStarts": "2024-08",
+          "calibrationEnds": "2025-03",
+          "finalStarts": "2025-10",
+          "finalEnds": "2026-09"
+        },
+        "finalPredictions": [
+          {
+            "origin": "2025-04",
+            "target": "2025-10",
+            "targetIndex": 57,
+            "point": 18.95735,
+            "actual": 19.36223,
+            "base": 31.75136,
+            "abs": 0.4048799999999986
+          },
+          {
+            "origin": "2025-05",
+            "target": "2025-11",
+            "targetIndex": 58,
+            "point": 21.76611,
+            "actual": 20.73939,
+            "base": 35.62459,
+            "abs": 1.026720000000001
+          },
+          {
+            "origin": "2025-06",
+            "target": "2025-12",
+            "targetIndex": 59,
+            "point": 27.43998,
+            "actual": 22.58749,
+            "base": 40.69503,
+            "abs": 4.8524899999999995
+          },
+          {
+            "origin": "2025-07",
+            "target": "2026-01",
+            "targetIndex": 60,
+            "point": 29.82872,
+            "actual": 23.7437,
+            "base": 24.54934,
+            "abs": 6.08502
+          },
+          {
+            "origin": "2025-08",
+            "target": "2026-02",
+            "targetIndex": 61,
+            "point": 33.88984,
+            "actual": 23.99835,
+            "base": 17.41229,
+            "abs": 9.891490000000001
+          },
+          {
+            "origin": "2025-09",
+            "target": "2026-03",
+            "targetIndex": 62,
+            "point": 32.69857,
+            "actual": 23.98861,
+            "base": 20.61935,
+            "abs": 8.709959999999995
+          },
+          {
+            "origin": "2025-10",
+            "target": "2026-04",
+            "targetIndex": 63,
+            "point": 31.75136,
+            "actual": 23.40147,
+            "base": 19.36223,
+            "abs": 8.349889999999998
+          },
+          {
+            "origin": "2025-11",
+            "target": "2026-05",
+            "targetIndex": 64,
+            "point": 35.62459,
+            "actual": 21.86035,
+            "base": 20.73939,
+            "abs": 13.764239999999997
+          },
+          {
+            "origin": "2025-12",
+            "target": "2026-06",
+            "targetIndex": 65,
+            "point": 40.69503,
+            "actual": 19.44375,
+            "base": 22.58749,
+            "abs": 21.25128
+          },
+          {
+            "origin": "2026-01",
+            "target": "2026-07",
+            "targetIndex": 66,
+            "point": 24.54934,
+            "actual": 25.6189,
+            "base": 23.7437,
+            "abs": 1.0695599999999992
+          },
+          {
+            "origin": "2026-02",
+            "target": "2026-08",
+            "targetIndex": 67,
+            "point": 17.41229,
+            "actual": 17.04963,
+            "base": 23.99835,
+            "abs": 0.3626599999999982
+          },
+          {
+            "origin": "2026-03",
+            "target": "2026-09",
+            "targetIndex": 68,
+            "point": 20.61935,
+            "actual": 18.11816,
+            "base": 23.98861,
+            "abs": 2.501190000000001
+          }
+        ]
+      }
+    },
+    {
+      "h": 6,
+      "lead": 7,
+      "targetMonth": "2027-04",
+      "point": 23.40147,
+      "changePct": 29.16030104602234,
+      "interval80": {
+        "lo": 10.552130000000002,
+        "hi": 36.25081
+      },
+      "interval95": null,
+      "catboostPoint": 25.38395300278065,
+      "catboostQ80": 12.217254811930562,
+      "catboostInterval80": {
+        "lo": 13.166698190850088,
+        "hi": 37.601207814711216
+      },
+      "catboostHoldoutMae": 2.8432432344832734,
+      "catboostShap": {
+        "treesUsed": 30,
+        "factorLogs": {
+          "seasonality": 0.1411945642539683,
+          "equilibrium": 0.27258403470282017,
+          "import_fx": -0.07657614633300394,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          0.028151621639778482,
+          0,
+          -0.07657614633300394,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.06537725460934768
+      },
+      "validation": {
+        "selected": "seasonal",
+        "lead": 7,
+        "comparisons": [
+          {
+            "id": "seasonal",
+            "n": 17,
+            "mae": 7.032529411764706,
+            "naiveMAE": 9.799882352941177,
+            "ratio": 0.7176136568266126
+          },
+          {
+            "id": "ratio",
+            "n": 4,
+            "mae": 10.67871513914967,
+            "naiveMAE": 12.1835,
+            "ratio": null
+          },
+          {
+            "id": "season_ridge",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "eq_carry",
+            "n": 17,
+            "mae": 8.43871074152047,
+            "naiveMAE": 9.799882352941177,
+            "ratio": 0.8611032701824031
+          },
+          {
+            "id": "drivers",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 17,
+            "mae": 8.476815285592942,
+            "naiveMAE": 9.799882352941177,
+            "ratio": 0.864991535643165
+          }
+        ],
+        "finalAll": [
+          {
+            "id": "naive",
+            "n": 12,
+            "mae": 6.970466666666666,
+            "naiveMAE": 6.970466666666666
+          },
+          {
+            "id": "seasonal",
+            "n": 12,
+            "mae": 6.522448333333334,
+            "naiveMAE": 6.970466666666666
+          },
+          {
+            "id": "ratio",
+            "n": 12,
+            "mae": 5.841011531233282,
+            "naiveMAE": 6.970466666666666
+          },
+          {
+            "id": "season_ridge",
+            "n": 12,
+            "mae": 6.48478541999431,
+            "naiveMAE": 6.970466666666666
+          },
+          {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.6845646715213554,
+            "naiveMAE": 6.970466666666666
+          },
+          {
+            "id": "drivers",
+            "n": 12,
+            "mae": 6.920589805394909,
+            "naiveMAE": 6.970466666666666
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.8432432344832734,
+            "naiveMAE": 6.970466666666666
+          }
+        ],
+        "usesDrivers": true,
+        "calibrationN": 8,
+        "q80": 12.849339999999998,
+        "q95": null,
+        "catboostQ80": 12.217254811930562,
+        "final": {
+          "n": 12,
+          "mae": 6.522448333333334,
+          "directionAccuracy": 0.8333333333333334
+        },
+        "naiveFinal": {
+          "n": 12,
+          "mae": 6.970466666666666,
+          "directionAccuracy": 0
+        },
+        "finalCoverage80": 0.8333333333333334,
+        "finalCoverage95": null,
+        "beatsNaive": true,
+        "split": {
+          "tuningEnds": "2023-11",
+          "calibrationStarts": "2024-07",
+          "calibrationEnds": "2025-02",
+          "finalStarts": "2025-10",
+          "finalEnds": "2026-09"
+        },
+        "finalPredictions": [
+          {
+            "origin": "2025-03",
+            "target": "2025-10",
+            "targetIndex": 57,
+            "point": 18.95735,
+            "actual": 19.36223,
+            "base": 32.69857,
+            "abs": 0.4048799999999986
+          },
+          {
+            "origin": "2025-04",
+            "target": "2025-11",
+            "targetIndex": 58,
+            "point": 21.76611,
+            "actual": 20.73939,
+            "base": 31.75136,
+            "abs": 1.026720000000001
+          },
+          {
+            "origin": "2025-05",
+            "target": "2025-12",
+            "targetIndex": 59,
+            "point": 27.43998,
+            "actual": 22.58749,
+            "base": 35.62459,
+            "abs": 4.8524899999999995
+          },
+          {
+            "origin": "2025-06",
+            "target": "2026-01",
+            "targetIndex": 60,
+            "point": 29.82872,
+            "actual": 23.7437,
+            "base": 40.69503,
+            "abs": 6.08502
+          },
+          {
+            "origin": "2025-07",
+            "target": "2026-02",
+            "targetIndex": 61,
+            "point": 33.88984,
+            "actual": 23.99835,
+            "base": 24.54934,
+            "abs": 9.891490000000001
+          },
+          {
+            "origin": "2025-08",
+            "target": "2026-03",
+            "targetIndex": 62,
+            "point": 32.69857,
+            "actual": 23.98861,
+            "base": 17.41229,
+            "abs": 8.709959999999995
+          },
+          {
+            "origin": "2025-09",
+            "target": "2026-04",
+            "targetIndex": 63,
+            "point": 31.75136,
+            "actual": 23.40147,
+            "base": 20.61935,
+            "abs": 8.349889999999998
+          },
+          {
+            "origin": "2025-10",
+            "target": "2026-05",
+            "targetIndex": 64,
+            "point": 35.62459,
+            "actual": 21.86035,
+            "base": 19.36223,
+            "abs": 13.764239999999997
+          },
+          {
+            "origin": "2025-11",
+            "target": "2026-06",
+            "targetIndex": 65,
+            "point": 40.69503,
+            "actual": 19.44375,
+            "base": 20.73939,
+            "abs": 21.25128
+          },
+          {
+            "origin": "2025-12",
+            "target": "2026-07",
+            "targetIndex": 66,
+            "point": 24.54934,
+            "actual": 25.6189,
+            "base": 22.58749,
+            "abs": 1.0695599999999992
+          },
+          {
+            "origin": "2026-01",
+            "target": "2026-08",
+            "targetIndex": 67,
+            "point": 17.41229,
+            "actual": 17.04963,
+            "base": 23.7437,
+            "abs": 0.3626599999999982
+          },
+          {
+            "origin": "2026-02",
+            "target": "2026-09",
+            "targetIndex": 68,
+            "point": 20.61935,
+            "actual": 18.11816,
+            "base": 23.99835,
+            "abs": 2.501190000000001
+          }
+        ]
+      }
+    },
+    {
+      "h": 7,
+      "lead": 8,
+      "targetMonth": "2027-05",
+      "point": 21.86035,
+      "changePct": 20.654360045390916,
+      "interval80": {
+        "lo": 0,
+        "hi": 57.09563
+      },
+      "interval95": null,
+      "catboostPoint": 26.1572555444638,
+      "catboostQ80": 9.865130077126473,
+      "catboostInterval80": {
+        "lo": 16.29212546733733,
+        "hi": 36.022385621590274
+      },
+      "catboostHoldoutMae": 2.915965821020419,
+      "catboostShap": {
+        "treesUsed": 27,
+        "factorLogs": {
+          "seasonality": 0.16478347067667573,
+          "equilibrium": 0.27547515466313266,
+          "import_fx": -0.07304676483901533,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          0.02631532720062642,
+          0,
+          -0.07304676483901533,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.06174033645773872
+      },
+      "validation": {
+        "selected": "seasonal",
+        "lead": 8,
+        "comparisons": [
+          {
+            "id": "seasonal",
+            "n": 14,
+            "mae": 6.894428571428572,
+            "naiveMAE": 9.445285714285715,
+            "ratio": 0.7299333000589863
+          },
+          {
+            "id": "ratio",
+            "n": 1,
+            "mae": 10.52991524282327,
+            "naiveMAE": 5.1240000000000006,
+            "ratio": null
+          },
+          {
+            "id": "season_ridge",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "eq_carry",
+            "n": 14,
+            "mae": 9.059262208236968,
+            "naiveMAE": 9.445285714285715,
+            "ratio": 0.959130563359783
+          },
+          {
+            "id": "drivers",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 14,
+            "mae": 9.123487074203206,
+            "naiveMAE": 9.445285714285715,
+            "ratio": 0.9659302376003515
+          }
+        ],
+        "finalAll": [
+          {
+            "id": "naive",
+            "n": 12,
+            "mae": 7.3452975,
+            "naiveMAE": 7.3452975
+          },
+          {
+            "id": "seasonal",
+            "n": 12,
+            "mae": 6.522448333333334,
+            "naiveMAE": 7.3452975
+          },
+          {
+            "id": "ratio",
+            "n": 12,
+            "mae": 6.811131097500451,
+            "naiveMAE": 7.3452975
+          },
+          {
+            "id": "season_ridge",
+            "n": 12,
+            "mae": 7.628631261088196,
+            "naiveMAE": 7.3452975
+          },
+          {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.671341058472825,
+            "naiveMAE": 7.3452975
+          },
+          {
+            "id": "drivers",
+            "n": 12,
+            "mae": 8.908401957369792,
+            "naiveMAE": 7.3452975
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.915965821020419,
+            "naiveMAE": 7.3452975
+          }
+        ],
+        "usesDrivers": true,
+        "calibrationN": 8,
+        "q80": 35.23528,
+        "q95": null,
+        "catboostQ80": 9.865130077126473,
+        "final": {
+          "n": 12,
+          "mae": 6.522448333333334,
+          "directionAccuracy": 0.9166666666666666
+        },
+        "naiveFinal": {
+          "n": 12,
+          "mae": 7.3452975,
+          "directionAccuracy": 0
+        },
+        "finalCoverage80": 1,
+        "finalCoverage95": null,
+        "beatsNaive": true,
+        "split": {
+          "tuningEnds": "2023-09",
+          "calibrationStarts": "2024-06",
+          "calibrationEnds": "2025-01",
+          "finalStarts": "2025-10",
+          "finalEnds": "2026-09"
+        },
+        "finalPredictions": [
+          {
+            "origin": "2025-02",
+            "target": "2025-10",
+            "targetIndex": 57,
+            "point": 18.95735,
+            "actual": 19.36223,
+            "base": 33.88984,
+            "abs": 0.4048799999999986
+          },
+          {
+            "origin": "2025-03",
+            "target": "2025-11",
+            "targetIndex": 58,
+            "point": 21.76611,
+            "actual": 20.73939,
+            "base": 32.69857,
+            "abs": 1.026720000000001
+          },
+          {
+            "origin": "2025-04",
+            "target": "2025-12",
+            "targetIndex": 59,
+            "point": 27.43998,
+            "actual": 22.58749,
+            "base": 31.75136,
+            "abs": 4.8524899999999995
+          },
+          {
+            "origin": "2025-05",
+            "target": "2026-01",
+            "targetIndex": 60,
+            "point": 29.82872,
+            "actual": 23.7437,
+            "base": 35.62459,
+            "abs": 6.08502
+          },
+          {
+            "origin": "2025-06",
+            "target": "2026-02",
+            "targetIndex": 61,
+            "point": 33.88984,
+            "actual": 23.99835,
+            "base": 40.69503,
+            "abs": 9.891490000000001
+          },
+          {
+            "origin": "2025-07",
+            "target": "2026-03",
+            "targetIndex": 62,
+            "point": 32.69857,
+            "actual": 23.98861,
+            "base": 24.54934,
+            "abs": 8.709959999999995
+          },
+          {
+            "origin": "2025-08",
+            "target": "2026-04",
+            "targetIndex": 63,
+            "point": 31.75136,
+            "actual": 23.40147,
+            "base": 17.41229,
+            "abs": 8.349889999999998
+          },
+          {
+            "origin": "2025-09",
+            "target": "2026-05",
+            "targetIndex": 64,
+            "point": 35.62459,
+            "actual": 21.86035,
+            "base": 20.61935,
+            "abs": 13.764239999999997
+          },
+          {
+            "origin": "2025-10",
+            "target": "2026-06",
+            "targetIndex": 65,
+            "point": 40.69503,
+            "actual": 19.44375,
+            "base": 19.36223,
+            "abs": 21.25128
+          },
+          {
+            "origin": "2025-11",
+            "target": "2026-07",
+            "targetIndex": 66,
+            "point": 24.54934,
+            "actual": 25.6189,
+            "base": 20.73939,
+            "abs": 1.0695599999999992
+          },
+          {
+            "origin": "2025-12",
+            "target": "2026-08",
+            "targetIndex": 67,
+            "point": 17.41229,
+            "actual": 17.04963,
+            "base": 22.58749,
+            "abs": 0.3626599999999982
+          },
+          {
+            "origin": "2026-01",
+            "target": "2026-09",
+            "targetIndex": 68,
+            "point": 20.61935,
+            "actual": 18.11816,
+            "base": 23.7437,
+            "abs": 2.501190000000001
+          }
+        ]
+      }
+    },
+    {
+      "h": 8,
+      "lead": 9,
+      "targetMonth": "2027-06",
+      "point": 19.44375,
+      "changePct": 7.316361043284769,
+      "interval80": {
+        "lo": 0,
+        "hi": 54.679030000000004
+      },
+      "interval95": null,
+      "catboostPoint": 26.846918041145166,
+      "catboostQ80": 9.988170032950418,
+      "catboostInterval80": {
+        "lo": 16.85874800819475,
+        "hi": 36.83508807409558
+      },
+      "catboostHoldoutMae": 2.574715194365012,
+      "catboostShap": {
+        "treesUsed": 26,
+        "factorLogs": {
+          "seasonality": 0.1792692689471507,
+          "equilibrium": 0.2790593907152931,
+          "import_fx": -0.0650923798155871,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          0.028134740745179004,
+          0,
+          -0.0650923798155871,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.06137347175907842
+      },
+      "validation": {
+        "selected": "seasonal",
+        "lead": 9,
+        "comparisons": [
+          {
+            "id": "seasonal",
+            "n": 11,
+            "mae": 7.259454545454546,
+            "naiveMAE": 8.057181818181819,
+            "ratio": 0.9009917747012829
+          },
+          {
+            "id": "ratio",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "season_ridge",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "eq_carry",
+            "n": 11,
+            "mae": 9.816484444345845,
+            "naiveMAE": 8.057181818181819,
+            "ratio": 1.2183521069605239
+          },
+          {
+            "id": "drivers",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 11,
+            "mae": 9.816484444345845,
+            "naiveMAE": 8.057181818181819,
+            "ratio": 1.2183521069605239
+          }
+        ],
+        "finalAll": [
+          {
+            "id": "naive",
+            "n": 12,
+            "mae": 7.604635833333334,
+            "naiveMAE": 7.604635833333334
+          },
+          {
+            "id": "seasonal",
+            "n": 12,
+            "mae": 6.522448333333334,
+            "naiveMAE": 7.604635833333334
+          },
+          {
+            "id": "ratio",
+            "n": 12,
+            "mae": 7.4709246619028145,
+            "naiveMAE": 7.604635833333334
+          },
+          {
+            "id": "season_ridge",
+            "n": 12,
+            "mae": 8.69186042720177,
+            "naiveMAE": 7.604635833333334
+          },
+          {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.6291678623892123,
+            "naiveMAE": 7.604635833333334
+          },
+          {
+            "id": "drivers",
+            "n": 12,
+            "mae": 11.805387220048134,
+            "naiveMAE": 7.604635833333334
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.574715194365012,
+            "naiveMAE": 7.604635833333334
+          }
+        ],
+        "usesDrivers": true,
+        "calibrationN": 8,
+        "q80": 35.23528,
+        "q95": null,
+        "catboostQ80": 9.988170032950418,
+        "final": {
+          "n": 12,
+          "mae": 6.522448333333334,
+          "directionAccuracy": 0.8333333333333334
+        },
+        "naiveFinal": {
+          "n": 12,
+          "mae": 7.604635833333334,
+          "directionAccuracy": 0
+        },
+        "finalCoverage80": 1,
+        "finalCoverage95": null,
+        "beatsNaive": true,
+        "split": {
+          "tuningEnds": "2023-07",
+          "calibrationStarts": "2024-05",
+          "calibrationEnds": "2024-12",
+          "finalStarts": "2025-10",
+          "finalEnds": "2026-09"
+        },
+        "finalPredictions": [
+          {
+            "origin": "2025-01",
+            "target": "2025-10",
+            "targetIndex": 57,
+            "point": 18.95735,
+            "actual": 19.36223,
+            "base": 29.82872,
+            "abs": 0.4048799999999986
+          },
+          {
+            "origin": "2025-02",
+            "target": "2025-11",
+            "targetIndex": 58,
+            "point": 21.76611,
+            "actual": 20.73939,
+            "base": 33.88984,
+            "abs": 1.026720000000001
+          },
+          {
+            "origin": "2025-03",
+            "target": "2025-12",
+            "targetIndex": 59,
+            "point": 27.43998,
+            "actual": 22.58749,
+            "base": 32.69857,
+            "abs": 4.8524899999999995
+          },
+          {
+            "origin": "2025-04",
+            "target": "2026-01",
+            "targetIndex": 60,
+            "point": 29.82872,
+            "actual": 23.7437,
+            "base": 31.75136,
+            "abs": 6.08502
+          },
+          {
+            "origin": "2025-05",
+            "target": "2026-02",
+            "targetIndex": 61,
+            "point": 33.88984,
+            "actual": 23.99835,
+            "base": 35.62459,
+            "abs": 9.891490000000001
+          },
+          {
+            "origin": "2025-06",
+            "target": "2026-03",
+            "targetIndex": 62,
+            "point": 32.69857,
+            "actual": 23.98861,
+            "base": 40.69503,
+            "abs": 8.709959999999995
+          },
+          {
+            "origin": "2025-07",
+            "target": "2026-04",
+            "targetIndex": 63,
+            "point": 31.75136,
+            "actual": 23.40147,
+            "base": 24.54934,
+            "abs": 8.349889999999998
+          },
+          {
+            "origin": "2025-08",
+            "target": "2026-05",
+            "targetIndex": 64,
+            "point": 35.62459,
+            "actual": 21.86035,
+            "base": 17.41229,
+            "abs": 13.764239999999997
+          },
+          {
+            "origin": "2025-09",
+            "target": "2026-06",
+            "targetIndex": 65,
+            "point": 40.69503,
+            "actual": 19.44375,
+            "base": 20.61935,
+            "abs": 21.25128
+          },
+          {
+            "origin": "2025-10",
+            "target": "2026-07",
+            "targetIndex": 66,
+            "point": 24.54934,
+            "actual": 25.6189,
+            "base": 19.36223,
+            "abs": 1.0695599999999992
+          },
+          {
+            "origin": "2025-11",
+            "target": "2026-08",
+            "targetIndex": 67,
+            "point": 17.41229,
+            "actual": 17.04963,
+            "base": 20.73939,
+            "abs": 0.3626599999999982
+          },
+          {
+            "origin": "2025-12",
+            "target": "2026-09",
+            "targetIndex": 68,
+            "point": 20.61935,
+            "actual": 18.11816,
+            "base": 22.58749,
+            "abs": 2.501190000000001
+          }
+        ]
+      }
+    },
+    {
+      "h": 9,
+      "lead": 10,
+      "targetMonth": "2027-07",
+      "point": 18.11816,
+      "changePct": 0,
+      "interval80": {
+        "lo": 0,
+        "hi": 50.21081000000001
+      },
+      "interval95": null,
+      "catboostPoint": 24.319101967930024,
+      "catboostQ80": 10.007013954768631,
+      "catboostInterval80": {
+        "lo": 14.312088013161393,
+        "hi": 34.326115922698655
+      },
+      "catboostHoldoutMae": 2.5081601240087976,
+      "catboostShap": {
+        "treesUsed": 21,
+        "factorLogs": {
+          "seasonality": 0.07089934144958215,
+          "equilibrium": 0.2771165933614603,
+          "import_fx": -0.05366855426051922,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          0.025757610110153786,
+          0,
+          -0.05366855426051922,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.05711727810159861
+      },
+      "validation": {
+        "selected": "naive",
+        "lead": 10,
+        "comparisons": [
+          {
+            "id": "seasonal",
+            "n": 8,
+            "mae": 6.516,
+            "naiveMAE": 3.9296250000000006,
+            "ratio": 1.6581734898368163
+          },
+          {
+            "id": "ratio",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "season_ridge",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "eq_carry",
+            "n": 8,
+            "mae": 8.366507873992777,
+            "naiveMAE": 3.9296250000000006,
+            "ratio": 2.129085567705004
+          },
+          {
+            "id": "drivers",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 8,
+            "mae": 8.366507873992777,
+            "naiveMAE": 3.9296250000000006,
+            "ratio": 2.129085567705004
+          }
+        ],
+        "finalAll": [
+          {
+            "id": "naive",
+            "n": 12,
+            "mae": 7.396723333333334,
+            "naiveMAE": 7.396723333333334
+          },
+          {
+            "id": "seasonal",
+            "n": 12,
+            "mae": 6.522448333333334,
+            "naiveMAE": 7.396723333333334
+          },
+          {
+            "id": "ratio",
+            "n": 12,
+            "mae": 8.291999654893065,
+            "naiveMAE": 7.396723333333334
+          },
+          {
+            "id": "season_ridge",
+            "n": 12,
+            "mae": 9.727309662784053,
+            "naiveMAE": 7.396723333333334
+          },
+          {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.5267422981069103,
+            "naiveMAE": 7.396723333333334
+          },
+          {
+            "id": "drivers",
+            "n": 12,
+            "mae": 13.872859254115964,
+            "naiveMAE": 7.396723333333334
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.5081601240087976,
+            "naiveMAE": 7.396723333333334
+          }
+        ],
+        "usesDrivers": true,
+        "calibrationN": 8,
+        "q80": 32.092650000000006,
+        "q95": null,
+        "catboostQ80": 10.007013954768631,
+        "final": {
+          "n": 12,
+          "mae": 7.396723333333334,
+          "directionAccuracy": 0
+        },
+        "naiveFinal": {
+          "n": 12,
+          "mae": 7.396723333333334,
+          "directionAccuracy": 0
+        },
+        "finalCoverage80": 1,
+        "finalCoverage95": null,
+        "beatsNaive": false,
+        "split": {
+          "tuningEnds": "2023-05",
+          "calibrationStarts": "2024-04",
+          "calibrationEnds": "2024-11",
+          "finalStarts": "2025-10",
+          "finalEnds": "2026-09"
+        },
+        "finalPredictions": [
+          {
+            "origin": "2024-12",
+            "target": "2025-10",
+            "targetIndex": 57,
+            "point": 27.43998,
+            "actual": 19.36223,
+            "base": 27.43998,
+            "abs": 8.077749999999998
+          },
+          {
+            "origin": "2025-01",
+            "target": "2025-11",
+            "targetIndex": 58,
+            "point": 29.82872,
+            "actual": 20.73939,
+            "base": 29.82872,
+            "abs": 9.08933
+          },
+          {
+            "origin": "2025-02",
+            "target": "2025-12",
+            "targetIndex": 59,
+            "point": 33.88984,
+            "actual": 22.58749,
+            "base": 33.88984,
+            "abs": 11.30235
+          },
+          {
+            "origin": "2025-03",
+            "target": "2026-01",
+            "targetIndex": 60,
+            "point": 32.69857,
+            "actual": 23.7437,
+            "base": 32.69857,
+            "abs": 8.954869999999996
+          },
+          {
+            "origin": "2025-04",
+            "target": "2026-02",
+            "targetIndex": 61,
+            "point": 31.75136,
+            "actual": 23.99835,
+            "base": 31.75136,
+            "abs": 7.75301
+          },
+          {
+            "origin": "2025-05",
+            "target": "2026-03",
+            "targetIndex": 62,
+            "point": 35.62459,
+            "actual": 23.98861,
+            "base": 35.62459,
+            "abs": 11.635979999999996
+          },
+          {
+            "origin": "2025-06",
+            "target": "2026-04",
+            "targetIndex": 63,
+            "point": 40.69503,
+            "actual": 23.40147,
+            "base": 40.69503,
+            "abs": 17.293560000000003
+          },
+          {
+            "origin": "2025-07",
+            "target": "2026-05",
+            "targetIndex": 64,
+            "point": 24.54934,
+            "actual": 21.86035,
+            "base": 24.54934,
+            "abs": 2.6889900000000004
+          },
+          {
+            "origin": "2025-08",
+            "target": "2026-06",
+            "targetIndex": 65,
+            "point": 17.41229,
+            "actual": 19.44375,
+            "base": 17.41229,
+            "abs": 2.0314600000000027
+          },
+          {
+            "origin": "2025-09",
+            "target": "2026-07",
+            "targetIndex": 66,
+            "point": 20.61935,
+            "actual": 25.6189,
+            "base": 20.61935,
+            "abs": 4.999549999999999
+          },
+          {
+            "origin": "2025-10",
+            "target": "2026-08",
+            "targetIndex": 67,
+            "point": 19.36223,
+            "actual": 17.04963,
+            "base": 19.36223,
+            "abs": 2.3125999999999998
+          },
+          {
+            "origin": "2025-11",
+            "target": "2026-09",
+            "targetIndex": 68,
+            "point": 20.73939,
+            "actual": 18.11816,
+            "base": 20.73939,
+            "abs": 2.6212300000000006
+          }
+        ]
+      }
+    },
+    {
+      "h": 10,
+      "lead": 11,
+      "targetMonth": "2027-08",
+      "point": 18.11816,
+      "changePct": 0,
+      "interval80": {
+        "lo": 0,
+        "hi": 55.301230000000004
+      },
+      "interval95": null,
+      "catboostPoint": 20.95482221546863,
+      "catboostQ80": 7.626700879892699,
+      "catboostInterval80": {
+        "lo": 13.328121335575933,
+        "hi": 28.58152309536133
+      },
+      "catboostHoldoutMae": 2.535300646329208,
+      "catboostShap": {
+        "treesUsed": 21,
+        "factorLogs": {
+          "seasonality": -0.10098414151439311,
+          "equilibrium": 0.27996237165996,
+          "import_fx": -0.0335241831197261,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          -0.04204342442535122,
+          0,
+          -0.0335241831197261,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.058648848946245925
+      },
+      "validation": {
+        "selected": "naive",
+        "lead": 11,
+        "comparisons": [
+          {
+            "id": "seasonal",
+            "n": 81,
+            "mae": 6.715308641975308,
+            "naiveMAE": 6.105160493827159,
+            "ratio": 1.0999397393017039
+          },
+          {
+            "id": "ratio",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "season_ridge",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "eq_carry",
+            "n": 81,
+            "mae": 6.291912211279273,
+            "naiveMAE": 6.105160493827159,
+            "ratio": 1.0305891577528445
+          },
+          {
+            "id": "drivers",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 81,
+            "mae": 6.216906463757435,
+            "naiveMAE": 6.105160493827159,
+            "ratio": 1.0183035269987186
+          }
+        ],
+        "finalAll": [
+          {
+            "id": "naive",
+            "n": 12,
+            "mae": 7.678216666666667,
+            "naiveMAE": 7.678216666666667
+          },
+          {
+            "id": "seasonal",
+            "n": 12,
+            "mae": 6.522448333333334,
+            "naiveMAE": 7.678216666666667
+          },
+          {
+            "id": "ratio",
+            "n": 12,
+            "mae": 10.51576979235442,
+            "naiveMAE": 7.678216666666667
+          },
+          {
+            "id": "season_ridge",
+            "n": 12,
+            "mae": 10.807557001745517,
+            "naiveMAE": 7.678216666666667
+          },
+          {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.5565925414313697,
+            "naiveMAE": 7.678216666666667
+          },
+          {
+            "id": "drivers",
+            "n": 12,
+            "mae": 16.718024126873733,
+            "naiveMAE": 7.678216666666667
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.535300646329208,
+            "naiveMAE": 7.678216666666667
+          }
+        ],
+        "usesDrivers": true,
+        "calibrationN": 8,
+        "q80": 37.18307,
+        "q95": null,
+        "catboostQ80": 7.626700879892699,
+        "final": {
+          "n": 12,
+          "mae": 7.678216666666667,
+          "directionAccuracy": 0
+        },
+        "naiveFinal": {
+          "n": 12,
+          "mae": 7.678216666666667,
+          "directionAccuracy": 0
+        },
+        "finalCoverage80": 1,
+        "finalCoverage95": null,
+        "beatsNaive": false,
+        "split": {
+          "tuningEnds": "2023-03",
+          "calibrationStarts": "2024-03",
+          "calibrationEnds": "2024-10",
+          "finalStarts": "2025-10",
+          "finalEnds": "2026-09"
+        },
+        "finalPredictions": [
+          {
+            "origin": "2024-11",
+            "target": "2025-10",
+            "targetIndex": 57,
+            "point": 21.76611,
+            "actual": 19.36223,
+            "base": 21.76611,
+            "abs": 2.403880000000001
+          },
+          {
+            "origin": "2024-12",
+            "target": "2025-11",
+            "targetIndex": 58,
+            "point": 27.43998,
+            "actual": 20.73939,
+            "base": 27.43998,
+            "abs": 6.700589999999998
+          },
+          {
+            "origin": "2025-01",
+            "target": "2025-12",
+            "targetIndex": 59,
+            "point": 29.82872,
+            "actual": 22.58749,
+            "base": 29.82872,
+            "abs": 7.241230000000002
+          },
+          {
+            "origin": "2025-02",
+            "target": "2026-01",
+            "targetIndex": 60,
+            "point": 33.88984,
+            "actual": 23.7437,
+            "base": 33.88984,
+            "abs": 10.146139999999999
+          },
+          {
+            "origin": "2025-03",
+            "target": "2026-02",
+            "targetIndex": 61,
+            "point": 32.69857,
+            "actual": 23.99835,
+            "base": 32.69857,
+            "abs": 8.700219999999998
+          },
+          {
+            "origin": "2025-04",
+            "target": "2026-03",
+            "targetIndex": 62,
+            "point": 31.75136,
+            "actual": 23.98861,
+            "base": 31.75136,
+            "abs": 7.762749999999997
+          },
+          {
+            "origin": "2025-05",
+            "target": "2026-04",
+            "targetIndex": 63,
+            "point": 35.62459,
+            "actual": 23.40147,
+            "base": 35.62459,
+            "abs": 12.223119999999998
+          },
+          {
+            "origin": "2025-06",
+            "target": "2026-05",
+            "targetIndex": 64,
+            "point": 40.69503,
+            "actual": 21.86035,
+            "base": 40.69503,
+            "abs": 18.834680000000002
+          },
+          {
+            "origin": "2025-07",
+            "target": "2026-06",
+            "targetIndex": 65,
+            "point": 24.54934,
+            "actual": 19.44375,
+            "base": 24.54934,
+            "abs": 5.105589999999999
+          },
+          {
+            "origin": "2025-08",
+            "target": "2026-07",
+            "targetIndex": 66,
+            "point": 17.41229,
+            "actual": 25.6189,
+            "base": 17.41229,
+            "abs": 8.206610000000001
+          },
+          {
+            "origin": "2025-09",
+            "target": "2026-08",
+            "targetIndex": 67,
+            "point": 20.61935,
+            "actual": 17.04963,
+            "base": 20.61935,
+            "abs": 3.5697200000000002
+          },
+          {
+            "origin": "2025-10",
+            "target": "2026-09",
+            "targetIndex": 68,
+            "point": 19.36223,
+            "actual": 18.11816,
+            "base": 19.36223,
+            "abs": 1.2440700000000007
+          }
+        ]
+      }
+    },
+    {
+      "h": 11,
+      "lead": 12,
+      "targetMonth": "2027-09",
+      "point": 22.285151228302915,
+      "changePct": 22.998975769630658,
+      "interval80": {
+        "lo": 14.983154675954687,
+        "hi": 29.587147780651144
+      },
+      "interval95": null,
+      "catboostPoint": 22.285151228302915,
+      "catboostQ80": 7.301996552348228,
+      "catboostInterval80": {
+        "lo": 14.983154675954687,
+        "hi": 29.587147780651144
+      },
+      "catboostHoldoutMae": 2.8027078247152324,
+      "catboostShap": {
+        "treesUsed": 20,
+        "factorLogs": {
+          "seasonality": -0.040579685973572636,
+          "equilibrium": 0.27904268549085565,
+          "import_fx": -0.03145715724380044,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          -0.040579685973572636,
+          0,
+          -0.03145715724380044,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.05700306106108208
+      },
+      "validation": {
+        "selected": "catboost",
+        "lead": 12,
+        "comparisons": [
+          {
+            "id": "seasonal",
+            "n": 65,
+            "mae": 6.307984615384615,
+            "naiveMAE": 6.294153846153845,
+            "ratio": 1.00219739929605
+          },
+          {
+            "id": "ratio",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "season_ridge",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "eq_carry",
+            "n": 65,
+            "mae": 5.46397821719374,
+            "naiveMAE": 6.294153846153845,
+            "ratio": 0.8681036960246216
+          },
+          {
+            "id": "drivers",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 65,
+            "mae": 5.405736989110053,
+            "naiveMAE": 6.294153846153845,
+            "ratio": 0.858850470014063
+          }
+        ],
+        "finalAll": [
+          {
+            "id": "naive",
+            "n": 12,
+            "mae": 6.522448333333334,
+            "naiveMAE": 6.522448333333334
+          },
+          {
+            "id": "seasonal",
+            "n": 12,
+            "mae": 6.522448333333334,
+            "naiveMAE": 6.522448333333334
+          },
+          {
+            "id": "ratio",
+            "n": 12,
+            "mae": 9.932573458634732,
+            "naiveMAE": 6.522448333333334
+          },
+          {
+            "id": "season_ridge",
+            "n": 12,
+            "mae": 10.19246784947117,
+            "naiveMAE": 6.522448333333334
+          },
+          {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.5355456075430425,
+            "naiveMAE": 6.522448333333334
+          },
+          {
+            "id": "drivers",
+            "n": 12,
+            "mae": 16.409154320954944,
+            "naiveMAE": 6.522448333333334
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.8027078247152324,
+            "naiveMAE": 6.522448333333334
+          }
+        ],
+        "usesDrivers": true,
+        "calibrationN": 8,
+        "q80": 7.301996552348228,
+        "q95": null,
+        "catboostQ80": 7.301996552348228,
+        "final": {
+          "n": 12,
+          "mae": 2.8027078247152324,
+          "directionAccuracy": 0.8333333333333334
+        },
+        "naiveFinal": {
+          "n": 12,
+          "mae": 6.522448333333334,
+          "directionAccuracy": 0
+        },
+        "finalCoverage80": 0.9166666666666666,
+        "finalCoverage95": null,
+        "beatsNaive": true,
+        "split": {
+          "tuningEnds": "2023-01",
+          "calibrationStarts": "2024-02",
+          "calibrationEnds": "2024-09",
+          "finalStarts": "2025-10",
+          "finalEnds": "2026-09"
+        },
+        "finalPredictions": [
+          {
+            "origin": "2024-10",
+            "target": "2025-10",
+            "targetIndex": 57,
+            "point": 18.976704256729203,
+            "actual": 19.36223,
+            "base": 18.95735,
+            "abs": 0.38552574327079725
+          },
+          {
+            "origin": "2024-11",
+            "target": "2025-11",
+            "targetIndex": 58,
+            "point": 20.162692741472846,
+            "actual": 20.73939,
+            "base": 21.76611,
+            "abs": 0.5766972585271546
+          },
+          {
+            "origin": "2024-12",
+            "target": "2025-12",
+            "targetIndex": 59,
+            "point": 20.64680607897456,
+            "actual": 22.58749,
+            "base": 27.43998,
+            "abs": 1.940683921025439
+          },
+          {
+            "origin": "2025-01",
+            "target": "2026-01",
+            "targetIndex": 60,
+            "point": 20.510216318724936,
+            "actual": 23.7437,
+            "base": 29.82872,
+            "abs": 3.2334836812750645
+          },
+          {
+            "origin": "2025-02",
+            "target": "2026-02",
+            "targetIndex": 61,
+            "point": 23.659459207233386,
+            "actual": 23.99835,
+            "base": 33.88984,
+            "abs": 0.3388907927666125
+          },
+          {
+            "origin": "2025-03",
+            "target": "2026-03",
+            "targetIndex": 62,
+            "point": 23.684058582032144,
+            "actual": 23.98861,
+            "base": 32.69857,
+            "abs": 0.3045514179678577
+          },
+          {
+            "origin": "2025-04",
+            "target": "2026-04",
+            "targetIndex": 63,
+            "point": 25.95329279140491,
+            "actual": 23.40147,
+            "base": 31.75136,
+            "abs": 2.551822791404909
+          },
+          {
+            "origin": "2025-05",
+            "target": "2026-05",
+            "targetIndex": 64,
+            "point": 27.74845589514182,
+            "actual": 21.86035,
+            "base": 35.62459,
+            "abs": 5.88810589514182
+          },
+          {
+            "origin": "2025-06",
+            "target": "2026-06",
+            "targetIndex": 65,
+            "point": 29.150378029926657,
+            "actual": 19.44375,
+            "base": 40.69503,
+            "abs": 9.706628029926655
+          },
+          {
+            "origin": "2025-07",
+            "target": "2026-07",
+            "targetIndex": 66,
+            "point": 23.09704210276065,
+            "actual": 25.6189,
+            "base": 24.54934,
+            "abs": 2.52185789723935
+          },
+          {
+            "origin": "2025-08",
+            "target": "2026-08",
+            "targetIndex": 67,
+            "point": 21.55803365413287,
+            "actual": 17.04963,
+            "base": 17.41229,
+            "abs": 4.50840365413287
+          },
+          {
+            "origin": "2025-09",
+            "target": "2026-09",
+            "targetIndex": 68,
+            "point": 19.794002813904253,
+            "actual": 18.11816,
+            "base": 20.61935,
+            "abs": 1.6758428139042536
+          }
+        ]
+      }
+    },
+    {
+      "h": 12,
+      "lead": 13,
+      "targetMonth": "2027-10",
+      "point": 21.429467306823316,
+      "changePct": 18.276178744548655,
+      "interval80": {
+        "lo": 16.98203140285262,
+        "hi": 25.876903210794012
+      },
+      "interval95": null,
+      "catboostPoint": 21.429467306823316,
+      "catboostQ80": 4.447435903970696,
+      "catboostInterval80": {
+        "lo": 16.98203140285262,
+        "hi": 25.876903210794012
+      },
+      "catboostHoldoutMae": 2.8235675792067156,
+      "catboostShap": {
+        "treesUsed": 23,
+        "factorLogs": {
+          "seasonality": -0.09587609781961873,
+          "equilibrium": 0.28817048780067406,
+          "import_fx": -0.0244421883671753,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0,
+          0,
+          0,
+          -0.052937180547823245,
+          0,
+          -0.0244421883671753,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.06573993032921562
+      },
+      "validation": {
+        "selected": "catboost",
+        "lead": 13,
+        "comparisons": [
+          {
+            "id": "seasonal",
+            "n": 45,
+            "mae": 7.005755555555554,
+            "naiveMAE": 7.096888888888887,
+            "ratio": 0.9871586923847696
+          },
+          {
+            "id": "ratio",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "season_ridge",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "eq_carry",
+            "n": 45,
+            "mae": 6.500274882609541,
+            "naiveMAE": 7.096888888888887,
+            "ratio": 0.9159330214097866
+          },
+          {
+            "id": "drivers",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 45,
+            "mae": 6.472558440699368,
+            "naiveMAE": 7.096888888888887,
+            "ratio": 0.9120275858951392
+          }
+        ],
+        "finalAll": [
+          {
+            "id": "naive",
+            "n": 12,
+            "mae": 6.869426666666665,
+            "naiveMAE": 6.869426666666665
+          },
+          {
+            "id": "seasonal",
+            "n": 12,
+            "mae": 3.223223333333333,
+            "naiveMAE": 6.869426666666665
+          },
+          {
+            "id": "ratio",
+            "n": 12,
+            "mae": 8.759274810033313,
+            "naiveMAE": 6.869426666666665
+          },
+          {
+            "id": "season_ridge",
+            "n": 12,
+            "mae": 10.468044877996155,
+            "naiveMAE": 6.869426666666665
+          },
+          {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.647305260555217,
+            "naiveMAE": 6.869426666666665
+          },
+          {
+            "id": "drivers",
+            "n": 12,
+            "mae": 15.390498718617403,
+            "naiveMAE": 6.869426666666665
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.8235675792067156,
+            "naiveMAE": 6.869426666666665
+          }
+        ],
+        "usesDrivers": true,
+        "calibrationN": 8,
+        "q80": 4.447435903970696,
+        "q95": null,
+        "catboostQ80": 4.447435903970696,
+        "final": {
+          "n": 12,
+          "mae": 2.8235675792067156,
+          "directionAccuracy": 0.9166666666666666
+        },
+        "naiveFinal": {
+          "n": 12,
+          "mae": 6.869426666666665,
+          "directionAccuracy": 0
+        },
+        "finalCoverage80": 0.8333333333333334,
+        "finalCoverage95": null,
+        "beatsNaive": true,
+        "split": {
+          "tuningEnds": "2022-11",
+          "calibrationStarts": "2024-01",
+          "calibrationEnds": "2024-08",
+          "finalStarts": "2025-10",
+          "finalEnds": "2026-09"
+        },
+        "finalPredictions": [
+          {
+            "origin": "2024-09",
+            "target": "2025-10",
+            "targetIndex": 57,
+            "point": 18.888257991248835,
+            "actual": 19.36223,
+            "base": 21.11339,
+            "abs": 0.47397200875116496
+          },
+          {
+            "origin": "2024-10",
+            "target": "2025-11",
+            "targetIndex": 58,
+            "point": 20.037801557385606,
+            "actual": 20.73939,
+            "base": 18.95735,
+            "abs": 0.7015884426143941
+          },
+          {
+            "origin": "2024-11",
+            "target": "2025-12",
+            "targetIndex": 59,
+            "point": 19.309913747824496,
+            "actual": 22.58749,
+            "base": 21.76611,
+            "abs": 3.2775762521755034
+          },
+          {
+            "origin": "2024-12",
+            "target": "2026-01",
+            "targetIndex": 60,
+            "point": 19.5810006506535,
+            "actual": 23.7437,
+            "base": 27.43998,
+            "abs": 4.1626993493465
+          },
+          {
+            "origin": "2025-01",
+            "target": "2026-02",
+            "targetIndex": 61,
+            "point": 21.19895939440869,
+            "actual": 23.99835,
+            "base": 29.82872,
+            "abs": 2.7993906055913094
+          },
+          {
+            "origin": "2025-02",
+            "target": "2026-03",
+            "targetIndex": 62,
+            "point": 23.274497773304226,
+            "actual": 23.98861,
+            "base": 33.88984,
+            "abs": 0.7141122266957751
+          },
+          {
+            "origin": "2025-03",
+            "target": "2026-04",
+            "targetIndex": 63,
+            "point": 24.79895391574781,
+            "actual": 23.40147,
+            "base": 32.69857,
+            "abs": 1.3974839157478094
+          },
+          {
+            "origin": "2025-04",
+            "target": "2026-05",
+            "targetIndex": 64,
+            "point": 25.361102497544174,
+            "actual": 21.86035,
+            "base": 31.75136,
+            "abs": 3.5007524975441733
+          },
+          {
+            "origin": "2025-05",
+            "target": "2026-06",
+            "targetIndex": 65,
+            "point": 25.609536376527668,
+            "actual": 19.44375,
+            "base": 35.62459,
+            "abs": 6.165786376527667
+          },
+          {
+            "origin": "2025-06",
+            "target": "2026-07",
+            "targetIndex": 66,
+            "point": 22.036887732970197,
+            "actual": 25.6189,
+            "base": 40.69503,
+            "abs": 3.5820122670298034
+          },
+          {
+            "origin": "2025-07",
+            "target": "2026-08",
+            "targetIndex": 67,
+            "point": 22.454995325992144,
+            "actual": 17.04963,
+            "base": 24.54934,
+            "abs": 5.405365325992143
+          },
+          {
+            "origin": "2025-08",
+            "target": "2026-09",
+            "targetIndex": 68,
+            "point": 19.820231682464346,
+            "actual": 18.11816,
+            "base": 17.41229,
+            "abs": 1.7020716824643465
+          }
+        ]
+      }
+    },
+    {
+      "h": 13,
+      "lead": 14,
+      "targetMonth": "2027-11",
+      "point": 18.11816,
+      "changePct": 0,
+      "interval80": {
+        "lo": 3.2738299999999967,
+        "hi": 32.96249
+      },
+      "interval95": null,
+      "catboostPoint": 22.949260897414394,
+      "catboostQ80": 5.654468774428768,
+      "catboostInterval80": {
+        "lo": 17.294792122985626,
+        "hi": 28.603729671843162
+      },
+      "catboostHoldoutMae": 2.963056078229155,
+      "catboostShap": {
+        "treesUsed": 30,
+        "factorLogs": {
+          "seasonality": -0.06617650081540644,
+          "equilibrium": 0.3025474816927787,
+          "import_fx": 0,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0.009078193084539412,
+          0,
+          0,
+          -0.08157591601102598,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.07083328942146289
+      },
+      "validation": {
+        "selected": "naive",
+        "lead": 14,
+        "comparisons": [
+          {
+            "id": "seasonal",
+            "n": 28,
+            "mae": 8.389142857142852,
+            "naiveMAE": 7.70010714285714,
+            "ratio": 1.0894839125615132
+          },
+          {
+            "id": "ratio",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "season_ridge",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "eq_carry",
+            "n": 28,
+            "mae": 7.460680545738796,
+            "naiveMAE": 7.70010714285714,
+            "ratio": 0.9689060693992494
+          },
+          {
+            "id": "drivers",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 28,
+            "mae": 7.460680545738796,
+            "naiveMAE": 7.70010714285714,
+            "ratio": 0.9689060693992494
+          }
+        ],
+        "finalAll": [
+          {
+            "id": "naive",
+            "n": 12,
+            "mae": 7.677040833333333,
+            "naiveMAE": 7.677040833333333
+          },
+          {
+            "id": "seasonal",
+            "n": 12,
+            "mae": 3.223223333333333,
+            "naiveMAE": 7.677040833333333
+          },
+          {
+            "id": "ratio",
+            "n": 12,
+            "mae": 8.906480507876015,
+            "naiveMAE": 7.677040833333333
+          },
+          {
+            "id": "season_ridge",
+            "n": 12,
+            "mae": 11.273670826294682,
+            "naiveMAE": 7.677040833333333
+          },
+          {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.756958980635042,
+            "naiveMAE": 7.677040833333333
+          },
+          {
+            "id": "drivers",
+            "n": 12,
+            "mae": 11.920633830633873,
+            "naiveMAE": 7.677040833333333
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.963056078229155,
+            "naiveMAE": 7.677040833333333
+          }
+        ],
+        "usesDrivers": true,
+        "calibrationN": 8,
+        "q80": 14.844330000000003,
+        "q95": null,
+        "catboostQ80": 5.654468774428768,
+        "final": {
+          "n": 12,
+          "mae": 7.677040833333333,
+          "directionAccuracy": 0
+        },
+        "naiveFinal": {
+          "n": 12,
+          "mae": 7.677040833333333,
+          "directionAccuracy": 0
+        },
+        "finalCoverage80": 0.9166666666666666,
+        "finalCoverage95": null,
+        "beatsNaive": false,
+        "split": {
+          "tuningEnds": "2022-09",
+          "calibrationStarts": "2023-12",
+          "calibrationEnds": "2024-07",
+          "finalStarts": "2025-10",
+          "finalEnds": "2026-09"
+        },
+        "finalPredictions": [
+          {
+            "origin": "2024-08",
+            "target": "2025-10",
+            "targetIndex": 57,
+            "point": 16.21768,
+            "actual": 19.36223,
+            "base": 16.21768,
+            "abs": 3.144549999999999
+          },
+          {
+            "origin": "2024-09",
+            "target": "2025-11",
+            "targetIndex": 58,
+            "point": 21.11339,
+            "actual": 20.73939,
+            "base": 21.11339,
+            "abs": 0.3739999999999988
+          },
+          {
+            "origin": "2024-10",
+            "target": "2025-12",
+            "targetIndex": 59,
+            "point": 18.95735,
+            "actual": 22.58749,
+            "base": 18.95735,
+            "abs": 3.6301399999999973
+          },
+          {
+            "origin": "2024-11",
+            "target": "2026-01",
+            "targetIndex": 60,
+            "point": 21.76611,
+            "actual": 23.7437,
+            "base": 21.76611,
+            "abs": 1.9775899999999993
+          },
+          {
+            "origin": "2024-12",
+            "target": "2026-02",
+            "targetIndex": 61,
+            "point": 27.43998,
+            "actual": 23.99835,
+            "base": 27.43998,
+            "abs": 3.44163
+          },
+          {
+            "origin": "2025-01",
+            "target": "2026-03",
+            "targetIndex": 62,
+            "point": 29.82872,
+            "actual": 23.98861,
+            "base": 29.82872,
+            "abs": 5.840109999999999
+          },
+          {
+            "origin": "2025-02",
+            "target": "2026-04",
+            "targetIndex": 63,
+            "point": 33.88984,
+            "actual": 23.40147,
+            "base": 33.88984,
+            "abs": 10.48837
+          },
+          {
+            "origin": "2025-03",
+            "target": "2026-05",
+            "targetIndex": 64,
+            "point": 32.69857,
+            "actual": 21.86035,
+            "base": 32.69857,
+            "abs": 10.838219999999996
+          },
+          {
+            "origin": "2025-04",
+            "target": "2026-06",
+            "targetIndex": 65,
+            "point": 31.75136,
+            "actual": 19.44375,
+            "base": 31.75136,
+            "abs": 12.307609999999997
+          },
+          {
+            "origin": "2025-05",
+            "target": "2026-07",
+            "targetIndex": 66,
+            "point": 35.62459,
+            "actual": 25.6189,
+            "base": 35.62459,
+            "abs": 10.005689999999998
+          },
+          {
+            "origin": "2025-06",
+            "target": "2026-08",
+            "targetIndex": 67,
+            "point": 40.69503,
+            "actual": 17.04963,
+            "base": 40.69503,
+            "abs": 23.645400000000002
+          },
+          {
+            "origin": "2025-07",
+            "target": "2026-09",
+            "targetIndex": 68,
+            "point": 24.54934,
+            "actual": 18.11816,
+            "base": 24.54934,
+            "abs": 6.431180000000001
+          }
+        ]
+      }
+    },
+    {
+      "h": 14,
+      "lead": 15,
+      "targetMonth": "2027-12",
+      "point": 18.11816,
+      "changePct": 0,
+      "interval80": {
+        "lo": 8.956879999999998,
+        "hi": 27.27944
+      },
+      "interval95": null,
+      "catboostPoint": 22.819210088959267,
+      "catboostQ80": 5.166491035776641,
+      "catboostInterval80": {
+        "lo": 17.652719053182626,
+        "hi": 27.985701124735908
+      },
+      "catboostHoldoutMae": 2.9320515664952462,
+      "catboostShap": {
+        "treesUsed": 30,
+        "factorLogs": {
+          "seasonality": -0.0635989688167406,
+          "equilibrium": 0.29428694758948515,
+          "import_fx": 0,
+          "financing": 0,
+          "retail_demand": 0,
+          "weather": 0
+        },
+        "phi": [
+          0.020933181354267142,
+          0,
+          0,
+          -0.07614336857909747,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "baseValue": 0.050612241808875996
+      },
+      "validation": {
+        "selected": "naive",
+        "lead": 15,
+        "comparisons": [
+          {
+            "id": "seasonal",
+            "n": 15,
+            "mae": 11.183066666666663,
+            "naiveMAE": 9.829799999999997,
+            "ratio": 1.1376698067780286
+          },
+          {
+            "id": "ratio",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "season_ridge",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "eq_carry",
+            "n": 15,
+            "mae": 10.444917566805353,
+            "naiveMAE": 9.829799999999997,
+            "ratio": 1.0625768140557648
+          },
+          {
+            "id": "drivers",
+            "n": 0,
+            "mae": null,
+            "naiveMAE": null,
+            "ratio": null
+          },
+          {
+            "id": "catboost",
+            "n": 15,
+            "mae": 10.444917566805353,
+            "naiveMAE": 9.829799999999997,
+            "ratio": 1.0625768140557648
+          }
+        ],
+        "finalAll": [
+          {
+            "id": "naive",
+            "n": 12,
+            "mae": 8.260504999999998,
+            "naiveMAE": 8.260504999999998
+          },
+          {
+            "id": "seasonal",
+            "n": 12,
+            "mae": 3.223223333333333,
+            "naiveMAE": 8.260504999999998
+          },
+          {
+            "id": "ratio",
+            "n": 12,
+            "mae": 8.707514411113308,
+            "naiveMAE": 8.260504999999998
+          },
+          {
+            "id": "season_ridge",
+            "n": 12,
+            "mae": 11.351173250203635,
+            "naiveMAE": 8.260504999999998
+          },
+          {
+            "id": "eq_carry",
+            "n": 12,
+            "mae": 2.7921743785550053,
+            "naiveMAE": 8.260504999999998
+          },
+          {
+            "id": "drivers",
+            "n": 12,
+            "mae": 9.680100097536664,
+            "naiveMAE": 8.260504999999998
+          },
+          {
+            "id": "catboost",
+            "n": 12,
+            "mae": 2.9320515664952462,
+            "naiveMAE": 8.260504999999998
+          }
+        ],
+        "usesDrivers": true,
+        "calibrationN": 8,
+        "q80": 9.161280000000001,
+        "q95": null,
+        "catboostQ80": 5.166491035776641,
+        "final": {
+          "n": 12,
+          "mae": 8.260504999999998,
+          "directionAccuracy": 0
+        },
+        "naiveFinal": {
+          "n": 12,
+          "mae": 8.260504999999998,
+          "directionAccuracy": 0
+        },
+        "finalCoverage80": 0.6666666666666666,
+        "finalCoverage95": null,
+        "beatsNaive": false,
+        "split": {
+          "tuningEnds": "2022-07",
+          "calibrationStarts": "2023-11",
+          "calibrationEnds": "2024-06",
+          "finalStarts": "2025-10",
+          "finalEnds": "2026-09"
+        },
+        "finalPredictions": [
+          {
+            "origin": "2024-07",
+            "target": "2025-10",
+            "targetIndex": 57,
+            "point": 23.02667,
+            "actual": 19.36223,
+            "base": 23.02667,
+            "abs": 3.664439999999999
+          },
+          {
+            "origin": "2024-08",
+            "target": "2025-11",
+            "targetIndex": 58,
+            "point": 16.21768,
+            "actual": 20.73939,
+            "base": 16.21768,
+            "abs": 4.521709999999999
+          },
+          {
+            "origin": "2024-09",
+            "target": "2025-12",
+            "targetIndex": 59,
+            "point": 21.11339,
+            "actual": 22.58749,
+            "base": 21.11339,
+            "abs": 1.4741
+          },
+          {
+            "origin": "2024-10",
+            "target": "2026-01",
+            "targetIndex": 60,
+            "point": 18.95735,
+            "actual": 23.7437,
+            "base": 18.95735,
+            "abs": 4.786349999999999
+          },
+          {
+            "origin": "2024-11",
+            "target": "2026-02",
+            "targetIndex": 61,
+            "point": 21.76611,
+            "actual": 23.99835,
+            "base": 21.76611,
+            "abs": 2.2322399999999973
+          },
+          {
+            "origin": "2024-12",
+            "target": "2026-03",
+            "targetIndex": 62,
+            "point": 27.43998,
+            "actual": 23.98861,
+            "base": 27.43998,
+            "abs": 3.451369999999997
+          },
+          {
+            "origin": "2025-01",
+            "target": "2026-04",
+            "targetIndex": 63,
+            "point": 29.82872,
+            "actual": 23.40147,
+            "base": 29.82872,
+            "abs": 6.427250000000001
+          },
+          {
+            "origin": "2025-02",
+            "target": "2026-05",
+            "targetIndex": 64,
+            "point": 33.88984,
+            "actual": 21.86035,
+            "base": 33.88984,
+            "abs": 12.02949
+          },
+          {
+            "origin": "2025-03",
+            "target": "2026-06",
+            "targetIndex": 65,
+            "point": 32.69857,
+            "actual": 19.44375,
+            "base": 32.69857,
+            "abs": 13.254819999999995
+          },
+          {
+            "origin": "2025-04",
+            "target": "2026-07",
+            "targetIndex": 66,
+            "point": 31.75136,
+            "actual": 25.6189,
+            "base": 31.75136,
+            "abs": 6.132459999999998
+          },
+          {
+            "origin": "2025-05",
+            "target": "2026-08",
+            "targetIndex": 67,
+            "point": 35.62459,
+            "actual": 17.04963,
+            "base": 35.62459,
+            "abs": 18.574959999999997
+          },
+          {
+            "origin": "2025-06",
+            "target": "2026-09",
+            "targetIndex": 68,
+            "point": 40.69503,
+            "actual": 18.11816,
+            "base": 40.69503,
+            "abs": 22.576870000000003
+          }
+        ]
+      }
+    }
+  ],
+  "limitations": [
+    "Не цена конкретной партии на складе Волгограда; не опт Москвы.",
+    "Последняя пересмотренная версия: даты первоначальных публикаций не установлены. Историческая проверка не является проверкой реального времени.",
+    "Региональные пропуски и конфиденциальные значения не заменены нулями. Волгоградский ряд не найден в таблицах 2025–2026.",
+    "С 2022 г. учитывать территориальные оговорки и изменения состава наблюдаемых организаций; средняя цена зависит от состава продаж.",
+    "Номинальные цены; годовые средние не являются декабрьскими ценами или оценкой реальной маржи."
+  ],
+  "id": "official-abcea69b3a6edbcad505"
+}

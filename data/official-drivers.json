@@ -1,19 +1,37 @@
 {
-  "schema": 1,
-  "collectedAt": "2026-10-29",
-  "note": "Official Bank of Russia series. Monthly USD/RUB = mean of daily official rates; key rate = level at last quoted day of month. Complete months only; no interpolation.",
+  "schema": 2,
+  "collectedAt": "2026-10-30",
+  "note": "Official Bank of Russia (USD/RUB, KZT/RUB, KeyRate) and Open-Meteo ERA5 (Volgograd & Zhambyl/Taraz onion belt) monthly series. Complete months only; no interpolation.",
   "sources": {
     "usdRub": {
-      "url": "https://www.cbr.ru/scripts/XML_dynamic.asp?date_req1=01/01/2020&date_req2=29/10/2026&VAL_NM_RQ=R01235",
-      "retrievedDate": "2026-10-29",
-      "sha256": "c28a9ada0a014a8c1c61f248e1275bda8003b9c38752d992f638e3473fcf6138",
-      "file": "data/sources/cbr/c28a9ada0a014a8c-usd_rub.xml"
+      "url": "https://www.cbr.ru/scripts/XML_dynamic.asp?date_req1=01/01/2020&date_req2=30/10/2026&VAL_NM_RQ=R01235",
+      "retrievedDate": "2026-10-30",
+      "sha256": "087b6e86ec75958df95ec7d8b5691326422431b63619a87f75f4d800ade371dc",
+      "file": "data/sources/cbr/087b6e86ec75958d-usd_rub.xml"
+    },
+    "kztRub": {
+      "url": "https://www.cbr.ru/scripts/XML_dynamic.asp?date_req1=01/01/2020&date_req2=30/10/2026&VAL_NM_RQ=R01335",
+      "retrievedDate": "2026-10-30",
+      "sha256": "058b00ce1fa7db8a5b06e708ef7dca1e35b25f35262747099f2651d2cadde60f",
+      "file": "data/sources/cbr/058b00ce1fa7db8a-kzt_rub.xml"
     },
     "keyRate": {
       "url": "https://www.cbr.ru/DailyInfoWebServ/DailyInfo.asmx (KeyRate)",
-      "retrievedDate": "2026-10-29",
-      "sha256": "3d5725b7e754fbfc8e66d5d02db8449d1c80e27322042604fd400451c17eb0a3",
-      "file": "data/sources/cbr/3d5725b7e754fbfc-key_rate.xml"
+      "retrievedDate": "2026-10-30",
+      "sha256": "8a6c5c8c6d1a782f71bf4edab6cc94a1cb2204086b184e97657d289b99ae3284",
+      "file": "data/sources/cbr/8a6c5c8c6d1a782f-key_rate.xml"
+    },
+    "volgogradWeather": {
+      "url": "https://archive-api.open-meteo.com/v1/archive?latitude=48.71&longitude=44.51&start_date=2020-01-01&end_date=2026-09-30&daily=temperature_2m_mean,temperature_2m_min,precipitation_sum&timezone=UTC",
+      "retrievedDate": "2026-10-30",
+      "sha256": "fa2bbcc1ace1c6dd0061368f981bb527cfe039b2ddc476417c3e6d5c5fe6617a",
+      "file": "data/sources/weather/fa2bbcc1ace1c6dd-volgograd_era5.json"
+    },
+    "zhambylWeather": {
+      "url": "https://archive-api.open-meteo.com/v1/archive?latitude=42.9&longitude=71.37&start_date=2020-01-01&end_date=2026-09-30&daily=temperature_2m_mean,temperature_2m_min,precipitation_sum&timezone=UTC",
+      "retrievedDate": "2026-10-30",
+      "sha256": "41049d0432ef1fa2bceb424e7a6a405970b7abe66058742b6ee90fb5e9671b00",
+      "file": "data/sources/weather/41049d0432ef1fa2-zhambyl_taraz_era5.json"
     }
   },
   "usdRub": [
@@ -504,6 +522,494 @@
       "availableDate": "2026-10-01"
     }
   ],
+  "kztRub": [
+    {
+      "period": "2020-01",
+      "n": 17,
+      "value": 0.16330647058823528,
+      "availableDate": "2020-02-01"
+    },
+    {
+      "period": "2020-02",
+      "n": 20,
+      "value": 0.16915720000000006,
+      "availableDate": "2020-03-01"
+    },
+    {
+      "period": "2020-03",
+      "n": 19,
+      "value": 0.1760795263157895,
+      "availableDate": "2020-04-01"
+    },
+    {
+      "period": "2020-04",
+      "n": 18,
+      "value": 0.17331083333333336,
+      "availableDate": "2020-05-01"
+    },
+    {
+      "period": "2020-05",
+      "n": 18,
+      "value": 0.17357494444444443,
+      "availableDate": "2020-06-01"
+    },
+    {
+      "period": "2020-06",
+      "n": 20,
+      "value": 0.1718825,
+      "availableDate": "2020-07-01"
+    },
+    {
+      "period": "2020-07",
+      "n": 23,
+      "value": 0.17300100000000002,
+      "availableDate": "2020-08-01"
+    },
+    {
+      "period": "2020-08",
+      "n": 21,
+      "value": 0.1758884761904762,
+      "availableDate": "2020-09-01"
+    },
+    {
+      "period": "2020-09",
+      "n": 22,
+      "value": 0.1783448181818182,
+      "availableDate": "2020-10-01"
+    },
+    {
+      "period": "2020-10",
+      "n": 23,
+      "value": 0.18070434782608694,
+      "availableDate": "2020-11-01"
+    },
+    {
+      "period": "2020-11",
+      "n": 19,
+      "value": 0.17927047368421056,
+      "availableDate": "2020-12-01"
+    },
+    {
+      "period": "2020-12",
+      "n": 23,
+      "value": 0.17625117391304349,
+      "availableDate": "2021-01-01"
+    },
+    {
+      "period": "2021-01",
+      "n": 16,
+      "value": 0.1768020625,
+      "availableDate": "2021-02-01"
+    },
+    {
+      "period": "2021-02",
+      "n": 19,
+      "value": 0.17748536842105264,
+      "availableDate": "2021-03-01"
+    },
+    {
+      "period": "2021-03",
+      "n": 21,
+      "value": 0.1768414761904762,
+      "availableDate": "2021-04-01"
+    },
+    {
+      "period": "2021-04",
+      "n": 22,
+      "value": 0.17687081818181816,
+      "availableDate": "2021-05-01"
+    },
+    {
+      "period": "2021-05",
+      "n": 19,
+      "value": 0.1729817368421053,
+      "availableDate": "2021-06-01"
+    },
+    {
+      "period": "2021-06",
+      "n": 21,
+      "value": 0.1697882380952381,
+      "availableDate": "2021-07-01"
+    },
+    {
+      "period": "2021-07",
+      "n": 23,
+      "value": 0.17294243478260873,
+      "availableDate": "2021-08-01"
+    },
+    {
+      "period": "2021-08",
+      "n": 21,
+      "value": 0.1727981904761905,
+      "availableDate": "2021-09-01"
+    },
+    {
+      "period": "2021-09",
+      "n": 22,
+      "value": 0.17118500000000003,
+      "availableDate": "2021-10-01"
+    },
+    {
+      "period": "2021-10",
+      "n": 22,
+      "value": 0.1677455909090909,
+      "availableDate": "2021-11-01"
+    },
+    {
+      "period": "2021-11",
+      "n": 19,
+      "value": 0.16847605263157894,
+      "availableDate": "2021-12-01"
+    },
+    {
+      "period": "2021-12",
+      "n": 23,
+      "value": 0.16878391304347828,
+      "availableDate": "2022-01-01"
+    },
+    {
+      "period": "2022-01",
+      "n": 15,
+      "value": 0.1757877333333333,
+      "availableDate": "2022-02-01"
+    },
+    {
+      "period": "2022-02",
+      "n": 19,
+      "value": 0.17762531578947371,
+      "availableDate": "2022-03-01"
+    },
+    {
+      "period": "2022-03",
+      "n": 22,
+      "value": 0.2066881818181818,
+      "availableDate": "2022-04-01"
+    },
+    {
+      "period": "2022-04",
+      "n": 22,
+      "value": 0.17134513636363635,
+      "availableDate": "2022-05-01"
+    },
+    {
+      "period": "2022-05",
+      "n": 17,
+      "value": 0.14720247058823527,
+      "availableDate": "2022-06-01"
+    },
+    {
+      "period": "2022-06",
+      "n": 21,
+      "value": 0.13003266666666663,
+      "availableDate": "2022-07-01"
+    },
+    {
+      "period": "2022-07",
+      "n": 22,
+      "value": 0.12252213636363636,
+      "availableDate": "2022-08-01"
+    },
+    {
+      "period": "2022-08",
+      "n": 22,
+      "value": 0.1272889090909091,
+      "availableDate": "2022-09-01"
+    },
+    {
+      "period": "2022-09",
+      "n": 22,
+      "value": 0.1259106818181818,
+      "availableDate": "2022-10-01"
+    },
+    {
+      "period": "2022-10",
+      "n": 21,
+      "value": 0.1291956666666667,
+      "availableDate": "2022-11-01"
+    },
+    {
+      "period": "2022-11",
+      "n": 21,
+      "value": 0.131227,
+      "availableDate": "2022-12-01"
+    },
+    {
+      "period": "2022-12",
+      "n": 23,
+      "value": 0.14074165217391302,
+      "availableDate": "2023-01-01"
+    },
+    {
+      "period": "2023-01",
+      "n": 16,
+      "value": 0.148956625,
+      "availableDate": "2023-02-01"
+    },
+    {
+      "period": "2023-02",
+      "n": 18,
+      "value": 0.16075027777777778,
+      "availableDate": "2023-03-01"
+    },
+    {
+      "period": "2023-03",
+      "n": 22,
+      "value": 0.1685486818181818,
+      "availableDate": "2023-04-01"
+    },
+    {
+      "period": "2023-04",
+      "n": 21,
+      "value": 0.1795351428571429,
+      "availableDate": "2023-05-01"
+    },
+    {
+      "period": "2023-05",
+      "n": 19,
+      "value": 0.17737894736842105,
+      "availableDate": "2023-06-01"
+    },
+    {
+      "period": "2023-06",
+      "n": 21,
+      "value": 0.18580061904761905,
+      "availableDate": "2023-07-01"
+    },
+    {
+      "period": "2023-07",
+      "n": 21,
+      "value": 0.2032713333333333,
+      "availableDate": "2023-08-01"
+    },
+    {
+      "period": "2023-08",
+      "n": 23,
+      "value": 0.21102813043478258,
+      "availableDate": "2023-09-01"
+    },
+    {
+      "period": "2023-09",
+      "n": 22,
+      "value": 0.20670081818181812,
+      "availableDate": "2023-10-01"
+    },
+    {
+      "period": "2023-10",
+      "n": 21,
+      "value": 0.20367695238095238,
+      "availableDate": "2023-11-01"
+    },
+    {
+      "period": "2023-11",
+      "n": 21,
+      "value": 0.19480061904761903,
+      "availableDate": "2023-12-01"
+    },
+    {
+      "period": "2023-12",
+      "n": 22,
+      "value": 0.19837522727272727,
+      "availableDate": "2024-01-01"
+    },
+    {
+      "period": "2024-01",
+      "n": 16,
+      "value": 0.19686506249999997,
+      "availableDate": "2024-02-01"
+    },
+    {
+      "period": "2024-02",
+      "n": 20,
+      "value": 0.20348290000000002,
+      "availableDate": "2024-03-01"
+    },
+    {
+      "period": "2024-03",
+      "n": 21,
+      "value": 0.20383314285714288,
+      "availableDate": "2024-04-01"
+    },
+    {
+      "period": "2024-04",
+      "n": 21,
+      "value": 0.2081555714285714,
+      "availableDate": "2024-05-01"
+    },
+    {
+      "period": "2024-05",
+      "n": 19,
+      "value": 0.2050875263157895,
+      "availableDate": "2024-06-01"
+    },
+    {
+      "period": "2024-06",
+      "n": 20,
+      "value": 0.19320145,
+      "availableDate": "2024-07-01"
+    },
+    {
+      "period": "2024-07",
+      "n": 22,
+      "value": 0.1842347272727273,
+      "availableDate": "2024-08-01"
+    },
+    {
+      "period": "2024-08",
+      "n": 23,
+      "value": 0.1863965652173913,
+      "availableDate": "2024-09-01"
+    },
+    {
+      "period": "2024-09",
+      "n": 20,
+      "value": 0.19009109999999999,
+      "availableDate": "2024-10-01"
+    },
+    {
+      "period": "2024-10",
+      "n": 23,
+      "value": 0.19815008695652175,
+      "availableDate": "2024-11-01"
+    },
+    {
+      "period": "2024-11",
+      "n": 22,
+      "value": 0.20352086363636365,
+      "availableDate": "2024-12-01"
+    },
+    {
+      "period": "2024-12",
+      "n": 21,
+      "value": 0.19682066666666667,
+      "availableDate": "2025-01-01"
+    },
+    {
+      "period": "2025-01",
+      "n": 16,
+      "value": 0.1913493125,
+      "availableDate": "2025-02-01"
+    },
+    {
+      "period": "2025-02",
+      "n": 20,
+      "value": 0.18287549999999997,
+      "availableDate": "2025-03-01"
+    },
+    {
+      "period": "2025-03",
+      "n": 21,
+      "value": 0.1726121904761905,
+      "availableDate": "2025-04-01"
+    },
+    {
+      "period": "2025-04",
+      "n": 22,
+      "value": 0.16228986363636366,
+      "availableDate": "2025-05-01"
+    },
+    {
+      "period": "2025-05",
+      "n": 19,
+      "value": 0.1567213684210526,
+      "availableDate": "2025-06-01"
+    },
+    {
+      "period": "2025-06",
+      "n": 18,
+      "value": 0.15285977777777776,
+      "availableDate": "2025-07-01"
+    },
+    {
+      "period": "2025-07",
+      "n": 23,
+      "value": 0.14941473913043476,
+      "availableDate": "2025-08-01"
+    },
+    {
+      "period": "2025-08",
+      "n": 22,
+      "value": 0.14858677272727275,
+      "availableDate": "2025-09-01"
+    },
+    {
+      "period": "2025-09",
+      "n": 21,
+      "value": 0.1535802380952381,
+      "availableDate": "2025-10-01"
+    },
+    {
+      "period": "2025-10",
+      "n": 23,
+      "value": 0.14967339130434784,
+      "availableDate": "2025-11-01"
+    },
+    {
+      "period": "2025-11",
+      "n": 20,
+      "value": 0.15367424999999998,
+      "availableDate": "2025-12-01"
+    },
+    {
+      "period": "2025-12",
+      "n": 22,
+      "value": 0.15305772727272726,
+      "availableDate": "2026-01-01"
+    },
+    {
+      "period": "2026-01",
+      "n": 15,
+      "value": 0.1522593333333333,
+      "availableDate": "2026-02-01"
+    },
+    {
+      "period": "2026-02",
+      "n": 19,
+      "value": 0.15512394736842106,
+      "availableDate": "2026-03-01"
+    },
+    {
+      "period": "2026-03",
+      "n": 20,
+      "value": 0.16483429999999996,
+      "availableDate": "2026-04-01"
+    },
+    {
+      "period": "2026-04",
+      "n": 22,
+      "value": 0.1635728636363636,
+      "availableDate": "2026-05-01"
+    },
+    {
+      "period": "2026-05",
+      "n": 20,
+      "value": 0.15523784999999998,
+      "availableDate": "2026-06-01"
+    },
+    {
+      "period": "2026-06",
+      "n": 20,
+      "value": 0.15080475000000002,
+      "availableDate": "2026-07-01"
+    },
+    {
+      "period": "2026-07",
+      "n": 23,
+      "value": 0.16480221739130435,
+      "availableDate": "2026-08-01"
+    },
+    {
+      "period": "2026-08",
+      "n": 21,
+      "value": 0.17892385714285713,
+      "availableDate": "2026-09-01"
+    },
+    {
+      "period": "2026-09",
+      "n": 22,
+      "value": 0.18876704545454545,
+      "availableDate": "2026-10-01"
+    }
+  ],
   "keyRate": [
     {
       "period": "2020-01",
@@ -991,5 +1497,1469 @@
       "value": 14,
       "availableDate": "2026-10-01"
     }
-  ]
+  ],
+  "weather": {
+    "volgograd": [
+      {
+        "period": "2020-01",
+        "n": 31,
+        "tempMeanC": -0.22,
+        "tempMinC": -5.9,
+        "frostDays12C": 0,
+        "precipMm": 31.2,
+        "availableDate": "2020-02-06"
+      },
+      {
+        "period": "2020-02",
+        "n": 29,
+        "tempMeanC": -0.13,
+        "tempMinC": -14.6,
+        "frostDays12C": 3,
+        "precipMm": 45,
+        "availableDate": "2020-03-06"
+      },
+      {
+        "period": "2020-03",
+        "n": 31,
+        "tempMeanC": 6.21,
+        "tempMinC": -3.9,
+        "frostDays12C": 0,
+        "precipMm": 9.9,
+        "availableDate": "2020-04-06"
+      },
+      {
+        "period": "2020-04",
+        "n": 30,
+        "tempMeanC": 8.93,
+        "tempMinC": -2.9,
+        "frostDays12C": 0,
+        "precipMm": 14.9,
+        "availableDate": "2020-05-06"
+      },
+      {
+        "period": "2020-05",
+        "n": 31,
+        "tempMeanC": 16.06,
+        "tempMinC": 5.8,
+        "frostDays12C": 0,
+        "precipMm": 93.2,
+        "availableDate": "2020-06-06"
+      },
+      {
+        "period": "2020-06",
+        "n": 30,
+        "tempMeanC": 25.08,
+        "tempMinC": 12.4,
+        "frostDays12C": 0,
+        "precipMm": 15.3,
+        "availableDate": "2020-07-06"
+      },
+      {
+        "period": "2020-07",
+        "n": 31,
+        "tempMeanC": 28.15,
+        "tempMinC": 16.8,
+        "frostDays12C": 0,
+        "precipMm": 4.1,
+        "availableDate": "2020-08-06"
+      },
+      {
+        "period": "2020-08",
+        "n": 31,
+        "tempMeanC": 23.36,
+        "tempMinC": 13.1,
+        "frostDays12C": 0,
+        "precipMm": 2.9,
+        "availableDate": "2020-09-06"
+      },
+      {
+        "period": "2020-09",
+        "n": 30,
+        "tempMeanC": 18.99,
+        "tempMinC": 7,
+        "frostDays12C": 0,
+        "precipMm": 1.5,
+        "availableDate": "2020-10-06"
+      },
+      {
+        "period": "2020-10",
+        "n": 31,
+        "tempMeanC": 12.86,
+        "tempMinC": 1.9,
+        "frostDays12C": 0,
+        "precipMm": 8.9,
+        "availableDate": "2020-11-06"
+      },
+      {
+        "period": "2020-11",
+        "n": 30,
+        "tempMeanC": 1.91,
+        "tempMinC": -8.4,
+        "frostDays12C": 0,
+        "precipMm": 17.5,
+        "availableDate": "2020-12-06"
+      },
+      {
+        "period": "2020-12",
+        "n": 31,
+        "tempMeanC": -5.81,
+        "tempMinC": -12.5,
+        "frostDays12C": 3,
+        "precipMm": 21.1,
+        "availableDate": "2021-01-06"
+      },
+      {
+        "period": "2021-01",
+        "n": 31,
+        "tempMeanC": -2.99,
+        "tempMinC": -20.3,
+        "frostDays12C": 6,
+        "precipMm": 52.6,
+        "availableDate": "2021-02-06"
+      },
+      {
+        "period": "2021-02",
+        "n": 28,
+        "tempMeanC": -3.49,
+        "tempMinC": -21.1,
+        "frostDays12C": 7,
+        "precipMm": 23,
+        "availableDate": "2021-03-06"
+      },
+      {
+        "period": "2021-03",
+        "n": 31,
+        "tempMeanC": 0.01,
+        "tempMinC": -14.6,
+        "frostDays12C": 3,
+        "precipMm": 88.7,
+        "availableDate": "2021-04-06"
+      },
+      {
+        "period": "2021-04",
+        "n": 30,
+        "tempMeanC": 10.36,
+        "tempMinC": -2.1,
+        "frostDays12C": 0,
+        "precipMm": 65.7,
+        "availableDate": "2021-05-06"
+      },
+      {
+        "period": "2021-05",
+        "n": 31,
+        "tempMeanC": 19.31,
+        "tempMinC": 6.9,
+        "frostDays12C": 0,
+        "precipMm": 30.9,
+        "availableDate": "2021-06-06"
+      },
+      {
+        "period": "2021-06",
+        "n": 30,
+        "tempMeanC": 24.3,
+        "tempMinC": 13.4,
+        "frostDays12C": 0,
+        "precipMm": 34.9,
+        "availableDate": "2021-07-06"
+      },
+      {
+        "period": "2021-07",
+        "n": 31,
+        "tempMeanC": 28.23,
+        "tempMinC": 18.7,
+        "frostDays12C": 0,
+        "precipMm": 2.5,
+        "availableDate": "2021-08-06"
+      },
+      {
+        "period": "2021-08",
+        "n": 31,
+        "tempMeanC": 27.89,
+        "tempMinC": 15.2,
+        "frostDays12C": 0,
+        "precipMm": 4.6,
+        "availableDate": "2021-09-06"
+      },
+      {
+        "period": "2021-09",
+        "n": 30,
+        "tempMeanC": 15.26,
+        "tempMinC": 4,
+        "frostDays12C": 0,
+        "precipMm": 28.8,
+        "availableDate": "2021-10-06"
+      },
+      {
+        "period": "2021-10",
+        "n": 31,
+        "tempMeanC": 8.83,
+        "tempMinC": -1.3,
+        "frostDays12C": 0,
+        "precipMm": 8.1,
+        "availableDate": "2021-11-06"
+      },
+      {
+        "period": "2021-11",
+        "n": 30,
+        "tempMeanC": 3.7,
+        "tempMinC": -6.6,
+        "frostDays12C": 0,
+        "precipMm": 49.7,
+        "availableDate": "2021-12-06"
+      },
+      {
+        "period": "2021-12",
+        "n": 31,
+        "tempMeanC": -1.2,
+        "tempMinC": -14.6,
+        "frostDays12C": 3,
+        "precipMm": 66.3,
+        "availableDate": "2022-01-06"
+      },
+      {
+        "period": "2022-01",
+        "n": 31,
+        "tempMeanC": -2.9,
+        "tempMinC": -15,
+        "frostDays12C": 2,
+        "precipMm": 89.6,
+        "availableDate": "2022-02-06"
+      },
+      {
+        "period": "2022-02",
+        "n": 28,
+        "tempMeanC": 0.55,
+        "tempMinC": -10.9,
+        "frostDays12C": 0,
+        "precipMm": 37.2,
+        "availableDate": "2022-03-06"
+      },
+      {
+        "period": "2022-03",
+        "n": 31,
+        "tempMeanC": 0.34,
+        "tempMinC": -10,
+        "frostDays12C": 0,
+        "precipMm": 29,
+        "availableDate": "2022-04-06"
+      },
+      {
+        "period": "2022-04",
+        "n": 30,
+        "tempMeanC": 12.9,
+        "tempMinC": 2.5,
+        "frostDays12C": 0,
+        "precipMm": 39.2,
+        "availableDate": "2022-05-06"
+      },
+      {
+        "period": "2022-05",
+        "n": 31,
+        "tempMeanC": 14.87,
+        "tempMinC": 3.8,
+        "frostDays12C": 0,
+        "precipMm": 68.3,
+        "availableDate": "2022-06-06"
+      },
+      {
+        "period": "2022-06",
+        "n": 30,
+        "tempMeanC": 24.41,
+        "tempMinC": 14.7,
+        "frostDays12C": 0,
+        "precipMm": 9.8,
+        "availableDate": "2022-07-06"
+      },
+      {
+        "period": "2022-07",
+        "n": 31,
+        "tempMeanC": 24.35,
+        "tempMinC": 11.4,
+        "frostDays12C": 0,
+        "precipMm": 40.7,
+        "availableDate": "2022-08-06"
+      },
+      {
+        "period": "2022-08",
+        "n": 31,
+        "tempMeanC": 28.23,
+        "tempMinC": 17,
+        "frostDays12C": 0,
+        "precipMm": 25.4,
+        "availableDate": "2022-09-06"
+      },
+      {
+        "period": "2022-09",
+        "n": 30,
+        "tempMeanC": 16.62,
+        "tempMinC": 6,
+        "frostDays12C": 0,
+        "precipMm": 68.4,
+        "availableDate": "2022-10-06"
+      },
+      {
+        "period": "2022-10",
+        "n": 31,
+        "tempMeanC": 10.5,
+        "tempMinC": 0.9,
+        "frostDays12C": 0,
+        "precipMm": 59.9,
+        "availableDate": "2022-11-06"
+      },
+      {
+        "period": "2022-11",
+        "n": 30,
+        "tempMeanC": 3.23,
+        "tempMinC": -7.4,
+        "frostDays12C": 0,
+        "precipMm": 22.9,
+        "availableDate": "2022-12-06"
+      },
+      {
+        "period": "2022-12",
+        "n": 31,
+        "tempMeanC": -2.83,
+        "tempMinC": -11.6,
+        "frostDays12C": 0,
+        "precipMm": 20.4,
+        "availableDate": "2023-01-06"
+      },
+      {
+        "period": "2023-01",
+        "n": 31,
+        "tempMeanC": -5.35,
+        "tempMinC": -18.8,
+        "frostDays12C": 9,
+        "precipMm": 17,
+        "availableDate": "2023-02-06"
+      },
+      {
+        "period": "2023-02",
+        "n": 28,
+        "tempMeanC": -4.07,
+        "tempMinC": -14.5,
+        "frostDays12C": 6,
+        "precipMm": 26.8,
+        "availableDate": "2023-03-06"
+      },
+      {
+        "period": "2023-03",
+        "n": 31,
+        "tempMeanC": 6.37,
+        "tempMinC": -6.5,
+        "frostDays12C": 0,
+        "precipMm": 30,
+        "availableDate": "2023-04-06"
+      },
+      {
+        "period": "2023-04",
+        "n": 30,
+        "tempMeanC": 11.95,
+        "tempMinC": 0.1,
+        "frostDays12C": 0,
+        "precipMm": 47.5,
+        "availableDate": "2023-05-06"
+      },
+      {
+        "period": "2023-05",
+        "n": 31,
+        "tempMeanC": 17.75,
+        "tempMinC": 6.8,
+        "frostDays12C": 0,
+        "precipMm": 40.7,
+        "availableDate": "2023-06-06"
+      },
+      {
+        "period": "2023-06",
+        "n": 30,
+        "tempMeanC": 22.88,
+        "tempMinC": 13.1,
+        "frostDays12C": 0,
+        "precipMm": 28.7,
+        "availableDate": "2023-07-06"
+      },
+      {
+        "period": "2023-07",
+        "n": 31,
+        "tempMeanC": 25.45,
+        "tempMinC": 16.2,
+        "frostDays12C": 0,
+        "precipMm": 24,
+        "availableDate": "2023-08-06"
+      },
+      {
+        "period": "2023-08",
+        "n": 31,
+        "tempMeanC": 27.27,
+        "tempMinC": 12.4,
+        "frostDays12C": 0,
+        "precipMm": 1.4,
+        "availableDate": "2023-09-06"
+      },
+      {
+        "period": "2023-09",
+        "n": 30,
+        "tempMeanC": 18.73,
+        "tempMinC": 9.5,
+        "frostDays12C": 0,
+        "precipMm": 8.2,
+        "availableDate": "2023-10-06"
+      },
+      {
+        "period": "2023-10",
+        "n": 31,
+        "tempMeanC": 10.6,
+        "tempMinC": 0.9,
+        "frostDays12C": 0,
+        "precipMm": 67.8,
+        "availableDate": "2023-11-06"
+      },
+      {
+        "period": "2023-11",
+        "n": 30,
+        "tempMeanC": 6.19,
+        "tempMinC": -5.8,
+        "frostDays12C": 0,
+        "precipMm": 99.1,
+        "availableDate": "2023-12-06"
+      },
+      {
+        "period": "2023-12",
+        "n": 31,
+        "tempMeanC": -0.57,
+        "tempMinC": -11.6,
+        "frostDays12C": 0,
+        "precipMm": 52.6,
+        "availableDate": "2024-01-06"
+      },
+      {
+        "period": "2024-01",
+        "n": 31,
+        "tempMeanC": -4.85,
+        "tempMinC": -22.8,
+        "frostDays12C": 9,
+        "precipMm": 76.3,
+        "availableDate": "2024-02-06"
+      },
+      {
+        "period": "2024-02",
+        "n": 29,
+        "tempMeanC": -3.38,
+        "tempMinC": -14.6,
+        "frostDays12C": 8,
+        "precipMm": 39.1,
+        "availableDate": "2024-03-06"
+      },
+      {
+        "period": "2024-03",
+        "n": 31,
+        "tempMeanC": 0.97,
+        "tempMinC": -9.2,
+        "frostDays12C": 0,
+        "precipMm": 15.8,
+        "availableDate": "2024-04-06"
+      },
+      {
+        "period": "2024-04",
+        "n": 30,
+        "tempMeanC": 15.94,
+        "tempMinC": 2.5,
+        "frostDays12C": 0,
+        "precipMm": 13.1,
+        "availableDate": "2024-05-06"
+      },
+      {
+        "period": "2024-05",
+        "n": 31,
+        "tempMeanC": 16.23,
+        "tempMinC": 1.6,
+        "frostDays12C": 0,
+        "precipMm": 1,
+        "availableDate": "2024-06-06"
+      },
+      {
+        "period": "2024-06",
+        "n": 30,
+        "tempMeanC": 24.81,
+        "tempMinC": 14.4,
+        "frostDays12C": 0,
+        "precipMm": 72.8,
+        "availableDate": "2024-07-06"
+      },
+      {
+        "period": "2024-07",
+        "n": 31,
+        "tempMeanC": 27.31,
+        "tempMinC": 16.5,
+        "frostDays12C": 0,
+        "precipMm": 26.2,
+        "availableDate": "2024-08-06"
+      },
+      {
+        "period": "2024-08",
+        "n": 31,
+        "tempMeanC": 24.52,
+        "tempMinC": 14.3,
+        "frostDays12C": 0,
+        "precipMm": 15.7,
+        "availableDate": "2024-09-06"
+      },
+      {
+        "period": "2024-09",
+        "n": 30,
+        "tempMeanC": 19.77,
+        "tempMinC": 7.6,
+        "frostDays12C": 0,
+        "precipMm": 7.6,
+        "availableDate": "2024-10-06"
+      },
+      {
+        "period": "2024-10",
+        "n": 31,
+        "tempMeanC": 10.72,
+        "tempMinC": 0.3,
+        "frostDays12C": 0,
+        "precipMm": 34.7,
+        "availableDate": "2024-11-06"
+      },
+      {
+        "period": "2024-11",
+        "n": 30,
+        "tempMeanC": 3.73,
+        "tempMinC": -2,
+        "frostDays12C": 0,
+        "precipMm": 27.3,
+        "availableDate": "2024-12-06"
+      },
+      {
+        "period": "2024-12",
+        "n": 31,
+        "tempMeanC": -1.22,
+        "tempMinC": -8.9,
+        "frostDays12C": 0,
+        "precipMm": 19.1,
+        "availableDate": "2025-01-06"
+      },
+      {
+        "period": "2025-01",
+        "n": 31,
+        "tempMeanC": 0.79,
+        "tempMinC": -8.2,
+        "frostDays12C": 0,
+        "precipMm": 11.6,
+        "availableDate": "2025-02-06"
+      },
+      {
+        "period": "2025-02",
+        "n": 28,
+        "tempMeanC": -5.34,
+        "tempMinC": -16.8,
+        "frostDays12C": 5,
+        "precipMm": 27.2,
+        "availableDate": "2025-03-06"
+      },
+      {
+        "period": "2025-03",
+        "n": 31,
+        "tempMeanC": 5.64,
+        "tempMinC": -15.4,
+        "frostDays12C": 2,
+        "precipMm": 36.7,
+        "availableDate": "2025-04-06"
+      },
+      {
+        "period": "2025-04",
+        "n": 30,
+        "tempMeanC": 12.56,
+        "tempMinC": -0.3,
+        "frostDays12C": 0,
+        "precipMm": 32.3,
+        "availableDate": "2025-05-06"
+      },
+      {
+        "period": "2025-05",
+        "n": 31,
+        "tempMeanC": 18.16,
+        "tempMinC": 5.5,
+        "frostDays12C": 0,
+        "precipMm": 27,
+        "availableDate": "2025-06-06"
+      },
+      {
+        "period": "2025-06",
+        "n": 30,
+        "tempMeanC": 21.7,
+        "tempMinC": 12.9,
+        "frostDays12C": 0,
+        "precipMm": 36.6,
+        "availableDate": "2025-07-06"
+      },
+      {
+        "period": "2025-07",
+        "n": 31,
+        "tempMeanC": 26.48,
+        "tempMinC": 13.9,
+        "frostDays12C": 0,
+        "precipMm": 14.8,
+        "availableDate": "2025-08-06"
+      },
+      {
+        "period": "2025-08",
+        "n": 31,
+        "tempMeanC": 23.91,
+        "tempMinC": 12.7,
+        "frostDays12C": 0,
+        "precipMm": 16.1,
+        "availableDate": "2025-09-06"
+      },
+      {
+        "period": "2025-09",
+        "n": 30,
+        "tempMeanC": 18.09,
+        "tempMinC": 4.5,
+        "frostDays12C": 0,
+        "precipMm": 12.6,
+        "availableDate": "2025-10-06"
+      },
+      {
+        "period": "2025-10",
+        "n": 31,
+        "tempMeanC": 10.46,
+        "tempMinC": 1.8,
+        "frostDays12C": 0,
+        "precipMm": 54.5,
+        "availableDate": "2025-11-06"
+      },
+      {
+        "period": "2025-11",
+        "n": 30,
+        "tempMeanC": 7.28,
+        "tempMinC": -0.4,
+        "frostDays12C": 0,
+        "precipMm": 15.7,
+        "availableDate": "2025-12-06"
+      },
+      {
+        "period": "2025-12",
+        "n": 31,
+        "tempMeanC": -0.92,
+        "tempMinC": -13.6,
+        "frostDays12C": 2,
+        "precipMm": 20.2,
+        "availableDate": "2026-01-06"
+      },
+      {
+        "period": "2026-01",
+        "n": 31,
+        "tempMeanC": -6.93,
+        "tempMinC": -23,
+        "frostDays12C": 14,
+        "precipMm": 50.2,
+        "availableDate": "2026-02-06"
+      },
+      {
+        "period": "2026-02",
+        "n": 28,
+        "tempMeanC": -6.97,
+        "tempMinC": -22,
+        "frostDays12C": 12,
+        "precipMm": 44.8,
+        "availableDate": "2026-03-06"
+      },
+      {
+        "period": "2026-03",
+        "n": 31,
+        "tempMeanC": 4.83,
+        "tempMinC": -7.9,
+        "frostDays12C": 0,
+        "precipMm": 14.9,
+        "availableDate": "2026-04-06"
+      },
+      {
+        "period": "2026-04",
+        "n": 30,
+        "tempMeanC": 9.35,
+        "tempMinC": 2.1,
+        "frostDays12C": 0,
+        "precipMm": 76.8,
+        "availableDate": "2026-05-06"
+      },
+      {
+        "period": "2026-05",
+        "n": 31,
+        "tempMeanC": 18.46,
+        "tempMinC": 3,
+        "frostDays12C": 0,
+        "precipMm": 28.6,
+        "availableDate": "2026-06-06"
+      },
+      {
+        "period": "2026-06",
+        "n": 30,
+        "tempMeanC": 21.58,
+        "tempMinC": 9.5,
+        "frostDays12C": 0,
+        "precipMm": 61.5,
+        "availableDate": "2026-07-06"
+      },
+      {
+        "period": "2026-07",
+        "n": 31,
+        "tempMeanC": 25.69,
+        "tempMinC": 15.5,
+        "frostDays12C": 0,
+        "precipMm": 15.2,
+        "availableDate": "2026-08-06"
+      },
+      {
+        "period": "2026-08",
+        "n": 31,
+        "tempMeanC": 25.11,
+        "tempMinC": 12.3,
+        "frostDays12C": 0,
+        "precipMm": 7.1,
+        "availableDate": "2026-09-06"
+      },
+      {
+        "period": "2026-09",
+        "n": 30,
+        "tempMeanC": 18.96,
+        "tempMinC": 9.1,
+        "frostDays12C": 0,
+        "precipMm": 51.3,
+        "availableDate": "2026-10-06"
+      }
+    ],
+    "zhambyl": [
+      {
+        "period": "2020-01",
+        "n": 31,
+        "tempMeanC": -1.17,
+        "tempMinC": -7.8,
+        "frostDays12C": 0,
+        "precipMm": 27.8,
+        "availableDate": "2020-02-06"
+      },
+      {
+        "period": "2020-02",
+        "n": 29,
+        "tempMeanC": 3.25,
+        "tempMinC": -5.9,
+        "frostDays12C": 0,
+        "precipMm": 40.3,
+        "availableDate": "2020-03-06"
+      },
+      {
+        "period": "2020-03",
+        "n": 31,
+        "tempMeanC": 7.06,
+        "tempMinC": -8.5,
+        "frostDays12C": 0,
+        "precipMm": 9.4,
+        "availableDate": "2020-04-06"
+      },
+      {
+        "period": "2020-04",
+        "n": 30,
+        "tempMeanC": 13.74,
+        "tempMinC": -5.5,
+        "frostDays12C": 0,
+        "precipMm": 85.3,
+        "availableDate": "2020-05-06"
+      },
+      {
+        "period": "2020-05",
+        "n": 31,
+        "tempMeanC": 20.02,
+        "tempMinC": 9.3,
+        "frostDays12C": 0,
+        "precipMm": 38.7,
+        "availableDate": "2020-06-06"
+      },
+      {
+        "period": "2020-06",
+        "n": 30,
+        "tempMeanC": 24.39,
+        "tempMinC": 12,
+        "frostDays12C": 0,
+        "precipMm": 5.2,
+        "availableDate": "2020-07-06"
+      },
+      {
+        "period": "2020-07",
+        "n": 31,
+        "tempMeanC": 26.64,
+        "tempMinC": 13.9,
+        "frostDays12C": 0,
+        "precipMm": 5.3,
+        "availableDate": "2020-08-06"
+      },
+      {
+        "period": "2020-08",
+        "n": 31,
+        "tempMeanC": 24.25,
+        "tempMinC": 11.5,
+        "frostDays12C": 0,
+        "precipMm": 40.1,
+        "availableDate": "2020-09-06"
+      },
+      {
+        "period": "2020-09",
+        "n": 30,
+        "tempMeanC": 16.1,
+        "tempMinC": 3,
+        "frostDays12C": 0,
+        "precipMm": 10.4,
+        "availableDate": "2020-10-06"
+      },
+      {
+        "period": "2020-10",
+        "n": 31,
+        "tempMeanC": 8.44,
+        "tempMinC": -4,
+        "frostDays12C": 0,
+        "precipMm": 0.4,
+        "availableDate": "2020-11-06"
+      },
+      {
+        "period": "2020-11",
+        "n": 30,
+        "tempMeanC": -0.76,
+        "tempMinC": -19.2,
+        "frostDays12C": 7,
+        "precipMm": 32.7,
+        "availableDate": "2020-12-06"
+      },
+      {
+        "period": "2020-12",
+        "n": 31,
+        "tempMeanC": -4.86,
+        "tempMinC": -13.2,
+        "frostDays12C": 4,
+        "precipMm": 4.4,
+        "availableDate": "2021-01-06"
+      },
+      {
+        "period": "2021-01",
+        "n": 31,
+        "tempMeanC": -3.94,
+        "tempMinC": -17.8,
+        "frostDays12C": 9,
+        "precipMm": 10.5,
+        "availableDate": "2021-02-06"
+      },
+      {
+        "period": "2021-02",
+        "n": 28,
+        "tempMeanC": 2.39,
+        "tempMinC": -15.1,
+        "frostDays12C": 3,
+        "precipMm": 49.3,
+        "availableDate": "2021-03-06"
+      },
+      {
+        "period": "2021-03",
+        "n": 31,
+        "tempMeanC": 4.37,
+        "tempMinC": -9,
+        "frostDays12C": 0,
+        "precipMm": 135.3,
+        "availableDate": "2021-04-06"
+      },
+      {
+        "period": "2021-04",
+        "n": 30,
+        "tempMeanC": 11.49,
+        "tempMinC": -5.7,
+        "frostDays12C": 0,
+        "precipMm": 55.3,
+        "availableDate": "2021-05-06"
+      },
+      {
+        "period": "2021-05",
+        "n": 31,
+        "tempMeanC": 20.75,
+        "tempMinC": 7.6,
+        "frostDays12C": 0,
+        "precipMm": 4.8,
+        "availableDate": "2021-06-06"
+      },
+      {
+        "period": "2021-06",
+        "n": 30,
+        "tempMeanC": 25.4,
+        "tempMinC": 13.1,
+        "frostDays12C": 0,
+        "precipMm": 2.5,
+        "availableDate": "2021-07-06"
+      },
+      {
+        "period": "2021-07",
+        "n": 31,
+        "tempMeanC": 28.49,
+        "tempMinC": 16,
+        "frostDays12C": 0,
+        "precipMm": 0.6,
+        "availableDate": "2021-08-06"
+      },
+      {
+        "period": "2021-08",
+        "n": 31,
+        "tempMeanC": 25.77,
+        "tempMinC": 12.6,
+        "frostDays12C": 0,
+        "precipMm": 1.1,
+        "availableDate": "2021-09-06"
+      },
+      {
+        "period": "2021-09",
+        "n": 30,
+        "tempMeanC": 20.02,
+        "tempMinC": 4.9,
+        "frostDays12C": 0,
+        "precipMm": 2.3,
+        "availableDate": "2021-10-06"
+      },
+      {
+        "period": "2021-10",
+        "n": 31,
+        "tempMeanC": 7.63,
+        "tempMinC": -1.5,
+        "frostDays12C": 0,
+        "precipMm": 58.7,
+        "availableDate": "2021-11-06"
+      },
+      {
+        "period": "2021-11",
+        "n": 30,
+        "tempMeanC": 1.32,
+        "tempMinC": -13.7,
+        "frostDays12C": 1,
+        "precipMm": 25.5,
+        "availableDate": "2021-12-06"
+      },
+      {
+        "period": "2021-12",
+        "n": 31,
+        "tempMeanC": 2.47,
+        "tempMinC": -10,
+        "frostDays12C": 0,
+        "precipMm": 32.6,
+        "availableDate": "2022-01-06"
+      },
+      {
+        "period": "2022-01",
+        "n": 31,
+        "tempMeanC": 1.09,
+        "tempMinC": -6.4,
+        "frostDays12C": 0,
+        "precipMm": 39.2,
+        "availableDate": "2022-02-06"
+      },
+      {
+        "period": "2022-02",
+        "n": 28,
+        "tempMeanC": 1.54,
+        "tempMinC": -6.7,
+        "frostDays12C": 0,
+        "precipMm": 14.5,
+        "availableDate": "2022-03-06"
+      },
+      {
+        "period": "2022-03",
+        "n": 31,
+        "tempMeanC": 5.68,
+        "tempMinC": -4.4,
+        "frostDays12C": 0,
+        "precipMm": 174.4,
+        "availableDate": "2022-04-06"
+      },
+      {
+        "period": "2022-04",
+        "n": 30,
+        "tempMeanC": 16.7,
+        "tempMinC": 3.4,
+        "frostDays12C": 0,
+        "precipMm": 43.9,
+        "availableDate": "2022-05-06"
+      },
+      {
+        "period": "2022-05",
+        "n": 31,
+        "tempMeanC": 18.91,
+        "tempMinC": 7.1,
+        "frostDays12C": 0,
+        "precipMm": 100.6,
+        "availableDate": "2022-06-06"
+      },
+      {
+        "period": "2022-06",
+        "n": 30,
+        "tempMeanC": 25.48,
+        "tempMinC": 12.1,
+        "frostDays12C": 0,
+        "precipMm": 52.8,
+        "availableDate": "2022-07-06"
+      },
+      {
+        "period": "2022-07",
+        "n": 31,
+        "tempMeanC": 27.51,
+        "tempMinC": 15.5,
+        "frostDays12C": 0,
+        "precipMm": 5.2,
+        "availableDate": "2022-08-06"
+      },
+      {
+        "period": "2022-08",
+        "n": 31,
+        "tempMeanC": 23.53,
+        "tempMinC": 11,
+        "frostDays12C": 0,
+        "precipMm": 15.7,
+        "availableDate": "2022-09-06"
+      },
+      {
+        "period": "2022-09",
+        "n": 30,
+        "tempMeanC": 20.61,
+        "tempMinC": 4.1,
+        "frostDays12C": 0,
+        "precipMm": 0.2,
+        "availableDate": "2022-10-06"
+      },
+      {
+        "period": "2022-10",
+        "n": 31,
+        "tempMeanC": 11.03,
+        "tempMinC": 1.1,
+        "frostDays12C": 0,
+        "precipMm": 48.3,
+        "availableDate": "2022-11-06"
+      },
+      {
+        "period": "2022-11",
+        "n": 30,
+        "tempMeanC": 4.61,
+        "tempMinC": -9,
+        "frostDays12C": 0,
+        "precipMm": 92.9,
+        "availableDate": "2022-12-06"
+      },
+      {
+        "period": "2022-12",
+        "n": 31,
+        "tempMeanC": -5.1,
+        "tempMinC": -21.5,
+        "frostDays12C": 6,
+        "precipMm": 19,
+        "availableDate": "2023-01-06"
+      },
+      {
+        "period": "2023-01",
+        "n": 31,
+        "tempMeanC": -8.6,
+        "tempMinC": -27.6,
+        "frostDays12C": 18,
+        "precipMm": 35.4,
+        "availableDate": "2023-02-06"
+      },
+      {
+        "period": "2023-02",
+        "n": 28,
+        "tempMeanC": 0.28,
+        "tempMinC": -14.5,
+        "frostDays12C": 3,
+        "precipMm": 63.8,
+        "availableDate": "2023-03-06"
+      },
+      {
+        "period": "2023-03",
+        "n": 31,
+        "tempMeanC": 8.76,
+        "tempMinC": -4.3,
+        "frostDays12C": 0,
+        "precipMm": 40.6,
+        "availableDate": "2023-04-06"
+      },
+      {
+        "period": "2023-04",
+        "n": 30,
+        "tempMeanC": 12.87,
+        "tempMinC": -1.2,
+        "frostDays12C": 0,
+        "precipMm": 30.1,
+        "availableDate": "2023-05-06"
+      },
+      {
+        "period": "2023-05",
+        "n": 31,
+        "tempMeanC": 18.35,
+        "tempMinC": 2.9,
+        "frostDays12C": 0,
+        "precipMm": 20.4,
+        "availableDate": "2023-06-06"
+      },
+      {
+        "period": "2023-06",
+        "n": 30,
+        "tempMeanC": 26.07,
+        "tempMinC": 13.2,
+        "frostDays12C": 0,
+        "precipMm": 5.3,
+        "availableDate": "2023-07-06"
+      },
+      {
+        "period": "2023-07",
+        "n": 31,
+        "tempMeanC": 28.3,
+        "tempMinC": 16.2,
+        "frostDays12C": 0,
+        "precipMm": 11,
+        "availableDate": "2023-08-06"
+      },
+      {
+        "period": "2023-08",
+        "n": 31,
+        "tempMeanC": 24.54,
+        "tempMinC": 9.8,
+        "frostDays12C": 0,
+        "precipMm": 41.9,
+        "availableDate": "2023-09-06"
+      },
+      {
+        "period": "2023-09",
+        "n": 30,
+        "tempMeanC": 17.74,
+        "tempMinC": 6.6,
+        "frostDays12C": 0,
+        "precipMm": 14.2,
+        "availableDate": "2023-10-06"
+      },
+      {
+        "period": "2023-10",
+        "n": 31,
+        "tempMeanC": 13.17,
+        "tempMinC": 0.3,
+        "frostDays12C": 0,
+        "precipMm": 36.7,
+        "availableDate": "2023-11-06"
+      },
+      {
+        "period": "2023-11",
+        "n": 30,
+        "tempMeanC": 7.65,
+        "tempMinC": -4.1,
+        "frostDays12C": 0,
+        "precipMm": 40.9,
+        "availableDate": "2023-12-06"
+      },
+      {
+        "period": "2023-12",
+        "n": 31,
+        "tempMeanC": -1.97,
+        "tempMinC": -33.6,
+        "frostDays12C": 5,
+        "precipMm": 46.2,
+        "availableDate": "2024-01-06"
+      },
+      {
+        "period": "2024-01",
+        "n": 31,
+        "tempMeanC": -0.54,
+        "tempMinC": -17.5,
+        "frostDays12C": 3,
+        "precipMm": 56.5,
+        "availableDate": "2024-02-06"
+      },
+      {
+        "period": "2024-02",
+        "n": 29,
+        "tempMeanC": -1.7,
+        "tempMinC": -15.4,
+        "frostDays12C": 4,
+        "precipMm": 43.6,
+        "availableDate": "2024-03-06"
+      },
+      {
+        "period": "2024-03",
+        "n": 31,
+        "tempMeanC": 4.99,
+        "tempMinC": -8.7,
+        "frostDays12C": 0,
+        "precipMm": 50.2,
+        "availableDate": "2024-04-06"
+      },
+      {
+        "period": "2024-04",
+        "n": 30,
+        "tempMeanC": 13.02,
+        "tempMinC": -1.9,
+        "frostDays12C": 0,
+        "precipMm": 73.1,
+        "availableDate": "2024-05-06"
+      },
+      {
+        "period": "2024-05",
+        "n": 31,
+        "tempMeanC": 17.61,
+        "tempMinC": 2.8,
+        "frostDays12C": 0,
+        "precipMm": 56.9,
+        "availableDate": "2024-06-06"
+      },
+      {
+        "period": "2024-06",
+        "n": 30,
+        "tempMeanC": 25.96,
+        "tempMinC": 12.3,
+        "frostDays12C": 0,
+        "precipMm": 2.6,
+        "availableDate": "2024-07-06"
+      },
+      {
+        "period": "2024-07",
+        "n": 31,
+        "tempMeanC": 26.6,
+        "tempMinC": 14.4,
+        "frostDays12C": 0,
+        "precipMm": 13.4,
+        "availableDate": "2024-08-06"
+      },
+      {
+        "period": "2024-08",
+        "n": 31,
+        "tempMeanC": 26.04,
+        "tempMinC": 11.8,
+        "frostDays12C": 0,
+        "precipMm": 2.3,
+        "availableDate": "2024-09-06"
+      },
+      {
+        "period": "2024-09",
+        "n": 30,
+        "tempMeanC": 16.37,
+        "tempMinC": 1.5,
+        "frostDays12C": 0,
+        "precipMm": 40.8,
+        "availableDate": "2024-10-06"
+      },
+      {
+        "period": "2024-10",
+        "n": 31,
+        "tempMeanC": 10.98,
+        "tempMinC": -2.4,
+        "frostDays12C": 0,
+        "precipMm": 71.3,
+        "availableDate": "2024-11-06"
+      },
+      {
+        "period": "2024-11",
+        "n": 30,
+        "tempMeanC": 5.08,
+        "tempMinC": -5,
+        "frostDays12C": 0,
+        "precipMm": 54,
+        "availableDate": "2024-12-06"
+      },
+      {
+        "period": "2024-12",
+        "n": 31,
+        "tempMeanC": -3.61,
+        "tempMinC": -18.2,
+        "frostDays12C": 8,
+        "precipMm": 19.7,
+        "availableDate": "2025-01-06"
+      },
+      {
+        "period": "2025-01",
+        "n": 31,
+        "tempMeanC": -1.87,
+        "tempMinC": -16.6,
+        "frostDays12C": 3,
+        "precipMm": 28.8,
+        "availableDate": "2025-02-06"
+      },
+      {
+        "period": "2025-02",
+        "n": 28,
+        "tempMeanC": -0.49,
+        "tempMinC": -12.7,
+        "frostDays12C": 2,
+        "precipMm": 17.5,
+        "availableDate": "2025-03-06"
+      },
+      {
+        "period": "2025-03",
+        "n": 31,
+        "tempMeanC": 6.12,
+        "tempMinC": -9.4,
+        "frostDays12C": 0,
+        "precipMm": 49,
+        "availableDate": "2025-04-06"
+      },
+      {
+        "period": "2025-04",
+        "n": 30,
+        "tempMeanC": 15.7,
+        "tempMinC": 0.8,
+        "frostDays12C": 0,
+        "precipMm": 32.6,
+        "availableDate": "2025-05-06"
+      },
+      {
+        "period": "2025-05",
+        "n": 31,
+        "tempMeanC": 22.56,
+        "tempMinC": 10.4,
+        "frostDays12C": 0,
+        "precipMm": 10.5,
+        "availableDate": "2025-06-06"
+      },
+      {
+        "period": "2025-06",
+        "n": 30,
+        "tempMeanC": 26.46,
+        "tempMinC": 12.4,
+        "frostDays12C": 0,
+        "precipMm": 11.2,
+        "availableDate": "2025-07-06"
+      },
+      {
+        "period": "2025-07",
+        "n": 31,
+        "tempMeanC": 28.5,
+        "tempMinC": 15.5,
+        "frostDays12C": 0,
+        "precipMm": 9.7,
+        "availableDate": "2025-08-06"
+      },
+      {
+        "period": "2025-08",
+        "n": 31,
+        "tempMeanC": 24.76,
+        "tempMinC": 10.7,
+        "frostDays12C": 0,
+        "precipMm": 8.9,
+        "availableDate": "2025-09-06"
+      },
+      {
+        "period": "2025-09",
+        "n": 30,
+        "tempMeanC": 19.1,
+        "tempMinC": 5.9,
+        "frostDays12C": 0,
+        "precipMm": 3.2,
+        "availableDate": "2025-10-06"
+      },
+      {
+        "period": "2025-10",
+        "n": 31,
+        "tempMeanC": 10.9,
+        "tempMinC": 1.2,
+        "frostDays12C": 0,
+        "precipMm": 26.3,
+        "availableDate": "2025-11-06"
+      },
+      {
+        "period": "2025-11",
+        "n": 30,
+        "tempMeanC": 4.83,
+        "tempMinC": -5.3,
+        "frostDays12C": 0,
+        "precipMm": 11.5,
+        "availableDate": "2025-12-06"
+      },
+      {
+        "period": "2025-12",
+        "n": 31,
+        "tempMeanC": 1.17,
+        "tempMinC": -10.1,
+        "frostDays12C": 0,
+        "precipMm": 62.3,
+        "availableDate": "2026-01-06"
+      },
+      {
+        "period": "2026-01",
+        "n": 31,
+        "tempMeanC": -2.06,
+        "tempMinC": -13.6,
+        "frostDays12C": 5,
+        "precipMm": 38.3,
+        "availableDate": "2026-02-06"
+      },
+      {
+        "period": "2026-02",
+        "n": 28,
+        "tempMeanC": 2.89,
+        "tempMinC": -7.7,
+        "frostDays12C": 0,
+        "precipMm": 112.8,
+        "availableDate": "2026-03-06"
+      },
+      {
+        "period": "2026-03",
+        "n": 31,
+        "tempMeanC": 5.62,
+        "tempMinC": -11.5,
+        "frostDays12C": 0,
+        "precipMm": 61.7,
+        "availableDate": "2026-04-06"
+      },
+      {
+        "period": "2026-04",
+        "n": 30,
+        "tempMeanC": 14.98,
+        "tempMinC": 4.9,
+        "frostDays12C": 0,
+        "precipMm": 51.7,
+        "availableDate": "2026-05-06"
+      },
+      {
+        "period": "2026-05",
+        "n": 31,
+        "tempMeanC": 18.86,
+        "tempMinC": 7.2,
+        "frostDays12C": 0,
+        "precipMm": 64.3,
+        "availableDate": "2026-06-06"
+      },
+      {
+        "period": "2026-06",
+        "n": 30,
+        "tempMeanC": 25.42,
+        "tempMinC": 15.7,
+        "frostDays12C": 0,
+        "precipMm": 21.7,
+        "availableDate": "2026-07-06"
+      },
+      {
+        "period": "2026-07",
+        "n": 31,
+        "tempMeanC": 27.9,
+        "tempMinC": 15.6,
+        "frostDays12C": 0,
+        "precipMm": 14.4,
+        "availableDate": "2026-08-06"
+      },
+      {
+        "period": "2026-08",
+        "n": 31,
+        "tempMeanC": 26.71,
+        "tempMinC": 11.7,
+        "frostDays12C": 0,
+        "precipMm": 1.1,
+        "availableDate": "2026-09-06"
+      },
+      {
+        "period": "2026-09",
+        "n": 30,
+        "tempMeanC": 20.62,
+        "tempMinC": 8.2,
+        "frostDays12C": 0,
+        "precipMm": 2.1,
+        "availableDate": "2026-10-06"
+      }
+    ]
+  }
 }

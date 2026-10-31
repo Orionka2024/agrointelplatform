@@ -996,3 +996,44 @@ select:focus { border-color: var(--blue); }
 .add-price button[type="submit"] {background:var(--green);color:#fff;border:1px solid var(--green);border-radius:4px;font-weight:600;align-self:flex-end;}
 .basis-banner {padding:10px 12px;border-left:3px solid var(--green);background:var(--green-bg);margin:10px 0;}
 
+/* ── Modern Responsive Data Tables (container query + sticky headers + keyboard scroll) ── */
+.table-wrapper {
+  container-type: inline-size;
+  overflow-x: auto;
+  max-width: 100%;
+  border-radius: 6px;
+  outline-offset: 2px;
+}
+.table-wrapper:focus-visible {
+  outline: 2px solid var(--blue);
+}
+.table-scroll-tall {
+  max-height: 540px;
+  overflow-y: auto;
+}
+.tbl.sticky-hd thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+  padding-top: 8px;
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+.tbl.sticky-hd th.sticky-col,
+.tbl.sticky-hd td.sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+}
+.tbl.sticky-hd thead th.sticky-col {
+  z-index: 3;
+}
+.tbl.sticky-hd tr:hover td.sticky-col {
+  background: var(--surface2);
+}
+.sales-plan-highlight td {
+  background: rgba(13, 124, 74, 0.05);
+}
+
+

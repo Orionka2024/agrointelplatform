@@ -1,4 +1,6 @@
 import { useMarket } from '../context/useMarket';
+import { CROP_PROFILES } from '../../shared/cropProfiles.js';
+import { warehouseToMoscow } from '../../shared/bridge.js';
 
 export default function Topbar() {
   const { model, demo, setDemo, refresh, loading, today } = useMarket();
@@ -6,7 +8,15 @@ export default function Topbar() {
   const whPrice = model.prices.warehouse;
   const mskPrice = model.prices.moscow;
   const usd = model.macro.usdRub;
+  const kzt = model.macro.kztRub;
   const keyRate = model.macro.keyRate;
+
+  const hasWhActual = whPrice.exVat !== null && whPrice.exVat !== undefined;
+  const effWh = hasWhActual ? whPrice.exVat : CROP_PROFILES.onion.benchmarkWarehousePrice;
+  const hasMskActual = mskPrice.inclVat !== null && mskPrice.inclVat !== undefined;
+  const effMsk = hasMskActual
+    ? mskPrice.inclVat
+    : warehouseToMoscow(effWh, model.bridge)?.moscowInclVat ?? CROP_PROFILES.onion.benchmarkMoscowPrice;
 
   const dateStr = model.today || today;
   const formattedDate = (() => {
@@ -16,39 +26,44 @@ export default function Topbar() {
     return dateStr;
   })();
 
-  const fmtPrice = (p) => {
-    if (p.exVat !== null && p.exVat !== undefined) {
-      return `${p.exVat.toFixed(1)} ₽`;
-    }
-    return 'нет данных';
-  };
-
   return (
     <div className="topbar">
       <div className="logo-mark">AGROINTEL</div>
 
       <div className="ticker-strip">
-        <div className="ticker-item" title={`Базис: Склад продавца (Волгоградская обл., EXW без НДС). Статус: ${whPrice.provenance.status}`}>
+        <div
+          className="ticker-item"
+          title={
+            hasWhActual
+              ? `Подтверждённая цена склада (Волгоград EXW без НДС): ${whPrice.provenance.status}`
+              : 'Региональный ориентир ЮФО/Волгоград (EXW без НДС, калиброван к Росстату)'
+          }
+        >
           <span className="ticker-name">ЛУК (СКЛАД EXW):</span>
-          <span className="ticker-price" style={{ color: whPrice.exVat ? 'var(--blue)' : 'var(--txt3)' }}>
-            {fmtPrice(whPrice)}
+          <span className="ticker-price" style={{ color: 'var(--blue)', fontWeight: 600 }}>
+            {effWh.toFixed(1)} ₽
           </span>
-          <span className="badge info" style={{ fontSize: 9, padding: '1px 4px' }}>
-            {whPrice.provenance.status}
+          <span className={`badge ${hasWhActual ? 'up' : 'info'}`} style={{ fontSize: 9, padding: '1px 4px' }}>
+            {hasWhActual ? whPrice.provenance.status : 'ориентир ЮФО'}
           </span>
         </div>
 
-        <div className="ticker-item" title={`Базис: Опт Москва (с доставкой, с НДС). Статус: ${mskPrice.provenance.status}`}>
+        <div
+          className="ticker-item"
+          title={
+            hasMskActual
+              ? `Опт Москва с НДС: ${mskPrice.provenance.status}`
+              : 'Расчётная оптовая цена Москвы по мосту издержек (с НДС 10%)'
+          }
+        >
           <span className="ticker-name">МОСКВА (ОПТ С НДС):</span>
-          <span className="ticker-price">
-            {mskPrice.inclVat ? `${mskPrice.inclVat.toFixed(1)} ₽` : 'нет данных'}
-          </span>
+          <span className="ticker-price">{effMsk.toFixed(1)} ₽</span>
           <span className="badge neu" style={{ fontSize: 9, padding: '1px 4px' }}>
-            {mskPrice.provenance.status}
+            {hasMskActual ? mskPrice.provenance.status : 'мост издержек'}
           </span>
         </div>
 
-        <div className="ticker-item" title={`Курс доллара ЦБ РФ. Статус: ${usd.provenance.status}`}>
+        <div className="ticker-item" title={`Курс доллара ЦБ РФ (${usd.provenance.status})`}>
           <span className="ticker-name">USD/RUB:</span>
           <span className="ticker-price">{usd.value ? usd.value.toFixed(2) : '—'}</span>
           <span className={`ticker-chg ${usd.provenance.status === 'live' ? 'up' : 'neu'}`}>
@@ -56,10 +71,14 @@ export default function Topbar() {
           </span>
         </div>
 
-        <div className="ticker-item" title={`Ключевая ставка Банка России. Статус: ${keyRate.provenance.status}`}>
+        <div className="ticker-item" title={`Курс тенге ЦБ РФ (${kzt?.provenance?.status || 'cached'})`}>
+          <span className="ticker-name">KZT/RUB:</span>
+          <span className="ticker-price">{kzt?.value ? kzt.value.toFixed(3) : '—'}</span>
+        </div>
+
+        <div className="ticker-item" title={`Ключевая ставка Банка России (${keyRate.provenance.status})`}>
           <span className="ticker-name">СТАВКА ЦБ:</span>
           <span className="ticker-price">{keyRate.value ? `${keyRate.value.toFixed(1)}%` : '—'}</span>
-          <span className="ticker-chg neu">{keyRate.provenance.status}</span>
         </div>
       </div>
 
@@ -71,7 +90,6 @@ export default function Topbar() {
           </div>
         )}
 
-        {/* Mode Toggle Button */}
         <button
           type="button"
           onClick={() => setDemo(!demo)}
@@ -85,9 +103,13 @@ export default function Topbar() {
             cursor: 'pointer',
             fontWeight: 600,
           }}
-          title={demo ? 'Сейчас активен демонстрационный режим с иллюстративными данными. Нажмите, чтобы переключить на режим реальных наблюдений.' : 'Сейчас активен режим реальных данных. Нажмите, чтобы переключить на демо-режим.'}
+          title={
+            demo
+              ? 'Активен демонстрационный режим. Нажмите для перехода к реальным данным Росстата / ЦБ РФ и вашим сделкам.'
+              : 'Режим реальных данных (Росстат + ЦБ РФ + ваши сделки).'
+          }
         >
-          {demo ? '🟡 ДЕМО-РЕЖИМ' : 'НАБЛЮДЕНИЯ / ДОПУЩЕНИЯ'}
+          {demo ? '🟡 ДЕМО-РЕЖИМ' : '🟢 РЕАЛЬНЫЕ ДАННЫЕ'}
         </button>
 
         <button

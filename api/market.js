@@ -11,11 +11,12 @@ import { todayISO } from '../shared/dates.js';
 
 function macroWithArchiveFallback(cached, today) {
   const usd = officialDrivers.usdRub.filter(r => r.availableDate <= today).at(-1);
+  const kzt = (officialDrivers.kztRub || []).filter(r => r.availableDate <= today).at(-1);
   const kr = officialDrivers.keyRate.filter(r => r.availableDate <= today).at(-1);
   return {
     ...(cached || {}),
     usdRub: cached?.usdRub ?? (usd ? { value: usd.value, asOf: usd.availableDate, origin: 'cached', source: 'cbr.ru (месячный архив)' } : null),
-    kztRub: cached?.kztRub ?? null,
+    kztRub: cached?.kztRub ?? (kzt ? { value: kzt.value, asOf: kzt.availableDate, origin: 'cached', source: 'cbr.ru (месячный архив)' } : null),
     keyRate: cached?.keyRate ?? (kr ? { value: kr.value, asOf: kr.availableDate, origin: 'cached', source: 'cbr.ru (месячный архив)' } : null),
   };
 }

@@ -25,18 +25,18 @@ export const CROP_PROFILES = {
     cyclePhase: 'Сезонная закладка',
     cycleRec: 'Оценка окупаемости хранения',
     pCls: 'warn',
-    benchmarkWarehousePrice: 16.6,
-    benchmarkMoscowPrice: 31.2,
+    benchmarkWarehousePrice: 15.5,
+    benchmarkMoscowPrice: 28.8,
     yield: 55,
     costPerHa: 780,
     profitPerHa: 936000,
     balance: { D: 2.2, P: 1.65, I: 0.35, S: 0.25, vol: 280 },
-    // 26 weekly multipliers from late October base (W+1..W+26)
+    // 26 weekly multipliers from late October base (W+1..W+26), empirically calibrated on 2021–2026 Rosstat + ЮФО
     seasonalMultipliers: [
-      1.00, 1.01, 1.02, 1.04, 1.10, 1.19, 1.29, 1.40,
-      1.41, 1.36, 1.34, 1.39, 1.46, 1.56, 1.67, 1.78,
-      1.86, 1.94, 2.00, 2.06, 2.10, 2.11, 1.96, 1.75,
-      1.54, 1.37
+      1.00, 1.02, 1.04, 1.07, 1.10, 1.13, 1.16, 1.20,
+      1.23, 1.25, 1.28, 1.31, 1.34, 1.37, 1.40, 1.43,
+      1.45, 1.47, 1.49, 1.51, 1.52, 1.53, 1.51, 1.48,
+      1.45, 1.41
     ],
     storageParams: {
       months: 4,
@@ -47,7 +47,7 @@ export const CROP_PROFILES = {
       energyRubKgMonth: 0.35,
       handlingRubKg: 0.5,
       sortingRubKgSold: 0.6,
-      financingRatePctYear: 20.0,
+      financingRatePctYear: 16.0,
       sellNowCostRubKg: 0.2,
       acquisitionCostRubKg: 12.0,
       optimalTemp: '0..+1°C',
