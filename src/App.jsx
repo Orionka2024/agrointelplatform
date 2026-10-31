@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Component, useState } from 'react';
 import './index.css';
 import { MarketProvider } from './context/MarketContext';
 import Topbar from './components/Topbar';
@@ -9,6 +9,29 @@ import Profit from './components/Profit';
 import Cycle from './components/Cycle';
 import DataImport from './components/DataImport';
 import AIAdvisor from './components/AIAdvisor';
+
+class TabErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="panel" role="alert" style={{ padding: 16 }}>
+          <div className="signal-box sell">
+            <div className="signal-label sell">Ошибка отображения раздела</div>
+            <div className="signal-text sell">{this.state.error?.message || 'Неизвестная ошибка'}</div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const TABS = [
   { id: 'dashboard',   label: 'Обзор' },
@@ -55,7 +78,9 @@ function AppContent() {
         ))}
       </nav>
       <main className="main">
-        {renderTab()}
+        <TabErrorBoundary key={tab}>
+          {renderTab()}
+        </TabErrorBoundary>
       </main>
     </div>
   );

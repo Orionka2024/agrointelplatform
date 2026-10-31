@@ -333,5 +333,9 @@ test('26-week onion trajectory reflects KZ autumn cap, pre-NY retail surge, Jan 
   // 4) April bends downward as early Uzbekistan & Egypt crop enters market
   assert.ok(aprLate.whPrice < marPeak.whPrice - 1.5, `Expected April rollover (${aprLate.whPrice}) below March peak (${marPeak.whPrice})`);
   assert.ok(aprLate.wowDelta < 0, `Expected negative WoW delta in late April, got ${aprLate.wowDelta}`);
+  // 5) Storage loss % and stage lossAvg are finite positive numbers (no NaN)
+  assert.ok(plan.weeks.every((w) => Number.isFinite(w.totalLossPct) && w.totalLossPct >= 0));
+  assert.ok(plan.stages.every((s) => Number.isFinite(s.lossAvg) && s.lossAvg > 0));
 });
+
 

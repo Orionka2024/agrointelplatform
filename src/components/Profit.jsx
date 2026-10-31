@@ -15,7 +15,7 @@ function fmtMoney(n) {
 }
 
 export default function Profit() {
-  const { model, updateAssumptions } = useMarket();
+  const { model, signals, updateAssumptions } = useMarket();
 
   const [activeTab, setActiveTab] = useState('storage');
   const [storageCrop, setStorageCrop] = useState('onion');
@@ -30,6 +30,8 @@ export default function Profit() {
     bridge: model.bridge,
     storageParams: model.storage?.params ?? CROP_PROFILES.onion.storageParams,
     scenarioDeltaPct: 0,
+    scenarioId: 'base',
+    liveSignals: signals,
   });
 
   const spInit = model.storage?.params ?? CROP_PROFILES.onion.storageParams;
@@ -262,14 +264,16 @@ export default function Profit() {
                         <div>
                           <div className="result-lbl">Точка безубыточности</div>
                           <div className="result-num" style={{ color: 'var(--amber)' }}>
-                            {storageResult.breakEvenFuturePrice.toFixed(1)} ₽/кг
+                            {storageResult.breakEvenFuturePrice !== null
+                              ? `${storageResult.breakEvenFuturePrice.toFixed(1)} ₽/кг`
+                              : '—'}
                           </div>
                         </div>
                       </div>
                     </div>
                   </>
                 ) : (
-                  <p>{storageResult.reason}</p>
+                  <p>{storageResult.reason || 'Заполните параметры хранения корректно'}</p>
                 )}
               </div>
             </div>
@@ -282,26 +286,33 @@ export default function Profit() {
                 <table className="tbl sticky-hd">
                   <thead>
                     <tr>
-                      <th className="pl">Суммарные потери</th>
-                      <th>Выигрыш хранения</th>
-                      <th>Безубыточная цена</th>
-                      <th>Сценарий цены</th>
-                      <th>Эффект при цене</th>
+                      <th scope="col" className="pl sticky-col">Суммарные потери</th>
+                      <th scope="col">Выигрыш хранения</th>
+                      <th scope="col">Безубыточная цена</th>
+                      <th scope="col">Сценарий цены</th>
+                      <th scope="col">Эффект при цене</th>
                     </tr>
                   </thead>
                   <tbody>
                     {lossSens.map((ls, idx) => {
                       const ps = priceSens[idx];
+                      const hasLsGain = Number.isFinite(ls?.gain);
+                      const hasPsPrice = Number.isFinite(ps?.price);
+                      const hasPsGain = Number.isFinite(ps?.gain);
                       return (
                         <tr key={ls.totalLossPct}>
-                          <td className="pl fw">{ls.totalLossPct}% потерь</td>
-                          <td className={`mono ${ls.gain >= 0 ? 'up' : 'dn'}`}>
-                            {ls.gain >= 0 ? `+${ls.gain.toFixed(2)}` : ls.gain.toFixed(2)} ₽
+                          <th scope="row" className="pl fw sticky-col">{ls.totalLossPct}% потерь</th>
+                          <td className={`mono ${hasLsGain ? (ls.gain >= 0 ? 'up' : 'dn') : ''}`}>
+                            {hasLsGain ? `${ls.gain >= 0 ? '+' : ''}${ls.gain.toFixed(2)} ₽` : '—'}
                           </td>
-                          <td className="mono">{ls.breakEvenFuturePrice?.toFixed(1) ?? '—'} ₽</td>
-                          <td className="mono">{ps ? `${ps.futurePrice.toFixed(1)} ₽ (${ps.label})` : '—'}</td>
-                          <td className={`mono ${ps && ps.gain >= 0 ? 'up' : 'dn'}`}>
-                            {ps ? `${ps.gain >= 0 ? '+' : ''}${ps.gain.toFixed(2)} ₽` : '—'}
+                          <td className="mono">
+                            {Number.isFinite(ls?.breakEvenFuturePrice) ? `${ls.breakEvenFuturePrice.toFixed(1)} ₽` : '—'}
+                          </td>
+                          <td className="mono">
+                            {hasPsPrice ? `${ps.price.toFixed(1)} ₽ (${ps.label})` : '—'}
+                          </td>
+                          <td className={`mono ${hasPsGain ? (ps.gain >= 0 ? 'up' : 'dn') : ''}`}>
+                            {hasPsGain ? `${ps.gain >= 0 ? '+' : ''}${ps.gain.toFixed(2)} ₽` : '—'}
                           </td>
                         </tr>
                       );

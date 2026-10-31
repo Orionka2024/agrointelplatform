@@ -282,7 +282,10 @@ export function buildWeeklyDecisionPlan({
 
   const basisFactor = startRef > 0 ? pStart / startRef : 1;
   const sellNowEval = evaluateStorage(pStart, pStart, storageAtHorizon(storageParams, 0));
-  const sellNowNet = sellNowEval?.sellNowProceeds ?? Math.max(0, pStart - (storageParams?.sellNowCostRubKg ?? 0.2));
+  const sellNowNet =
+    sellNowEval?.status === 'ok' && Number.isFinite(sellNowEval.netNowPerKgStored)
+      ? sellNowEval.netNowPerKgStored
+      : Math.max(0, pStart - (storageParams?.sellNowCostRubKg ?? 0.2));
 
   let prevWh = pStart;
   const weeks = Array.from({ length: 26 }, (_, idx) => {
@@ -322,10 +325,25 @@ export function buildWeeklyDecisionPlan({
     const horizonStorage = storageAtHorizon(storageParams, months);
     const stEval = evaluateStorage(pStart, whPrice, horizonStorage);
 
-    const netPerKg = +(stEval?.expectedHoldProceeds ?? whPrice * 0.9).toFixed(2);
-    const gainVsNow = +(stEval?.gain ?? (netPerKg - sellNowNet)).toFixed(2);
-    const breakEvenPrice = +(stEval?.breakEvenFuturePrice ?? pStart).toFixed(2);
-    const totalLossPct = stEval ? +(100 * (1 - stEval.goodKg - stEval.downgradedKg)).toFixed(1) : 0;
+    const netPerKg = +(
+      stEval?.status === 'ok' && Number.isFinite(stEval.netLaterPerKgStored)
+        ? stEval.netLaterPerKgStored
+        : whPrice * 0.9
+    ).toFixed(2);
+    const gainVsNow = +(
+      stEval?.status === 'ok' && Number.isFinite(stEval.gain)
+        ? stEval.gain
+        : netPerKg - sellNowNet
+    ).toFixed(2);
+    const breakEvenPrice = +(
+      stEval?.status === 'ok' && Number.isFinite(stEval.breakEvenFuturePrice)
+        ? stEval.breakEvenFuturePrice
+        : pStart
+    ).toFixed(2);
+    const totalLossPct =
+      stEval?.status === 'ok' && Number.isFinite(stEval.saleableYield)
+        ? +(100 * (1 - stEval.saleableYield)).toFixed(1)
+        : 0;
 
     const mskCalc = warehouseToMoscow(whPrice, bridge);
     const mskPrice = +(mskCalc?.moscowInclVat ?? (whPrice * 1.1 + 9.5)).toFixed(2);
