@@ -131,6 +131,7 @@ export function weeksToMonths(weeks) {
 
 /** Loss assumptions are totals over referenceMonths, compounded for the holding duration. */
 export function storageAtHorizon(params, months) {
+  if (!params) return null;
   const reference = Number(params.referenceMonths ?? params.months);
   if (!(reference > 0) || !(months >= 0)) return { ...params, months, shrinkPct: null, rotPct: null };
   const scale = pct => 100 * (1 - Math.pow(1 - Number(pct) / 100, months / reference));

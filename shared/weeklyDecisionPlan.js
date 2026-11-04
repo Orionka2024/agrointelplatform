@@ -281,7 +281,7 @@ export function buildWeeklyDecisionPlan({
   }
 
   const basisFactor = startRef > 0 ? pStart / startRef : 1;
-  const sellNowEval = evaluateStorage(pStart, pStart, storageAtHorizon(storageParams, 0));
+  const sellNowEval = storageParams ? evaluateStorage(pStart, pStart, storageAtHorizon(storageParams, 0)) : null;
   const sellNowNet =
     sellNowEval?.status === 'ok' && Number.isFinite(sellNowEval.netNowPerKgStored)
       ? sellNowEval.netNowPerKgStored
@@ -322,8 +322,8 @@ export function buildWeeklyDecisionPlan({
     prevWh = whPrice;
 
     const months = +((idx + 1) / 4.33).toFixed(2);
-    const horizonStorage = storageAtHorizon(storageParams, months);
-    const stEval = evaluateStorage(pStart, whPrice, horizonStorage);
+    const horizonStorage = storageParams ? storageAtHorizon(storageParams, months) : null;
+    const stEval = horizonStorage ? evaluateStorage(pStart, whPrice, horizonStorage) : null;
 
     const netPerKg = +(
       stEval?.status === 'ok' && Number.isFinite(stEval.netLaterPerKgStored)
@@ -354,7 +354,7 @@ export function buildWeeklyDecisionPlan({
       ? onionRegime.phase
       : cropProfile?.getPhase
         ? cropProfile.getPhase(idx)
-        : { tag: 'Плановое хранение', desc: '' };
+        : (cropProfile?.offSeasonNotice ? { tag: 'Межсезонье', desc: cropProfile.offSeasonNotice.title } : { tag: 'Плановое хранение', desc: '' });
 
     const lo80 = relBand80 !== null ? +Math.max(0, whPrice * (1 - relBand80)).toFixed(1) : null;
     const hi80 = relBand80 !== null ? +(whPrice * (1 + relBand80)).toFixed(1) : null;

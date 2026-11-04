@@ -52,6 +52,7 @@ export default function Dashboard() {
   const snap = officialSnapshot(model.today);
   const selectedCropProfile = getCropProfile(selectedCrop);
   const isSelectedOnion = selectedCrop === 'onion';
+  const isFieldSeasonal = selectedCropProfile.type === CROP_TYPES.FIELD_SEASONAL;
 
   const userCropPrice = Number(model.assumptions?.manualPrices?.[selectedCrop]?.value);
   const hasUserWh = isSelectedOnion
@@ -375,81 +376,155 @@ export default function Dashboard() {
 
       {/* 4 KPI Stat Cards */}
       <div className="row-4">
-        <div className="panel">
-          <div className="panel-body">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <div className="stat-label">{selectedCropProfile.label} · Склад EXW</div>
-              <span className={`badge ${hasUserWh ? 'up' : 'info'}`} style={{ fontSize: 9 }}>
-                {hasUserWh ? 'ваша цена' : (isSelectedOnion ? '5+ см · от 20 т' : 'ориентир ЮФО/РФ')}
-              </span>
-            </div>
-            <div className="stat-val" style={{ color: 'var(--blue)' }}>
-              {effWhPrice.toFixed(1)} ₽/кг
-            </div>
-            <div className="stat-meta">
-              <span className="stat-sub">
-                без НДС (~{(effWhPrice * 1.1).toFixed(1)} ₽ с НДС) {isSelectedOnion && `· ЮФО Росстат: ${snap.producerSouth?.value?.toFixed(2) ?? '17.53'} ₽`}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="panel">
-          <div className="panel-body">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <div className="stat-label">
-                {isSelectedOnion ? `Весенний пик CatBoost (W+${decisionPlan.peakWeek.h})` : `Сезонный пик хранения (W+${decisionPlan.peakWeek.h})`}
+        {isFieldSeasonal ? (
+          <>
+            <div className="panel">
+              <div className="panel-body">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <div className="stat-label">{selectedCropProfile.label} · Статус сезона</div>
+                  <span className="badge warn" style={{ fontSize: 9 }}>межсезонье</span>
+                </div>
+                <div className="stat-val warn" style={{ fontSize: 18 }}>
+                  Сезон закрыт
+                </div>
+                <div className="stat-meta">
+                  <span className="stat-sub">
+                    Ориентир сезона: {selectedCropProfile.benchmarkWarehousePrice.toFixed(1)} ₽/кг (EXW с поля)
+                  </span>
+                </div>
               </div>
-              <span className="badge up" style={{ fontSize: 9 }}>
-                +{Math.round(((decisionPlan.peakWeek.whPrice - effWhPrice) / effWhPrice) * 100)}%
-              </span>
             </div>
-            <div className="stat-val up">
-              {decisionPlan.peakWeek.whPrice.toFixed(1)} ₽/кг
-            </div>
-            <div className="stat-meta">
-              <span className="stat-sub">
-                чистыми: ~{decisionPlan.bestNetWeek.netPerKg.toFixed(1)} ₽/кг {decisionPlan.peakWeek.lo80 !== null ? `· 80% кор.: ${decisionPlan.peakWeek.lo80}–${decisionPlan.peakWeek.hi80} ₽` : ''}
-              </span>
-            </div>
-          </div>
-        </div>
 
-        <div className="panel">
-          <div className="panel-body">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <div className="stat-label">{selectedCropProfile.label} · Опт Москва (с НДС)</div>
-              <span className="badge neu" style={{ fontSize: 9 }}>
-                {hasUserMsk ? 'наблюдение' : 'мост издержек'}
-              </span>
+            <div className="panel">
+              <div className="panel-body">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <div className="stat-label">Старт сезона 2027</div>
+                  <span className="badge up" style={{ fontSize: 9 }}>планирование</span>
+                </div>
+                <div className="stat-val up" style={{ fontSize: 18 }}>
+                  Июль 2027
+                </div>
+                <div className="stat-meta">
+                  <span className="stat-sub">
+                    {selectedCropProfile.offSeasonNotice?.nextSeasonStart || 'Ранний сбор под плёнкой («термос»)'}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="stat-val warn">
-              {effMskPrice.toFixed(1)} ₽/кг
-            </div>
-            <div className="stat-meta">
-              <span className="stat-sub">
-                без НДС: {effMskExVat.toFixed(1)} ₽ {isSelectedOnion ? `· розница РФ: ${snap.retail?.value?.toFixed(1) ?? '49.2'} ₽` : ''}
-              </span>
-            </div>
-          </div>
-        </div>
 
-        <div className="panel">
-          <div className="panel-body">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <div className="stat-label">Спред Москва − Склад</div>
-              <span className="badge warn" style={{ fontSize: 9 }}>логистика</span>
+            <div className="panel">
+              <div className="panel-body">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <div className="stat-label">Целевая урожайность (2027)</div>
+                  <span className="badge info" style={{ fontSize: 9 }}>агронорма</span>
+                </div>
+                <div className="stat-val" style={{ color: 'var(--blue)' }}>
+                  {selectedCropProfile.planning2027?.targetYield ?? selectedCropProfile.yield} т/га
+                </div>
+                <div className="stat-meta">
+                  <span className="stat-sub">
+                    Норматив затрат: {selectedCropProfile.planning2027?.costNormK ?? selectedCropProfile.costPerHa} тыс. ₽/га
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="stat-val" style={{ color: 'var(--amber)' }}>
-              +{(effMskPrice - effWhPrice).toFixed(1)} ₽/кг
+
+            <div className="panel">
+              <div className="panel-body">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <div className="stat-label">Целевая рентабельность (ROI)</div>
+                  <span className="badge up" style={{ fontSize: 9 }}>бизнес-план</span>
+                </div>
+                <div className="stat-val up">
+                  +{selectedCropProfile.planning2027?.roiPct ?? 88}%
+                </div>
+                <div className="stat-meta">
+                  <span className="stat-sub">
+                    Прибыль: ~{Math.round((selectedCropProfile.planning2027?.profitPerHa ?? selectedCropProfile.profitPerHa) / 1000)}K ₽/га
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="stat-meta">
-              <span className="stat-sub">
-                Фрахт {freightPerKg.toFixed(2)} ₽/кг + тара + потери + НДС 10%
-              </span>
+          </>
+        ) : (
+          <>
+            <div className="panel">
+              <div className="panel-body">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <div className="stat-label">{selectedCropProfile.label} · Склад EXW</div>
+                  <span className={`badge ${hasUserWh ? 'up' : 'info'}`} style={{ fontSize: 9 }}>
+                    {hasUserWh ? 'ваша цена' : (isSelectedOnion ? '5+ см · от 20 т' : 'ориентир ЮФО/РФ')}
+                  </span>
+                </div>
+                <div className="stat-val" style={{ color: 'var(--blue)' }}>
+                  {effWhPrice.toFixed(1)} ₽/кг
+                </div>
+                <div className="stat-meta">
+                  <span className="stat-sub">
+                    без НДС (~{(effWhPrice * 1.1).toFixed(1)} ₽ с НДС) {isSelectedOnion && `· ЮФО Росстат: ${snap.producerSouth?.value?.toFixed(2) ?? '17.53'} ₽`}
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+
+            <div className="panel">
+              <div className="panel-body">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <div className="stat-label">
+                    {isSelectedOnion ? `Весенний пик CatBoost (W+${decisionPlan.peakWeek.h})` : `Сезонный пик хранения (W+${decisionPlan.peakWeek.h})`}
+                  </div>
+                  <span className="badge up" style={{ fontSize: 9 }}>
+                    +{Math.round(((decisionPlan.peakWeek.whPrice - effWhPrice) / effWhPrice) * 100)}%
+                  </span>
+                </div>
+                <div className="stat-val up">
+                  {decisionPlan.peakWeek.whPrice.toFixed(1)} ₽/кг
+                </div>
+                <div className="stat-meta">
+                  <span className="stat-sub">
+                    чистыми: ~{decisionPlan.bestNetWeek.netPerKg.toFixed(1)} ₽/кг {decisionPlan.peakWeek.lo80 !== null ? `· 80% кор.: ${decisionPlan.peakWeek.lo80}–${decisionPlan.peakWeek.hi80} ₽` : ''}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="panel">
+              <div className="panel-body">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <div className="stat-label">{selectedCropProfile.label} · Опт Москва (с НДС)</div>
+                  <span className="badge neu" style={{ fontSize: 9 }}>
+                    {hasUserMsk ? 'наблюдение' : 'мост издержек'}
+                  </span>
+                </div>
+                <div className="stat-val warn">
+                  {effMskPrice.toFixed(1)} ₽/кг
+                </div>
+                <div className="stat-meta">
+                  <span className="stat-sub">
+                    без НДС: {effMskExVat.toFixed(1)} ₽ {isSelectedOnion ? `· розница РФ: ${snap.retail?.value?.toFixed(1) ?? '49.2'} ₽` : ''}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="panel">
+              <div className="panel-body">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <div className="stat-label">Спред Москва − Склад</div>
+                  <span className="badge warn" style={{ fontSize: 9 }}>логистика</span>
+                </div>
+                <div className="stat-val" style={{ color: 'var(--amber)' }}>
+                  +{(effMskPrice - effWhPrice).toFixed(1)} ₽/кг
+                </div>
+                <div className="stat-meta">
+                  <span className="stat-sub">
+                    Фрахт {freightPerKg.toFixed(2)} ₽/кг + тара + потери + НДС 10%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Live Spot Marketplaces & Multi-Factor Pressure Radar */}
@@ -797,70 +872,145 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Recommended 5-Stage Monthly Sales Plan (Screenshot 1) */}
-      <MonthlySalesPlanTable plan={decisionPlan} cropLabel={selectedCropProfile.fullName.toLowerCase()} />
+      {/* Recommended 5-Stage Monthly Sales Plan & 26-Week Chart OR Field Seasonal Off-Season Planning */}
+      {isFieldSeasonal ? (
+        <div style={{ marginBottom: 14 }}>
+          <div className="signal-box warn" style={{ marginBottom: 14 }}>
+            <div className="signal-label warn">{selectedCropProfile.offSeasonNotice?.title || 'Межсезонье: Сезон закрыт'}</div>
+            <div className="signal-text warn">{selectedCropProfile.offSeasonNotice?.description}</div>
+          </div>
 
-      {/* 26-Week Trajectory Chart */}
-      <div className="panel">
-        <div className="panel-hd" style={{ flexWrap: 'wrap', gap: 8 }}>
-          <span className="panel-title">
-            26-недельная динамика · {selectedCropProfile.fullName} · Склад EXW, чистая выручка и Опт Москва
-          </span>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {isSelectedOnion ? (
-              <>
-                <span className="badge neu">Ноя: транзит КЗ</span>
-                <span className="badge info">Дек: пик РЦ → 1–14 янв: пауза ▼</span>
-                <span className="badge up">Мар: пик хранения ▲</span>
-                <span className="badge warn">Апр: ранний лук УЗ ▼</span>
-              </>
-            ) : (
-              <>
-                <span className="badge neu">Старт: {decisionPlan.weeks[0]?.whPrice.toFixed(1)} ₽</span>
-                <span className="badge up">
-                  Пик W+{decisionPlan.peakWeek.h}: {decisionPlan.peakWeek.whPrice.toFixed(1)} ₽ (+
-                  {Math.round(((decisionPlan.peakWeek.whPrice - effWhPrice) / effWhPrice) * 100)}%)
-                </span>
-                <span className="badge info">
-                  Чистыми макс: ~{decisionPlan.bestNetWeek.netPerKg.toFixed(1)} ₽
-                </span>
-              </>
-            )}
+          <div className="row-2">
+            <div className="panel" style={{ padding: '12px 14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontWeight: 600, fontSize: 12 }}>Годовой ценовой цикл ({selectedCropProfile.label})</span>
+                <span className="badge neu">СЕЗОННЫЙ ПРОФИЛЬ</span>
+              </div>
+              <div className="table-wrapper" role="region" tabIndex={0} aria-label="Годовой цикл бахчевых">
+                <table className="tbl sticky-hd">
+                  <thead>
+                    <tr>
+                      <th>Период</th>
+                      <th>Агрофаза</th>
+                      <th>Поле (EXW)</th>
+                      <th>Опт Москва</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(selectedCropProfile.annualCycle || []).map((ac) => (
+                      <tr key={ac.month} style={{ opacity: ac.status === 'off_season' ? 0.65 : 1 }}>
+                        <td className="fw">{ac.month}</td>
+                        <td style={{ fontSize: 11, color: 'var(--txt2)' }}>{ac.phase}</td>
+                        <td className="mono">{ac.priceWh ? `${ac.priceWh.toFixed(1)} ₽` : '—'}</td>
+                        <td className="mono">{ac.priceMsk ? `${ac.priceMsk.toFixed(1)} ₽` : 'межсезонье'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="panel" style={{ padding: '12px 14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontWeight: 600, fontSize: 12 }}>Дорожная карта сезона 2027 г.</span>
+                <span className="badge info">ПЛАНИРОВАНИЕ</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {(selectedCropProfile.planning2027?.keyMilestones || []).map((m) => (
+                  <div
+                    key={m.period}
+                    style={{
+                      display: 'flex',
+                      gap: 10,
+                      alignItems: 'flex-start',
+                      paddingBottom: 6,
+                      borderBottom: '1px solid var(--border)',
+                      fontSize: 11,
+                    }}
+                  >
+                    <span className="badge up" style={{ minWidth: 138, textAlign: 'center' }}>
+                      {m.period}
+                    </span>
+                    <span style={{ color: 'var(--txt2)', lineHeight: 1.45 }}>{m.step}</span>
+                  </div>
+                ))}
+              </div>
+              {selectedCropProfile.planning2027?.recommendedVarieties && (
+                <div style={{ marginTop: 10, fontSize: 11, color: 'var(--txt2)' }}>
+                  <strong>Рекомендуемые гибриды:</strong> {selectedCropProfile.planning2027.recommendedVarieties}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-        <div style={{ padding: '12px 14px' }}>
-          <div style={{ height: 250 }}>
-            <Line
-              data={chartData}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                  legend: {
-                    labels: {
-                      filter: (item) => !item.text.includes('Нижняя граница'),
-                      boxWidth: 14,
-                      font: { size: 11 },
+      ) : (
+        <>
+          {/* Recommended 5-Stage Monthly Sales Plan */}
+          <MonthlySalesPlanTable plan={decisionPlan} cropLabel={selectedCropProfile.fullName.toLowerCase()} />
+
+          {/* 26-Week Trajectory Chart */}
+          <div className="panel">
+            <div className="panel-hd" style={{ flexWrap: 'wrap', gap: 8 }}>
+              <span className="panel-title">
+                26-недельная динамика · {selectedCropProfile.fullName} · Склад EXW, чистая выручка и Опт Москва
+              </span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {isSelectedOnion ? (
+                  <>
+                    <span className="badge neu">Ноя: транзит КЗ</span>
+                    <span className="badge info">Дек: пик РЦ → 1–14 янв: пауза ▼</span>
+                    <span className="badge up">Мар: пик хранения ▲</span>
+                    <span className="badge warn">Апр: ранний лук УЗ ▼</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="badge neu">Старт: {decisionPlan.weeks[0]?.whPrice.toFixed(1)} ₽</span>
+                    <span className="badge up">
+                      Пик W+{decisionPlan.peakWeek.h}: {decisionPlan.peakWeek.whPrice.toFixed(1)} ₽ (+
+                      {Math.round(((decisionPlan.peakWeek.whPrice - effWhPrice) / effWhPrice) * 100)}%)
+                    </span>
+                    <span className="badge info">
+                      Чистыми макс: ~{decisionPlan.bestNetWeek.netPerKg.toFixed(1)} ₽
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+            <div style={{ padding: '12px 14px' }}>
+              <div style={{ height: 250 }}>
+                <Line
+                  data={chartData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                      legend: {
+                        labels: {
+                          filter: (item) => !item.text.includes('Нижняя граница'),
+                          boxWidth: 14,
+                          font: { size: 11 },
+                        },
+                      },
                     },
-                  },
-                },
-                scales: {
-                  y: {
-                    ticks: {
-                      font: { size: 10, family: 'JetBrains Mono' },
-                      callback: (v) => `${v} ₽`,
+                    scales: {
+                      y: {
+                        ticks: {
+                          font: { size: 10, family: 'JetBrains Mono' },
+                          callback: (v) => `${v} ₽`,
+                        },
+                      },
+                      x: {
+                        ticks: { maxTicksLimit: 9, font: { size: 10 } },
+                      },
                     },
-                  },
-                  x: {
-                    ticks: { maxTicksLimit: 9, font: { size: 10 } },
-                  },
-                },
-              }}
-            />
+                  }}
+                />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
 
       {/* District Agro-Meteorology Widget */}
       <WeatherWidget />

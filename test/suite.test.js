@@ -15,11 +15,13 @@ import { issueForecast, forecastAgeDays } from '../shared/forecast.js';
 import { validateBridge, warehouseToMoscow, moscowToWarehouse, impliedMargin, freightRubKg } from '../shared/bridge.js';
 import { deficitIndex, classifyDeficit, shareOfMarket } from '../shared/balance.js';
 import { evaluateScenario, applyScenarioToRows } from '../shared/scenarios.js';
-import { evaluateStorage, validateStorageParams } from '../shared/storageEconomics.js';
+import { evaluateStorage, validateStorageParams, storageAtHorizon } from '../shared/storageEconomics.js';
 import { evaluateSeasonalPressure, calendarFeatures, estimateLag } from '../shared/seasonality.js';
 import { computeMarketModel } from '../shared/marketModel.js';
 import { buildSnapshot, sanitizeSnapshot } from '../shared/snapshot.js';
 import { parseSafeMarkdown } from '../shared/safeMarkdown.js';
+import { buildWeeklyDecisionPlan } from '../shared/weeklyDecisionPlan.js';
+import { getCropProfile } from '../shared/cropProfiles.js';
 
 test('1. Date utilities - ISO format and calendar calculations', () => {
   assert.equal(isISODate('2026-10-24'), true);
@@ -283,3 +285,36 @@ test('11. AI Advisor snapshot sanitizer bounds depth and size', () => {
   const sanitized = sanitizeSnapshot(deep);
   assert.equal(sanitized.a.b.c.d.e.f.g.h, null); // truncated at depth limit
 });
+
+test('12. Field seasonal crops (watermelon, melon) handle off-season and missing storage params safely', () => {
+  // storageAtHorizon returns null safely when params are undefined
+  assert.equal(storageAtHorizon(undefined, 2), null);
+  assert.equal(storageAtHorizon(null, 2), null);
+
+  for (const cropId of ['watermalon', 'melon']) {
+    const profile = getCropProfile(cropId);
+    assert.ok(profile, `Profile for ${cropId} must exist`);
+    assert.equal(profile.type, 'field_seasonal');
+    assert.equal(profile.storageParams, undefined);
+
+    const plan = buildWeeklyDecisionPlan({
+      cropId,
+      cropProfile: profile,
+      officialForecast: null,
+      today: '2026-11-02',
+      baseWarehousePrice: profile.benchmarkWarehousePrice,
+      bridge: { truckCostRub: 135000, truckPayloadKg: 20000 },
+      storageParams: profile.storageParams,
+      scenarioDeltaPct: 0,
+      scenarioId: 'base',
+      liveSignals: null,
+    });
+
+    assert.ok(plan);
+    assert.equal(plan.weeks.length, 26);
+    assert.ok(plan.peakWeek);
+    assert.ok(plan.bestNetWeek);
+    assert.equal(plan.weeks[0].phase.tag, 'Межсезонье');
+  }
+});
+
