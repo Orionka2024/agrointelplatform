@@ -12,7 +12,7 @@ import {
 } from 'chart.js';
 import { useMarket } from '../context/useMarket';
 import { officialForecast, officialSnapshot } from '../../shared/officialData.js';
-import { CROP_PROFILES, CROP_TYPES } from '../../shared/cropProfiles.js';
+import { CROP_PROFILES, CROP_TYPES, getCropProfile } from '../../shared/cropProfiles.js';
 import { warehouseToMoscow } from '../../shared/bridge.js';
 import { buildWeeklyDecisionPlan } from '../../shared/weeklyDecisionPlan.js';
 import { buildUserPriceCsv } from '../../shared/localBasis.js';
@@ -22,6 +22,8 @@ import MonthlySalesPlanTable from './MonthlySalesPlanTable';
 import WeatherWidget from './WeatherWidget';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
+
+const DASHBOARD_CROPS = ['onion', 'pumpkin', 'potato', 'carrot', 'beet', 'cabbage', 'garlic', 'watermalon', 'melon'];
 
 const IMPORTERS = [
   { country: '🇰🇿 Казахстан (Жамбылская, Туркестанская обл.)', share: 48, risk: 'warn', note: 'Пик транзита окт–ноя; к февралю запасы КЗ истощаются' },
@@ -45,33 +47,44 @@ export default function Dashboard() {
   const [macroBusy, setMacroBusy] = useState(false);
   const [macroMsg, setMacroMsg] = useState('');
   const [spotBusy, setSpotBusy] = useState(false);
+  const [selectedCrop, setSelectedCrop] = useState('onion');
 
   const snap = officialSnapshot(model.today);
-  const onionProfile = CROP_PROFILES.onion;
+  const selectedCropProfile = getCropProfile(selectedCrop);
+  const isSelectedOnion = selectedCrop === 'onion';
 
-  const hasUserWh = model.prices.warehouse.exVat !== null && model.prices.warehouse.exVat !== undefined;
-  const effWhPrice = hasUserWh
-    ? model.prices.warehouse.exVat
-    : onionProfile.benchmarkWarehousePrice;
+  const userCropPrice = Number(model.assumptions?.manualPrices?.[selectedCrop]?.value);
+  const hasUserWh = isSelectedOnion
+    ? (model.prices.warehouse.exVat !== null && model.prices.warehouse.exVat !== undefined)
+    : (userCropPrice > 0);
+
+  const effWhPrice = isSelectedOnion
+    ? (hasUserWh ? model.prices.warehouse.exVat : selectedCropProfile.benchmarkWarehousePrice)
+    : (hasUserWh ? userCropPrice : selectedCropProfile.benchmarkWarehousePrice);
 
   const bridgeCalc = warehouseToMoscow(effWhPrice, model.bridge);
-  const hasUserMsk = model.prices.moscow.inclVat !== null && model.prices.moscow.inclVat !== undefined;
+  const hasUserMsk = isSelectedOnion
+    ? (model.prices.moscow.inclVat !== null && model.prices.moscow.inclVat !== undefined)
+    : false;
+
   const effMskPrice = hasUserMsk
     ? model.prices.moscow.inclVat
-    : bridgeCalc?.moscowInclVat ?? onionProfile.benchmarkMoscowPrice;
-  const effMskExVat = model.prices.moscow.exVat ?? bridgeCalc?.moscowExVat ?? 26.2;
+    : bridgeCalc?.moscowInclVat ?? selectedCropProfile.benchmarkMoscowPrice;
+  const effMskExVat = isSelectedOnion
+    ? (model.prices.moscow.exVat ?? bridgeCalc?.moscowExVat ?? 26.2)
+    : (bridgeCalc?.moscowExVat ?? +(effWhPrice + 8.5).toFixed(1));
 
   const decisionPlan = buildWeeklyDecisionPlan({
-    cropId: 'onion',
-    cropProfile: onionProfile,
-    officialForecast: officialForecast.issueDate <= model.today ? officialForecast : null,
+    cropId: selectedCrop,
+    cropProfile: selectedCropProfile,
+    officialForecast: isSelectedOnion && officialForecast.issueDate <= model.today ? officialForecast : null,
     today: model.today,
     baseWarehousePrice: effWhPrice,
     bridge: model.bridge,
-    storageParams: model.storage?.params ?? onionProfile.storageParams,
+    storageParams: isSelectedOnion ? (model.storage?.params ?? selectedCropProfile.storageParams) : selectedCropProfile.storageParams,
     scenarioDeltaPct: 0,
     scenarioId: 'base',
-    liveSignals: signals,
+    liveSignals: isSelectedOnion ? signals : null,
   });
 
   const usdVal = signals?.fx?.usdRub?.value ?? model.macro.usdRub?.value ?? snap.drivers?.usdRub?.value;
@@ -115,12 +128,13 @@ export default function Dashboard() {
   }
 
   const cropRows = Object.values(CROP_PROFILES).map((c) => {
-    const isOnion = c.id === 'onion';
+    const isThisOnion = c.id === 'onion';
     const manualCropVal = Number(model.assumptions?.manualPrices?.[c.id]?.value);
-    const wh = isOnion ? effWhPrice : (manualCropVal > 0 ? manualCropVal : c.benchmarkWarehousePrice);
-    const isCustom = isOnion ? hasUserWh : manualCropVal > 0;
+    const onionWhPrice = model.prices.warehouse.exVat ?? CROP_PROFILES.onion.benchmarkWarehousePrice;
+    const wh = isThisOnion ? onionWhPrice : (manualCropVal > 0 ? manualCropVal : c.benchmarkWarehousePrice);
+    const isCustom = isThisOnion ? (model.prices.warehouse.exVat !== null && model.prices.warehouse.exVat !== undefined) : manualCropVal > 0;
     const peakMult = c.type === CROP_TYPES.STORAGE ? Math.max(...(c.seasonalMultipliers || [1])) : 1;
-    const peakWh = isOnion ? decisionPlan.peakWeek.whPrice : +(wh * peakMult).toFixed(1);
+    const peakWh = isThisOnion && isSelectedOnion ? decisionPlan.peakWeek.whPrice : +(wh * peakMult).toFixed(1);
     const balRatio = c.balance ? +(c.balance.D / (c.balance.P + c.balance.I + (c.balance.S || 0))).toFixed(2) : 1.0;
     return { ...c, wh, peakWh, balRatio, isCustom };
   });
@@ -141,7 +155,7 @@ export default function Dashboard() {
     labels: chartLabels,
     datasets: [
       {
-        label: 'Лук · Склад EXW (CatBoost, без НДС)',
+        label: `${selectedCropProfile.label} · Склад EXW (${isSelectedOnion ? 'CatBoost' : 'Сезонная модель'}, без НДС)`,
         data: decisionPlan.weeks.map((w) => w.whPrice),
         borderColor: '#1A56A8',
         backgroundColor: 'rgba(26, 86, 168, 0.08)',
@@ -166,25 +180,29 @@ export default function Dashboard() {
         pointRadius: 1.5,
         tension: 0.25,
       },
-      {
-        label: 'Верхняя граница 80% диапазона (склад)',
-        data: decisionPlan.weeks.map((w) => w.hi80),
-        borderColor: 'rgba(26, 86, 168, 0.22)',
-        borderWidth: 1,
-        pointRadius: 0,
-        fill: '+1',
-        backgroundColor: 'rgba(26, 86, 168, 0.07)',
-        tension: 0.25,
-      },
-      {
-        label: 'Нижняя граница 80% диапазона (склад)',
-        data: decisionPlan.weeks.map((w) => w.lo80),
-        borderColor: 'rgba(26, 86, 168, 0.22)',
-        borderWidth: 1,
-        pointRadius: 0,
-        fill: false,
-        tension: 0.25,
-      },
+      ...(decisionPlan.weeks[0]?.hi80 !== null
+        ? [
+            {
+              label: 'Верхняя граница 80% диапазона (склад)',
+              data: decisionPlan.weeks.map((w) => w.hi80),
+              borderColor: 'rgba(26, 86, 168, 0.22)',
+              borderWidth: 1,
+              pointRadius: 0,
+              fill: '+1',
+              backgroundColor: 'rgba(26, 86, 168, 0.07)',
+              tension: 0.25,
+            },
+            {
+              label: 'Нижняя граница 80% диапазона (склад)',
+              data: decisionPlan.weeks.map((w) => w.lo80),
+              borderColor: 'rgba(26, 86, 168, 0.22)',
+              borderWidth: 1,
+              pointRadius: 0,
+              fill: false,
+              tension: 0.25,
+            },
+          ]
+        : []),
     ],
   };
 
@@ -321,14 +339,48 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Crop Selector for Weekly Forecast & Decision Plan */}
+      <div className="panel" style={{ padding: '8px 12px', marginBottom: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 600, fontSize: 12, color: 'var(--txt)' }}>
+              📈 Еженедельный прогноз (26 нед.):
+            </span>
+            <div className="crop-tabs" style={{ borderBottom: 'none', margin: 0 }} role="tablist" aria-label="Культура для прогноза">
+              {DASHBOARD_CROPS.map((id) => {
+                const cp = CROP_PROFILES[id];
+                if (!cp) return null;
+                const isAct = selectedCrop === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isAct}
+                    className={`ctab ${isAct ? 'active' : ''}`}
+                    onClick={() => setSelectedCrop(id)}
+                    style={{ cursor: 'pointer', padding: '4px 9px', fontSize: 11.5 }}
+                  >
+                    {cp.emoji} {cp.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <span className="badge info" style={{ fontSize: 10 }}>
+            {selectedCropProfile.fullName}
+          </span>
+        </div>
+      </div>
+
       {/* 4 KPI Stat Cards */}
       <div className="row-4">
         <div className="panel">
           <div className="panel-body">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <div className="stat-label">Лук · Склад EXW (Волгоград)</div>
+              <div className="stat-label">{selectedCropProfile.label} · Склад EXW</div>
               <span className={`badge ${hasUserWh ? 'up' : 'info'}`} style={{ fontSize: 9 }}>
-                {hasUserWh ? 'ваша сделка' : '5+ см · от 20 т'}
+                {hasUserWh ? 'ваша цена' : (isSelectedOnion ? '5+ см · от 20 т' : 'ориентир ЮФО/РФ')}
               </span>
             </div>
             <div className="stat-val" style={{ color: 'var(--blue)' }}>
@@ -336,7 +388,7 @@ export default function Dashboard() {
             </div>
             <div className="stat-meta">
               <span className="stat-sub">
-                без НДС (~{(effWhPrice * 1.1).toFixed(1)} ₽ с НДС) · ЮФО Росстат: {snap.producerSouth?.value?.toFixed(2) ?? '17.53'} ₽
+                без НДС (~{(effWhPrice * 1.1).toFixed(1)} ₽ с НДС) {isSelectedOnion && `· ЮФО Росстат: ${snap.producerSouth?.value?.toFixed(2) ?? '17.53'} ₽`}
               </span>
             </div>
           </div>
@@ -345,7 +397,9 @@ export default function Dashboard() {
         <div className="panel">
           <div className="panel-body">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <div className="stat-label">Весенний пик CatBoost (W+{decisionPlan.peakWeek.h})</div>
+              <div className="stat-label">
+                {isSelectedOnion ? `Весенний пик CatBoost (W+${decisionPlan.peakWeek.h})` : `Сезонный пик хранения (W+${decisionPlan.peakWeek.h})`}
+              </div>
               <span className="badge up" style={{ fontSize: 9 }}>
                 +{Math.round(((decisionPlan.peakWeek.whPrice - effWhPrice) / effWhPrice) * 100)}%
               </span>
@@ -355,7 +409,7 @@ export default function Dashboard() {
             </div>
             <div className="stat-meta">
               <span className="stat-sub">
-                чистыми: ~{decisionPlan.bestNetWeek.netPerKg.toFixed(1)} ₽/кг · 80% кор.: {decisionPlan.peakWeek.lo80}–{decisionPlan.peakWeek.hi80} ₽
+                чистыми: ~{decisionPlan.bestNetWeek.netPerKg.toFixed(1)} ₽/кг {decisionPlan.peakWeek.lo80 !== null ? `· 80% кор.: ${decisionPlan.peakWeek.lo80}–${decisionPlan.peakWeek.hi80} ₽` : ''}
               </span>
             </div>
           </div>
@@ -364,7 +418,7 @@ export default function Dashboard() {
         <div className="panel">
           <div className="panel-body">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <div className="stat-label">Лук · Опт Москва (с НДС)</div>
+              <div className="stat-label">{selectedCropProfile.label} · Опт Москва (с НДС)</div>
               <span className="badge neu" style={{ fontSize: 9 }}>
                 {hasUserMsk ? 'наблюдение' : 'мост издержек'}
               </span>
@@ -374,7 +428,7 @@ export default function Dashboard() {
             </div>
             <div className="stat-meta">
               <span className="stat-sub">
-                без НДС: {effMskExVat.toFixed(1)} ₽ · розница РФ: {snap.retail?.value?.toFixed(1) ?? '49.2'} ₽
+                без НДС: {effMskExVat.toFixed(1)} ₽ {isSelectedOnion ? `· розница РФ: ${snap.retail?.value?.toFixed(1) ?? '49.2'} ₽` : ''}
               </span>
             </div>
           </div>
@@ -391,7 +445,7 @@ export default function Dashboard() {
             </div>
             <div className="stat-meta">
               <span className="stat-sub">
-                Фрахт {freightPerKg.toFixed(2)} ₽/кг + сетка + потери + НДС 10%
+                Фрахт {freightPerKg.toFixed(2)} ₽/кг + тара + потери + НДС 10%
               </span>
             </div>
           </div>
@@ -617,27 +671,41 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {cropRows.map((c) => (
-                  <tr key={c.id} className={c.isCustom ? 'sales-plan-highlight' : ''}>
-                    <th scope="row" className="pl fw sticky-col" style={{ whiteSpace: 'nowrap' }}>
-                      {c.emoji} {c.label}{' '}
-                      {c.isCustom && (
-                        <span className="badge up" style={{ fontSize: 8, marginLeft: 4 }}>
-                          ваша
-                        </span>
-                      )}
-                    </th>
-                    <td>
-                      <span className={`pill ${c.pCls || 'info'}`}>{c.cyclePhase}</span>
-                    </td>
-                    <td className="mono">{c.wh.toFixed(1)} ₽</td>
-                    <td className={`mono ${c.type === CROP_TYPES.STORAGE ? 'up' : ''}`}>
-                      {c.type === CROP_TYPES.STORAGE ? `${c.peakWh.toFixed(1)} ₽` : 'межсезонье'}
-                    </td>
-                    <td className={`mono ${c.balRatio > 1.03 ? 'dn' : 'up'}`}>{c.balRatio.toFixed(2)}</td>
-                    <td style={{ fontSize: 11, color: 'var(--txt2)' }}>{c.cycleRec}</td>
-                  </tr>
-                ))}
+                {cropRows.map((c) => {
+                  const isSelected = selectedCrop === c.id;
+                  return (
+                    <tr
+                      key={c.id}
+                      className={`${c.isCustom ? 'sales-plan-highlight' : ''} ${isSelected ? 'sales-plan-active-stage' : ''}`}
+                      onClick={() => setSelectedCrop(c.id)}
+                      style={{ cursor: 'pointer' }}
+                      title="Нажмите, чтобы переключить 26-недельный прогноз для этой культуры"
+                    >
+                      <th scope="row" className="pl fw sticky-col" style={{ whiteSpace: 'nowrap' }}>
+                        {c.emoji} {c.label}{' '}
+                        {isSelected && (
+                          <span className="badge info" style={{ fontSize: 8, marginLeft: 4 }}>
+                            прогноз
+                          </span>
+                        )}
+                        {c.isCustom && (
+                          <span className="badge up" style={{ fontSize: 8, marginLeft: 4 }}>
+                            ваша
+                          </span>
+                        )}
+                      </th>
+                      <td>
+                        <span className={`pill ${c.pCls || 'info'}`}>{c.cyclePhase}</span>
+                      </td>
+                      <td className="mono">{c.wh.toFixed(1)} ₽</td>
+                      <td className={`mono ${c.type === CROP_TYPES.STORAGE ? 'up' : ''}`}>
+                        {c.type === CROP_TYPES.STORAGE ? `${c.peakWh.toFixed(1)} ₽` : 'межсезонье'}
+                      </td>
+                      <td className={`mono ${c.balRatio > 1.03 ? 'dn' : 'up'}`}>{c.balRatio.toFixed(2)}</td>
+                      <td style={{ fontSize: 11, color: 'var(--txt2)' }}>{c.cycleRec}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -730,19 +798,34 @@ export default function Dashboard() {
       </div>
 
       {/* Recommended 5-Stage Monthly Sales Plan (Screenshot 1) */}
-      <MonthlySalesPlanTable plan={decisionPlan} cropLabel="лук репчатый" />
+      <MonthlySalesPlanTable plan={decisionPlan} cropLabel={selectedCropProfile.fullName.toLowerCase()} />
 
-      {/* 26-Week CatBoost Trajectory Chart */}
+      {/* 26-Week Trajectory Chart */}
       <div className="panel">
         <div className="panel-hd" style={{ flexWrap: 'wrap', gap: 8 }}>
           <span className="panel-title">
-            26-недельная динамика · Склад EXW, чистая выручка и Опт Москва (с учётом спроса РЦ, паузы 1–14 янв. и импорта КЗ/УЗ)
+            26-недельная динамика · {selectedCropProfile.fullName} · Склад EXW, чистая выручка и Опт Москва
           </span>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <span className="badge neu">Ноя: транзит КЗ</span>
-            <span className="badge info">Дек: пик РЦ → 1–14 янв: пауза ▼</span>
-            <span className="badge up">Мар: пик хранения ▲</span>
-            <span className="badge warn">Апр: ранний лук УЗ ▼</span>
+            {isSelectedOnion ? (
+              <>
+                <span className="badge neu">Ноя: транзит КЗ</span>
+                <span className="badge info">Дек: пик РЦ → 1–14 янв: пауза ▼</span>
+                <span className="badge up">Мар: пик хранения ▲</span>
+                <span className="badge warn">Апр: ранний лук УЗ ▼</span>
+              </>
+            ) : (
+              <>
+                <span className="badge neu">Старт: {decisionPlan.weeks[0]?.whPrice.toFixed(1)} ₽</span>
+                <span className="badge up">
+                  Пик W+{decisionPlan.peakWeek.h}: {decisionPlan.peakWeek.whPrice.toFixed(1)} ₽ (+
+                  {Math.round(((decisionPlan.peakWeek.whPrice - effWhPrice) / effWhPrice) * 100)}%)
+                </span>
+                <span className="badge info">
+                  Чистыми макс: ~{decisionPlan.bestNetWeek.netPerKg.toFixed(1)} ₽
+                </span>
+              </>
+            )}
           </div>
         </div>
         <div style={{ padding: '12px 14px' }}>

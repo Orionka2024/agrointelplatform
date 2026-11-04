@@ -11,7 +11,7 @@ import MonthlySalesPlanTable from './MonthlySalesPlanTable';
 
 const OfficialMarket = lazy(() => import('./OfficialMarket'));
 
-const CROP_ORDER = ['onion', 'potato', 'carrot', 'beet', 'cabbage', 'garlic', 'watermalon', 'melon'];
+const CROP_ORDER = ['onion', 'potato', 'carrot', 'beet', 'cabbage', 'garlic', 'pumpkin', 'watermalon', 'melon'];
 
 const SCENARIO_PRESETS = [
   {

@@ -40,6 +40,7 @@ export const DEMO_BALANCE = {
   potato: { D: 8.0, P: 7.4, I: 0.9, S: 1.3 },
   beet: { D: 1.0, P: 0.88, I: 0.19, S: 0.1 },
   cabbage: { D: 2.5, P: 2.75, I: 0.22, S: 0.35 },
+  pumpkin: { D: 0.95, P: 0.86, I: 0.09, S: 0.08 },
 };
 
 /** Demo farm norms (yield t/ha, cost thousand RUB/ha) and reference prices (RUB/kg). */
@@ -52,6 +53,7 @@ export const DEMO_FARM_NORMS = {
   potato: { yield: 30, cost: 580, price: 11.5 },
   beet: { yield: 42, cost: 430, price: 10 },
   cabbage: { yield: 35, cost: 380, price: 6.5 },
+  pumpkin: { yield: 40, cost: 360, price: 16.5 },
 };
 
 export function buildDemoForecast(basis, bridge = DEMO_BRIDGE) {

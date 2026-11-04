@@ -126,6 +126,21 @@ export const CROPS = {
     yieldRange: "30–45", priceRange: "12–20", costNorm: "380", profitRange: "80–280K",
     balance: { D: 2.5, P: 2.75, I: 0.22, S: 0.35, vol: 195 },
   },
+  pumpkin: {
+    id: "pumpkin",
+    label: "Тыква Матильда F1",
+    emoji: "🎃",
+    ticker: "ТЫК",
+    price: 30.5,
+    change: 0,
+    deficitIdx: 1.02,
+    ndvi: 0.62,
+    importPressure: "Низкое",
+    yield: 40, cost: 360, potential: "Высокий", profitPerHa: 480000,
+    signal: "БАЛАНС", cyclePhase: "Сезонная закладка", cycleRec: "Контроль тепла (+10..+12°C)",
+    yieldRange: "35–45", priceRange: "15–30 (склад) / 28–42 (опт)", costNorm: "360", profitRange: "400K–700K",
+    balance: { D: 0.95, P: 0.86, I: 0.09, S: 0.08, vol: 95 },
+  },
 };
 
 export const MACRO = {
@@ -166,6 +181,7 @@ export const CROP_DEFAULTS = {
   potato:     { yield: 30, price: 11.5, cost: 580 },
   beet:       { yield: 42, price: 10, cost: 430 },
   cabbage:    { yield: 35, price: 6.5, cost: 380 },
+  pumpkin:    { yield: 40, price: 16.5, cost: 360 },
 };
 
 export const CASH_DEFAULTS = {
@@ -177,4 +193,5 @@ export const CASH_DEFAULTS = {
   potato: 11.5,
   beet: 10.0,
   cabbage: 6.5,
+  pumpkin: 16.5,
 };
