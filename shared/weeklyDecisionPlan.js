@@ -215,6 +215,191 @@ function computeScenarioMultiplier(scenarioId, scenarioDeltaPct, targetDate, idx
 }
 
 /**
+ * Builds rich agronomic, commercial, weather, and macro explanations for weekly price movements.
+ */
+export function buildWeekDeltaExplanation({
+  cropId = 'onion',
+  cropProfile,
+  targetDate,
+  idx,
+  h,
+  whPrice,
+  prevWhPrice,
+  wowDelta,
+  wowPct,
+  onionRegime,
+  activeTierId,
+  scenarioId,
+  scenarioDeltaRub = 0,
+  liveSignals = null,
+  totalLossPct = 0,
+  breakEvenPrice = 0,
+  netPerKg = 0,
+  mskPrice = 0,
+  spread = 0,
+  phase,
+}) {
+  const [, month, day] = targetDate.split('-').map(Number);
+  const isUp = wowDelta > 0.08;
+  const isDown = wowDelta < -0.08;
+  const signStr = wowDelta > 0 ? `+${wowDelta.toFixed(2)}` : wowDelta.toFixed(2);
+
+  // Weather hubs from live signals or defaults
+  const vlgMin = liveSignals?.weatherHubs?.volgograd?.minTemp10d ?? -1.2;
+  const zhmMin = liveSignals?.weatherHubs?.zhambyl?.minTemp10d ?? 2.5;
+  const uzMax = liveSignals?.weatherHubs?.surkhandarya?.maxTemp10d ?? 21.0;
+  const mskMin = liveSignals?.weatherHubs?.moscow?.minTemp10d ?? -1.0;
+  const keyRate = liveSignals?.fx?.keyRate?.value ?? 19.0;
+
+  let summary = '';
+  let marketText = '';
+  let weatherText = '';
+  let storageText = '';
+  let actionableTip = '';
+
+  if (cropId === 'onion') {
+    const driverTag = onionRegime?.driverTag || '';
+
+    if (driverTag === 'KZ_TRANSIT_SHEDS' || (month === 10 || (month === 11 && day <= 23))) {
+      summary = isDown
+        ? `Просадка цены (${signStr} ₽/кг): наложение активного ввоза дешёвого лука из Жамбылской области (Казахстан) и массового сброса неотапливаемых ангаров в ЮФО.`
+        : `Сдержанная динамика (${signStr} ₽/кг): массовый приток лука из Казахстана и ликвидация полевых ангаров до заморозков сдерживают рост котировок.`;
+      marketText = `Пик сезонного предложения в оптовом звене. Казахстанский лук с открытых полей Тараза заходит по минимальным осенним ценам, а фермеры Волгограда, Ростова и Астрахани без вентиляции активно распродают объёмы, опасаясь подмораживания шеек.`;
+      weatherText = vlgMin <= -2
+        ? `Внимание: в ЮФО зафиксированы заморозки ниже −2°C (факт: ${vlgMin.toFixed(1)}°C), что форсирует сброс ангаров и давит на цену. В Таразе (${zhmMin.toFixed(1)}°C) отгрузки идут штатно.`
+        : `Температура в ЮФО (${vlgMin.toFixed(1)}°C) пока позволяет уборку и закладку, но падение ночной температуры ниже −2°C вызовет волну распродаж ангаров. В Таразе (+${zhmMin.toFixed(1)}°C) погодных помех для транзита нет.`;
+      storageText = activeTierId === 'unventilated'
+        ? `Критический период для склада без вентиляции! Нельзя затягивать реализацию: при первых заморозках конденсат приведёт к шейковой гнили.`
+        : `Для вентилируемого склада это плановый период сушки и охлаждения наружным воздухом при +1..+3°C. Текущие технологические потери минимальны (~${totalLossPct}%).`;
+      actionableTip = activeTierId === 'unventilated'
+        ? `Срочно распродавать урожай до 1 декабря, пока сохраняется товарный вид.`
+        : `Не демпинговать вместе с ангарами. Сушить стандартный товарный фонд (5+ см) под предновогодние контракты с ритейлом.`;
+    } else if (driverTag === 'STORAGE_SHIFT' || ((month === 11 && day >= 24) || (month === 12 && day <= 10))) {
+      summary = `Разворот тренда вверх (${signStr} ₽/кг): слабые полевые партии распроданы, отгрузки переходят на стационарные вентилируемые склады.`;
+      marketText = `Завершение периода дешёвого полевого сброса. На спотовом рынке исчерпано предложение от хозяйств без специализированных складов; на арену выходят профессиональные партии с активной вентиляцией.`;
+      weatherText = `Устойчивые заморозки в ЮФО (ночью до ${vlgMin.toFixed(1)}°C) окончательно закрыли полевые работы. Перевозка требует защиты от переохлаждения (изотермы).`;
+      storageText = `Товар вошёл в стабильное технологическое хранение. Накопленные потери (усушка + переборка) составляют ~${totalLossPct}%. Точка безубыточности: ${breakEvenPrice.toFixed(1)} ₽/кг.`;
+      actionableTip = `Сформировать графики партий на декабрь. Фиксировать договоренности с сетями на калибр 5+ см.`;
+    } else if (driverTag === 'PRE_NY_SURGE' || (month === 12 && day >= 11 && day <= 26)) {
+      summary = `Предновогодний пик спроса (${signStr} ₽/кг): федеральные сети (X5, Магнит, Дикси) и РЦ формируют максимальный праздничный резерв.`;
+      marketText = `Пик закупочной активности ритейла. Закупщики закрывают реестры и объёмы до 26 декабря, чтобы гарантировать наполненность полок до новогодних праздников и опередить дорожные заторы на трассах М-6 и М-4.`;
+      weatherText = mskMin <= -10
+        ? `В Москве морозы ниже −10°C (${mskMin.toFixed(1)}°C): обязателен тёплый рефрижератор (+1.5–2.5 ₽/кг к логистике).`
+        : `Зимний фон в Москве (${mskMin.toFixed(1)}°C) и на трассе М-6. Доставка в РЦ ведётся рефрижераторами и термосами.`;
+      storageText = `Период максимальной товарности. Лук находится в глубоком покое при +1..+2°C. Себестоимость хранения растёт умеренно, чистая доходность достигает ~${netPerKg.toFixed(1)} ₽/кг.`;
+      actionableTip = `Идеальное коммерческое окно: реализовать 20–25% запаса по высокой цене с премией за качество и калибровку.`;
+    } else if (driverTag === 'NY_GATE_CLOSE' || (month === 12 && day >= 27)) {
+      summary = `Закрытие предновогодних реестров РЦ: приёмка вне долгосрочных графиков прекращается, спотовый рынок замирает.`;
+      marketText = `Распределительные центры прекращают внеплановую приёмку товара. Логистические ворота закрываются до завершения новогодних каникул.`;
+      weatherText = `Зимний режим хранения и перевозок по всей центральной и южной России.`;
+      storageText = `Контроль герметичности ворот и влажности воздуха в камерах (70–75%).`;
+      actionableTip = `Не отправлять несогласованные фуры в Москву во избежание многодневного простоя на праздниках.`;
+    } else if (driverTag === 'NY_PAUSE' || (month === 1 && day <= 15)) {
+      summary = `Новогодняя пауза (${signStr} ₽/кг): каникулы оптовых баз и водителей, сети расходуют декабрьские запасы.`;
+      marketText = `Сезонный спад закупок с 1 по 14 января: оптовые базы («Фуд Сити» и региональные базы) работают на минимуме, ритейл распродаёт декабрьский запас, транспорт на праздничном простое.`;
+      weatherText = `Мониторинг морозов в ЮФО и Центральном регионе. Защита складов от выдувания тепла.`;
+      storageText = `Товар в стабильном покое. Накопленные потери: ~${totalLossPct}%. Финансирование запасов за счёт ключевой ставки ЦБ (${keyRate}%) добавляет ~0.32 ₽/кг в месяц к точке безубыточности (${breakEvenPrice.toFixed(1)} ₽/кг).`;
+      actionableTip = `Не поддаваться на заниженные цены случайных скупщиков в праздничные дни. Ждать восстановления спроса сетей во второй половине января.`;
+    } else if (driverTag === 'WINTER_RESTOCK' || ((month === 1 && day >= 16) || (month === 2 && day <= 14))) {
+      summary = `Возобновление роста (${signStr} ₽/кг): ритейл пополняет истощившиеся после каникул запасы РЦ, переход на зимнюю реф-логистику.`;
+      marketText = `Восстановление регулярных закупок федеральными сетями. Запасы дешёвого лука в хозяйствах без климат-контроля полностью исчерпаны.`;
+      weatherText = zhmMin <= -8
+        ? `Бычий импульс: морозы в Таразе ниже −8°C (${zhmMin.toFixed(1)}°C) перемерзают казахстанские бурты, сокращая импортный поток в РФ!`
+        : `В Таразе (${zhmMin.toFixed(1)}°C) и Москве (${mskMin.toFixed(1)}°C) сохраняется зимний режим. Доставка требует постоянного температурного контроля.`;
+      storageText = `Период стабильного хранения. Для вентилируемых складов без холодильника — середина жизненного цикла, лук ещё сохраняет естественный покой.`;
+      actionableTip = `Плановая контрактация следующих 20–25% фонда. Тщательная переборка и калибровка перед отгрузкой.`;
+    } else if (driverTag === 'SPRING_DEFICIT_PEAK' || ((month === 2 && day >= 15) || (month === 3 && day <= 24))) {
+      summary = `Пик дефицита и сезонного роста (${signStr} ₽/кг): открытые бурты в Казахстане исчерпаны, на рынке торгуется только качественный фонд.`;
+      marketText = `Максимальная ценовая премия сезона! Открытые бурты в Казахстане закончились либо перемёрзли. Внутреннее предложение в РФ ограничено только профессиональными складами. Покупатели конкурируют за кондиционный товар.`;
+      weatherText = `Внимание к погоде в Термезе (Узбекистан): температура ${uzMax.toFixed(1)}°C. Если в Сурхандарье наступает аномальное тепло (>22°C), озимый ранний лук появится на 1–2 недели раньше.`;
+      storageText = activeTierId === 'ventilated'
+        ? `⚠️ Внимание! Для вентилируемого склада без холодильника это КРАЙНЕЕ ОКНО ПРОДАЖ. При дневном потеплении наружного воздуха выше +4..+6°C лук выйдет из покоя и начнёт прорастать.`
+        : `Холодильные камеры (0..+1°C) обеспечивают максимальную сохранность и собирают весеннюю премию.`;
+      actionableTip = activeTierId === 'ventilated'
+        ? `Для склада с вентиляцией (без холода): полностью распродать 100% остатков до 1–10 марта! Это ваша максимальная точка прибыли.`
+        : `Холодильным складам: поэтапно фиксировать прибыль до захода Узбекистана.`;
+    } else if (driverTag === 'PRE_UZ_TURN' || (month === 3 && day >= 25)) {
+      summary = `Ценовое плато (${signStr} ₽/кг): появление первых коммерческих оферт на ранний лук из Узбекистана останавливает дальнейший рост.`;
+      marketText = `Ритейл получает первые предложения на поставку свежего озимого лука из Сурхандарьи (Термез) с отгрузкой в начале апреля. Закупщики сетей прекращают повышать цены на зимовавший лук.`;
+      weatherText = `Потепление в Сурхандарье ускоряет созревание раннего лука. В Москве и ЮФО дневные температуры переходят к устойчивому плюсу.`;
+      storageText = `Критический риск для складов без искусственного холода: естественный покой лука прерывается, перо трогается в рост.`;
+      actionableTip = `Немедленно завершать любые продажи старого урожая. Не надеяться на дальнейший рост.`;
+    } else if (driverTag === 'UZ_EG_EARLY_CROP' || (month >= 4)) {
+      summary = `Сезонный слом котировок (${signStr} ₽/кг): массовый заход свежего раннего лука из Узбекистана и Египта, потеря товарности старого урожая.`;
+      marketText = `Полномасштабный приток свежего урожая (Сурхандарья, Ташкент, Египет через Новороссийск). Сети и покупатели переключаются на свежий лук, зимовавший лук теряет ликвидность и продаётся с глубоким дисконтом.`;
+      weatherText = `Весеннее тепло по всей стране ускоряет увядание и прорастание старого фонда.`;
+      storageText = `Массовое прорастание и размягчение шеек старого лука. Потери кондиционности превышают 20–35%.`;
+      actionableTip = `Экстренная зачистка склада по любым доступным ценам или сброс на промышленную чистку/сушку.`;
+    } else {
+      summary = `Недельная корректировка цены склада на ${signStr} ₽/кг в рамках сезонного тренда.`;
+      marketText = `Стандартная сезонная динамика оптового рынка. Баланс спроса ритейла и предложения складов.`;
+      weatherText = `Фактический температурный фон соответствует климатической норме сезона.`;
+      storageText = `Плановое хранение: потери ~${totalLossPct}%, безубыточность ${breakEvenPrice.toFixed(1)} ₽/кг.`;
+      actionableTip = `Придерживаться утверждённого графика отгрузок.`;
+    }
+  } else {
+    const cropName = cropProfile?.label || 'культура';
+    summary = isUp
+      ? `Сезонный рост цены (${signStr} ₽/кг): сокращение товарных запасов в необорудованных хранилищах и рост спроса сетей.`
+      : isDown
+        ? `Сезонная коррекция (${signStr} ₽/кг): насыщение оптового рынка и локальное превышение предложения.`
+        : `Стабильный ценовой баланс недели (${signStr} ₽/кг).`;
+    marketText = `Сезонный профиль реализации для культуры «${cropName}». Спрос поддерживается регулярными контрактами торговых сетей и оптовых баз.`;
+    weatherText = `Температурный режим ЮФО и Центральной России определяет условия транспортировки и сохранности партии.`;
+    storageText = `Накопленный отход и усушка составляют ~${totalLossPct}%. Чистая выручка с 1 кг заложенного урожая: ~${netPerKg.toFixed(1)} ₽/кг.`;
+    actionableTip = `Соблюдать температурно-влажностный режим в камерах и плановый график выборки партий.`;
+  }
+
+  const drivers = [
+    {
+      title: 'Рыночный режим и спрос сетей',
+      icon: '🏛️',
+      badge: isUp ? 'поддержка цен' : isDown ? 'давление на спот' : 'баланс рынка',
+      cls: isUp ? 'up' : isDown ? 'dn' : 'neu',
+      text: marketText,
+    },
+    {
+      title: 'Агрометеорология и коридоры поставок',
+      icon: '☀️',
+      badge: (vlgMin <= -2 || zhmMin <= -8 || mskMin <= -10) ? 'погодный триггер' : 'фон 4 хабов',
+      cls: (zhmMin <= -8) ? 'up' : (vlgMin <= -2) ? 'warn' : 'info',
+      text: weatherText,
+    },
+    {
+      title: 'Экономика склада и биологические риски',
+      icon: '🏢',
+      badge: `потери ~${totalLossPct}% · порог ${breakEvenPrice.toFixed(1)} ₽`,
+      cls: activeTierId === 'unventilated' && idx >= 4 ? 'dn' : (activeTierId === 'ventilated' && idx >= 17 ? 'warn' : 'info'),
+      text: storageText,
+    },
+    {
+      title: 'Логистика и рынок Москвы (DAP с НДС)',
+      icon: '🚛',
+      badge: `спред +${spread.toFixed(1)} ₽/кг`,
+      cls: 'neu',
+      text: `Цена опта в Москве на этой неделе: ${mskPrice.toFixed(1)} ₽/кг. Спред к складу EXW составляет +${spread.toFixed(1)} ₽/кг (включает фрахт фуры 20 т, сетку, паллетирование, риски потерь в пути и НДС 10%).`,
+    },
+  ];
+
+  if (scenarioId && scenarioId !== 'base' && Math.abs(scenarioDeltaRub) > 0.05) {
+    const sSign = scenarioDeltaRub > 0 ? `+${scenarioDeltaRub.toFixed(2)}` : scenarioDeltaRub.toFixed(2);
+    drivers.push({
+      title: 'Сценарный фактор симулятора',
+      icon: '⚡',
+      badge: `${sSign} ₽/кг к базе`,
+      cls: scenarioDeltaRub > 0 ? 'up' : 'warn',
+      text: `Текущий активный сценарий добавляет к цене склада ${sSign} ₽/кг по сравнению с базовым прогнозом на этой неделе.`,
+    });
+  }
+
+  return {
+    summary,
+    drivers,
+    actionableTip,
+  };
+}
+
+/**
  * Builds the 26-week warehouse & Moscow trajectory and the 5-stage monthly sales plan.
  */
 export function buildWeeklyDecisionPlan({
@@ -318,10 +503,11 @@ export function buildWeeklyDecisionPlan({
       cropId === 'onion'
         ? computeScenarioMultiplier(scenarioId, scenarioDeltaPct, targetDate, idx)
         : 1 + (scenarioDeltaPct / 100) * Math.min(1, 0.35 + (0.65 * idx) / 6);
+    const prevWhPrice = prevWh;
     const whPrice = +(baseWh * scenarioMultiplier).toFixed(2);
     const baseWhRounded = +baseWh.toFixed(2);
-    const wowDelta = +(whPrice - prevWh).toFixed(2);
-    const wowPct = prevWh > 0 ? +(((whPrice - prevWh) / prevWh) * 100).toFixed(1) : 0;
+    const wowDelta = +(whPrice - prevWhPrice).toFixed(2);
+    const wowPct = prevWhPrice > 0 ? +(((whPrice - prevWhPrice) / prevWhPrice) * 100).toFixed(1) : 0;
     prevWh = whPrice;
 
     const months = +((idx + 1) / 4.33).toFixed(2);
@@ -375,12 +561,36 @@ export function buildWeeklyDecisionPlan({
     const hi80 = relBand80 !== null ? +(whPrice * (1 + relBand80)).toFixed(1) : null;
     const mae = relMae !== null ? +(whPrice * relMae).toFixed(2) : null;
 
+    const deltaExplanation = buildWeekDeltaExplanation({
+      cropId,
+      cropProfile,
+      targetDate,
+      idx,
+      h,
+      whPrice,
+      prevWhPrice,
+      wowDelta,
+      wowPct,
+      onionRegime,
+      activeTierId,
+      scenarioId,
+      scenarioDeltaRub: +(whPrice - baseWhRounded).toFixed(2),
+      liveSignals,
+      totalLossPct,
+      breakEvenPrice,
+      netPerKg,
+      mskPrice,
+      spread,
+      phase,
+    });
+
     return {
       h,
       idx,
       targetDate,
       shortDate: formatShortRuDate(targetDate),
       months,
+      prevWhPrice,
       baseWhPrice: baseWhRounded,
       whPrice,
       wowDelta,
@@ -395,6 +605,7 @@ export function buildWeeklyDecisionPlan({
       mskExVat,
       spread,
       phase,
+      deltaExplanation,
       lo80,
       hi80,
       mae,

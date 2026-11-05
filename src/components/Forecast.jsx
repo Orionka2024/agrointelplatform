@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useState, Fragment } from 'react';
 import { useMarket } from '../context/useMarket';
 import { officialForecast, officialSnapshot } from '../../shared/officialData.js';
 import { MONTHLY_MODELS } from '../../shared/officialForecast.js';
@@ -134,6 +134,7 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
   const [storageTierId, setStorageTierId] = useState('unventilated'); // 'unventilated' | 'ventilated' | 'refrigerated'
   const [simId, setSimId] = useState('base');
   const [priceDraft, setPriceDraft] = useState('');
+  const [selectedDeltaWeek, setSelectedDeltaWeek] = useState(null);
   const [savingPrice, setSavingPrice] = useState(false);
   const [priceStatus, setPriceStatus] = useState('');
   const [bridgeDraft, setBridgeDraft] = useState(() => ({ ...model.bridge }));
@@ -312,11 +313,13 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                     setActiveCrop(id);
                     setPriceDraft('');
                     setPriceStatus('');
+                    setSelectedDeltaWeek(null);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       setActiveCrop(id);
                       setPriceDraft('');
+                      setSelectedDeltaWeek(null);
                     }
                   }}
                 >
@@ -632,7 +635,9 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                           <th scope="col" className="pl sticky-col">Неделя · Дата</th>
                           <th scope="col" style={{ minWidth: 82 }}>Тренд</th>
                           <th scope="col">Цена склада</th>
-                          <th scope="col">Δ нед.</th>
+                          <th scope="col" title="Нажмите на стрелку или цифру в любой строке, чтобы раскрыть подробные причины изменения цены">
+                            Δ нед. ℹ️
+                          </th>
                           <th scope="col">Чистыми</th>
                           <th scope="col">Опт Москва</th>
                           <th scope="col">Спред</th>
@@ -647,52 +652,179 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                           const barColor = w.gainVsNow >= 1.0 ? 'var(--green)' : w.gainVsNow >= 0 ? '#2563EB' : '#EF9F27';
                           const dCls = w.wowDelta > 0.08 ? 'up' : w.wowDelta < -0.08 ? 'dn' : 'neu';
                           const dArrow = w.wowDelta > 0.08 ? '▲ +' : w.wowDelta < -0.08 ? '▼ ' : '';
+                          const isExpanded = selectedDeltaWeek?.h === w.h;
+
                           return (
-                            <tr key={w.h}>
-                              <th scope="row" className="pl mono sticky-col" style={{ whiteSpace: 'nowrap', fontWeight: 500 }}>
-                                W+{w.h} · {w.shortDate}
-                              </th>
-                              <td>
-                                <div className="bar-wrap" style={{ minWidth: 70 }}>
-                                  <div
-                                    className="bar-fill"
-                                    style={{ width: `${pctBar}%`, background: barColor }}
-                                  />
-                                </div>
-                              </td>
-                              <td className="mono" style={{ fontWeight: 600, color: 'var(--blue)', whiteSpace: 'nowrap' }}>
-                                {w.whPrice.toFixed(1)} ₽
-                              </td>
-                              <td style={{ whiteSpace: 'nowrap' }}>
-                                <span
-                                  className={`fc-delta-pill ${dCls}`}
-                                  title={`Изменение к предыдущей неделе: ${w.wowDelta >= 0 ? '+' : ''}${w.wowDelta.toFixed(2)} ₽/кг (${w.wowPct >= 0 ? '+' : ''}${w.wowPct}%)`}
+                            <Fragment key={w.h}>
+                              <tr className={isExpanded ? 'row-expanded' : ''} style={{ background: isExpanded ? 'var(--surface2)' : undefined }}>
+                                <th scope="row" className="pl mono sticky-col" style={{ whiteSpace: 'nowrap', fontWeight: 500 }}>
+                                  W+{w.h} · {w.shortDate}
+                                </th>
+                                <td>
+                                  <div className="bar-wrap" style={{ minWidth: 70 }}>
+                                    <div
+                                      className="bar-fill"
+                                      style={{ width: `${pctBar}%`, background: barColor }}
+                                    />
+                                  </div>
+                                </td>
+                                <td className="mono" style={{ fontWeight: 600, color: 'var(--blue)', whiteSpace: 'nowrap' }}>
+                                  {w.whPrice.toFixed(1)} ₽
+                                </td>
+                                <td style={{ whiteSpace: 'nowrap' }}>
+                                  <button
+                                    type="button"
+                                    className={`fc-delta-pill ${dCls} ${isExpanded ? 'active' : ''}`}
+                                    onClick={() => setSelectedDeltaWeek(isExpanded ? null : w)}
+                                    title={`Изменение к предыдущей неделе: ${w.wowDelta >= 0 ? '+' : ''}${w.wowDelta.toFixed(2)} ₽/кг (${w.wowPct >= 0 ? '+' : ''}${w.wowPct}%). Нажмите, чтобы посмотреть подробные причины.`}
+                                    aria-expanded={isExpanded}
+                                    aria-label={`Причины изменения цены: ${dArrow}${w.wowDelta.toFixed(1)} ₽/кг`}
+                                  >
+                                    <span>{dArrow}{w.wowDelta.toFixed(1)} ₽</span>
+                                    <span style={{ fontSize: 9, opacity: 0.85, marginLeft: 2 }}>ℹ️</span>
+                                  </button>
+                                </td>
+                                <td
+                                  className="mono"
+                                  style={{ fontWeight: 600, color: w.gainVsNow >= 0 ? 'var(--green)' : 'var(--amber)', whiteSpace: 'nowrap' }}
+                                  title={`Выручка на 1 кг заложенного после усушки и гнили (${w.totalLossPct}%) и расходов хранения. Безубыточность: ${w.breakEvenPrice} ₽/кг`}
                                 >
-                                  {dArrow}{w.wowDelta.toFixed(1)} ₽
-                                </span>
-                              </td>
-                              <td
-                                className="mono"
-                                style={{ fontWeight: 600, color: w.gainVsNow >= 0 ? 'var(--green)' : 'var(--amber)', whiteSpace: 'nowrap' }}
-                                title={`Выручка на 1 кг заложенного после усушки и гнили (${w.totalLossPct}%) и расходов хранения. Безубыточность: ${w.breakEvenPrice} ₽/кг`}
-                              >
-                                {w.netPerKg.toFixed(1)} ₽
-                              </td>
-                              <td className="mono" style={{ whiteSpace: 'nowrap' }}>
-                                {w.mskPrice.toFixed(1)} ₽
-                              </td>
-                              <td className="mono" style={{ color: 'var(--amber)', whiteSpace: 'nowrap' }}>
-                                +{w.spread.toFixed(1)} ₽
-                              </td>
-                              <td>
-                                <span className="fc-phase-tag" title={w.phase.desc}>
-                                  {w.phase.tag}
-                                </span>
-                              </td>
-                              <td className="mono" style={{ color: 'var(--txt2)', whiteSpace: 'nowrap', fontSize: 10.5 }}>
-                                {w.lo80 !== null && w.hi80 !== null ? `${w.lo80}–${w.hi80} ₽` : 'профиль'}
-                              </td>
-                            </tr>
+                                  {w.netPerKg.toFixed(1)} ₽
+                                </td>
+                                <td className="mono" style={{ whiteSpace: 'nowrap' }}>
+                                  {w.mskPrice.toFixed(1)} ₽
+                                </td>
+                                <td className="mono" style={{ color: 'var(--amber)', whiteSpace: 'nowrap' }}>
+                                  +{w.spread.toFixed(1)} ₽
+                                </td>
+                                <td>
+                                  <span className="fc-phase-tag" title={w.phase?.desc}>
+                                    {w.phase?.tag}
+                                  </span>
+                                </td>
+                                <td className="mono" style={{ color: 'var(--txt2)', whiteSpace: 'nowrap', fontSize: 10.5 }}>
+                                  {w.lo80 !== null && w.hi80 !== null ? `${w.lo80}–${w.hi80} ₽` : 'профиль'}
+                                </td>
+                              </tr>
+
+                              {isExpanded && (
+                                <tr className="fc-delta-breakdown-row">
+                                  <td colSpan={9} style={{ padding: '10px 14px', background: 'var(--surface2)', borderTop: 'none', borderBottom: '2px solid var(--border)' }}>
+                                    <div
+                                      className="fc-delta-breakdown-card"
+                                      style={{
+                                        background: 'var(--surface)',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: 8,
+                                        padding: '12px 14px',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: 10,
+                                      }}
+                                    >
+                                      {/* Header */}
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                          <span className={`fc-delta-pill ${dCls}`} style={{ fontSize: 12, padding: '3px 8px', fontWeight: 700 }}>
+                                            {dArrow}{w.wowDelta.toFixed(2)} ₽/кг ({w.wowPct >= 0 ? '+' : ''}{w.wowPct}%)
+                                          </span>
+                                          <span style={{ fontWeight: 600, fontSize: 12.5, color: 'var(--txt)' }}>
+                                            Неделя W+{w.h} ({w.shortDate}): с {w.prevWhPrice.toFixed(1)} ₽ до {w.whPrice.toFixed(1)} ₽/кг
+                                          </span>
+                                          <span className="badge neu">{w.phase?.tag}</span>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => setSelectedDeltaWeek(null)}
+                                          style={{
+                                            cursor: 'pointer',
+                                            padding: '3px 10px',
+                                            fontSize: 11,
+                                            color: 'var(--txt2)',
+                                            background: 'var(--surface2)',
+                                            borderRadius: 4,
+                                            border: '1px solid var(--border)',
+                                            fontWeight: 500,
+                                          }}
+                                        >
+                                          ✕ Закрыть
+                                        </button>
+                                      </div>
+
+                                      {/* Summary */}
+                                      <div
+                                        style={{
+                                          fontSize: 12,
+                                          lineHeight: 1.5,
+                                          color: 'var(--txt)',
+                                          background: w.wowDelta >= 0 ? 'var(--green-bg)' : 'var(--red-bg)',
+                                          border: `1px solid ${w.wowDelta >= 0 ? 'var(--green-border)' : 'var(--red-border)'}`,
+                                          borderRadius: 6,
+                                          padding: '8px 12px',
+                                          fontWeight: 500,
+                                        }}
+                                      >
+                                        💡 <strong>Главный фактор движения:</strong> {w.deltaExplanation?.summary || w.phase?.desc}
+                                      </div>
+
+                                      {/* Drivers Grid */}
+                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
+                                        {(w.deltaExplanation?.drivers || []).map((dr, di) => (
+                                          <div
+                                            key={di}
+                                            style={{
+                                              padding: '10px 12px',
+                                              borderRadius: 6,
+                                              background: 'var(--surface2)',
+                                              border: '1px solid var(--border)',
+                                              display: 'flex',
+                                              flexDirection: 'column',
+                                              gap: 4,
+                                            }}
+                                          >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+                                              <span style={{ fontWeight: 600, fontSize: 11.5, color: 'var(--txt)' }}>
+                                                {dr.icon} {dr.title}
+                                              </span>
+                                              <span className={`badge ${dr.cls || 'neu'}`} style={{ fontSize: 9.5 }}>
+                                                {dr.badge}
+                                              </span>
+                                            </div>
+                                            <div style={{ fontSize: 11, color: 'var(--txt2)', lineHeight: 1.45, marginTop: 2 }}>
+                                              {dr.text}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+
+                                      {/* Actionable Tip */}
+                                      {w.deltaExplanation?.actionableTip && (
+                                        <div
+                                          style={{
+                                            fontSize: 11.5,
+                                            lineHeight: 1.45,
+                                            color: 'var(--txt)',
+                                            background: 'var(--blue-bg)',
+                                            border: '1px solid var(--blue-border)',
+                                            borderRadius: 6,
+                                            padding: '8px 12px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 8,
+                                          }}
+                                        >
+                                          <span style={{ fontSize: 14 }}>🎯</span>
+                                          <div>
+                                            <strong>Рекомендация фермеру на эту неделю:</strong> {w.deltaExplanation.actionableTip}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </Fragment>
                           );
                         })}
                       </tbody>
