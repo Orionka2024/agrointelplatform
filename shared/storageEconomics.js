@@ -40,6 +40,96 @@ export const STORAGE_LABELS = {
   acquisitionCostRubKg: 'Себестоимость / закупка, ₽/кг (только для отчёта о прибыли)',
 };
 
+/**
+ * 3-Tier Warehouse Segmentation for the Russian Onion Market:
+ * 1) Unventilated temporary hangars (Жизненный цикл — до 1 декабря; сброс при заморозках)
+ * 2) Insulated ventilated warehouses (Жизненный цикл — декабрь – февраль; стабильный плановый рост)
+ * 3) Refrigerated cold rooms 0..+1°C (Жизненный цикл — февраль – конец марта; максимальная премия)
+ */
+export const STORAGE_TIERS = {
+  unventilated: {
+    id: 'unventilated',
+    name: 'Временный ангар / без вентиляции',
+    shortName: 'Без вентиляции',
+    lifecycle: 'до 1 декабря',
+    badge: 'Сброс при заморозках',
+    badgeCls: 'warn',
+    desc: 'Жизненный цикл — до 1 декабря. Цена падает при заморозках из-за вынужденного сброса партий; высокий риск отпотевания и гнили.',
+    recommendation: 'Рекомендован сброс партий до заморозков (< −2°C). При стартовой цене 20 ₽/кг удержание ведет к лавинообразным убыткам.',
+    priceTrendNote: 'Падение цены при ночных заморозках (сброс партий в ноябре); после января партия теряет товарность.',
+    params: {
+      tierId: 'unventilated',
+      months: 1.5,
+      shrinkPct: 3.5,
+      rotPct: 8.0,
+      downgradeSharePct: 18.0,
+      downgradeDiscountPct: 25.0,
+      energyRubKgMonth: 0.08,
+      handlingRubKg: 0.40,
+      sortingRubKgSold: 0.90,
+      financingRatePctYear: 19.0,
+      sellNowCostRubKg: 0.20,
+      acquisitionCostRubKg: 12.0,
+      optimalTemp: '+4..+8°C (нерегулируемая)',
+      optimalHumidity: '85–95% (риск конденсата)',
+    },
+  },
+  ventilated: {
+    id: 'ventilated',
+    name: 'Стационарный склад с активной вентиляцией (без холода)',
+    shortName: 'Вентиляция (без холода)',
+    lifecycle: 'декабрь – февраль',
+    badge: 'Плановые продажи',
+    badgeCls: 'info',
+    desc: 'Активная продувка наружным воздухом без холодильных агрегатов. Жизненный цикл — декабрь – февраль (до весеннего потепления > +4°C).',
+    recommendation: 'В ноябре не паниковать: вентиляция защищает от сырости и сброса. Продавать частями в декабре–феврале. Полная зачистка до марта!',
+    priceTrendNote: 'Защищён от ноябрьского сброса ангаров; реализует товарный фонд до прихода весеннего тепла и прорастания пера.',
+    params: {
+      tierId: 'ventilated',
+      months: 3.5,
+      shrinkPct: 5.0,
+      rotPct: 3.5,
+      downgradeSharePct: 8.0,
+      downgradeDiscountPct: 15.0,
+      energyRubKgMonth: 0.35,
+      handlingRubKg: 0.50,
+      sortingRubKgSold: 0.60,
+      financingRatePctYear: 19.0,
+      sellNowCostRubKg: 0.20,
+      acquisitionCostRubKg: 12.0,
+      optimalTemp: '+1..+3°C (только зимой)',
+      optimalHumidity: '70–75%',
+    },
+  },
+  refrigerated: {
+    id: 'refrigerated',
+    name: 'Холодильные камеры (0..+1°C)',
+    shortName: 'Холодильник (0..+1°C)',
+    lifecycle: 'февраль – конец марта',
+    badge: 'Максимальная премия',
+    badgeCls: 'up',
+    desc: 'Жизненный цикл — февраль – конец марта. Снимают максимальную весеннюю премию до прихода Узбекистана.',
+    recommendation: 'Удержание до пика дефицита отечественного фонда в феврале–марте до захода раннего лука из Узбекистана.',
+    priceTrendNote: 'Максимальная весенняя премия на пике истощения отечественных фондов до прихода раннего узбекского лука.',
+    params: {
+      tierId: 'refrigerated',
+      months: 5.0,
+      shrinkPct: 6.0,
+      rotPct: 2.5,
+      downgradeSharePct: 5.0,
+      downgradeDiscountPct: 10.0,
+      energyRubKgMonth: 0.65,
+      handlingRubKg: 0.55,
+      sortingRubKgSold: 0.50,
+      financingRatePctYear: 19.0,
+      sellNowCostRubKg: 0.20,
+      acquisitionCostRubKg: 12.0,
+      optimalTemp: '0..+1°C',
+      optimalHumidity: '65–70%',
+    },
+  },
+};
+
 function num(v) {
   return v === null || v === undefined || v === '' ? null : Number(v);
 }
@@ -130,10 +220,42 @@ export function weeksToMonths(weeks) {
 }
 
 /** Loss assumptions are totals over referenceMonths, compounded for the holding duration. */
-export function storageAtHorizon(params, months) {
+export function storageAtHorizon(params, months, tierId = null) {
   if (!params) return null;
+  const tId = tierId || params.tierId;
   const reference = Number(params.referenceMonths ?? params.months);
   if (!(reference > 0) || !(months >= 0)) return { ...params, months, shrinkPct: null, rotPct: null };
   const scale = pct => 100 * (1 - Math.pow(1 - Number(pct) / 100, months / reference));
-  return { ...params, months, shrinkPct: scale(params.shrinkPct), rotPct: scale(params.rotPct), downgradeSharePct: scale(params.downgradeSharePct) };
+
+  if (tId === 'unventilated' && months > 1.2) {
+    // Unventilated storage rot increases rapidly after ~5 weeks
+    const extraMonths = months - 1.2;
+    const accelRot = Math.min(65, +(scale(params.rotPct) + extraMonths * 7.5).toFixed(1));
+    const accelDowngrade = Math.min(80, +(scale(params.downgradeSharePct) + extraMonths * 6.0).toFixed(1));
+    return {
+      ...params,
+      tierId: tId,
+      months,
+      shrinkPct: scale(params.shrinkPct),
+      rotPct: accelRot,
+      downgradeSharePct: accelDowngrade,
+    };
+  }
+
+  if (tId === 'ventilated' && months > 3.8) {
+    // Ventilated warehouse without fridge warms up in spring (> +4°C): sprouting and downgrading
+    const extraMonths = months - 3.8;
+    const accelRot = Math.min(35, +(scale(params.rotPct) + extraMonths * 2.5).toFixed(1));
+    const accelDowngrade = Math.min(50, +(scale(params.downgradeSharePct) + extraMonths * 6.5).toFixed(1));
+    return {
+      ...params,
+      tierId: tId,
+      months,
+      shrinkPct: scale(params.shrinkPct),
+      rotPct: accelRot,
+      downgradeSharePct: accelDowngrade,
+    };
+  }
+
+  return { ...params, tierId: tId, months, shrinkPct: scale(params.shrinkPct), rotPct: scale(params.rotPct), downgradeSharePct: scale(params.downgradeSharePct) };
 }

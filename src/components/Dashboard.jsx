@@ -26,9 +26,9 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, 
 const DASHBOARD_CROPS = ['onion', 'pumpkin', 'potato', 'carrot', 'beet', 'cabbage', 'garlic', 'watermalon', 'melon'];
 
 const IMPORTERS = [
-  { country: '🇰🇿 Казахстан (Жамбылская, Туркестанская обл.)', share: 48, risk: 'warn', note: 'Пик транзита окт–ноя; к февралю запасы КЗ истощаются' },
-  { country: '🇺🇿 Узбекистан (Сурхандарья, Фергана)', share: 29, risk: 'up', note: 'Ранний лук нового урожая поступает с середины апреля' },
-  { country: '🇪🇬 Египет / 🇨🇳 Китай', share: 23, risk: 'info', note: 'Весенний импорт морским плечом (чувствителен к USD/RUB)' },
+  { country: '🇰🇿 Казахстан (Жамбылская, Туркестанская обл.)', share: 48, risk: 'warn', note: 'Пик транзита окт–ноя (потолок 15–18 ₽); ослабление RUB к KZT удорожает импорт; при морозах < −8°C бурты КЗ замерзают' },
+  { country: '🇺🇿 Узбекистан (Сурхандарья, Термез)', share: 29, risk: 'up', note: 'Ранний озимый лук с середины апреля; аномально теплая весна ускоряет сбор на 1–2 нед. (ранний слом цен старого фонда)' },
+  { country: '🇪🇬 Египет / 🇨🇳 Китай', share: 23, risk: 'info', note: 'Весенний импорт морским плечом ($0.34/кг CIF); напрямую зависит от курса USD/RUB' },
 ];
 
 export default function Dashboard() {

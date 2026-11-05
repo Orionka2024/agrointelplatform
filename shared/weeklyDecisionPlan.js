@@ -1,6 +1,6 @@
 import { addWeeks, weekStart } from './dates.js';
 import { warehouseToMoscow } from './bridge.js';
-import { storageAtHorizon, evaluateStorage } from './storageEconomics.js';
+import { storageAtHorizon, evaluateStorage, STORAGE_TIERS } from './storageEconomics.js';
 
 const RU_MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 
@@ -225,10 +225,13 @@ export function buildWeeklyDecisionPlan({
   baseWarehousePrice = 15.5,
   bridge,
   storageParams,
+  storageTierId = null,
   scenarioDeltaPct = 0,
   scenarioId = null,
   liveSignals = null,
 }) {
+  const activeTierId = storageTierId || storageParams?.tierId || (cropId === 'onion' ? 'ventilated' : null);
+  const effectiveStorageParams = storageParams || (activeTierId && STORAGE_TIERS[activeTierId]?.params) || cropProfile?.storageParams;
   const startMonday = weekStart(today);
   const startMs = parseUtcMs(today);
   const pStart = Number.isFinite(baseWarehousePrice) && baseWarehousePrice > 0
@@ -281,11 +284,11 @@ export function buildWeeklyDecisionPlan({
   }
 
   const basisFactor = startRef > 0 ? pStart / startRef : 1;
-  const sellNowEval = storageParams ? evaluateStorage(pStart, pStart, storageAtHorizon(storageParams, 0)) : null;
+  const sellNowEval = effectiveStorageParams ? evaluateStorage(pStart, pStart, storageAtHorizon(effectiveStorageParams, 0, activeTierId)) : null;
   const sellNowNet =
     sellNowEval?.status === 'ok' && Number.isFinite(sellNowEval.netNowPerKgStored)
       ? sellNowEval.netNowPerKgStored
-      : Math.max(0, pStart - (storageParams?.sellNowCostRubKg ?? 0.2));
+      : Math.max(0, pStart - (effectiveStorageParams?.sellNowCostRubKg ?? 0.2));
 
   let prevWh = pStart;
   const weeks = Array.from({ length: 26 }, (_, idx) => {
@@ -322,7 +325,7 @@ export function buildWeeklyDecisionPlan({
     prevWh = whPrice;
 
     const months = +((idx + 1) / 4.33).toFixed(2);
-    const horizonStorage = storageParams ? storageAtHorizon(storageParams, months) : null;
+    const horizonStorage = effectiveStorageParams ? storageAtHorizon(effectiveStorageParams, months, activeTierId) : null;
     const stEval = horizonStorage ? evaluateStorage(pStart, whPrice, horizonStorage) : null;
 
     const netPerKg = +(
@@ -350,11 +353,23 @@ export function buildWeeklyDecisionPlan({
     const mskExVat = +(mskCalc?.moscowExVat ?? (whPrice + 8.5)).toFixed(2);
     const spread = +(mskPrice - whPrice).toFixed(2);
 
-    const phase = onionRegime?.phase
+    let phase = onionRegime?.phase
       ? onionRegime.phase
       : cropProfile?.getPhase
         ? cropProfile.getPhase(idx)
         : (cropProfile?.offSeasonNotice ? { tag: 'Межсезонье', desc: cropProfile.offSeasonNotice.title } : { tag: 'Плановое хранение', desc: '' });
+
+    if (activeTierId === 'unventilated' && idx >= 4) {
+      phase = {
+        tag: '⚠️ Риск порчи (без вентиляции)',
+        desc: 'Склад без активной вентиляции: критический риск отпотевания и гнили при заморозках. Рекомендован сброс партий до начала декабря.',
+      };
+    } else if (activeTierId === 'ventilated' && idx >= 17) {
+      phase = {
+        tag: '⚠️ Риск прорастания (без холода)',
+        desc: 'Склад с вентиляцией без холодильника: весеннее потепление (> +4°C) активирует точку роста. Склад должен быть полностью зачищен до марта!',
+      };
+    }
 
     const lo80 = relBand80 !== null ? +Math.max(0, whPrice * (1 - relBand80)).toFixed(1) : null;
     const hi80 = relBand80 !== null ? +(whPrice * (1 + relBand80)).toFixed(1) : null;
@@ -483,6 +498,8 @@ export function buildWeeklyDecisionPlan({
     stagedAdvantageRubKg,
     peakWeek,
     bestNetWeek,
+    storageTierId: activeTierId,
+    storageTier: activeTierId ? STORAGE_TIERS[activeTierId] : null,
   };
 }
 
@@ -542,7 +559,7 @@ export function buildCatBoostShapCards({ officialForecast, officialSnapshotData,
         : `KZT: ${kztVal.toFixed(3)} ₽ · USD: ${usdVal.toFixed(1)} ₽`,
       asOf: signals?.fx?.status === 'live' ? `ЦБ РФ LIVE · ${signals.fx.asOf}` : `ЦБ РФ · ${officialSnapshotData?.drivers?.usdRub?.period ?? '2026-10'}`,
       source: 'Банк России (KZT, UZS, USD) + логистический паритет',
-      trend: 'В ноябре транзит из Жамбыла держит потолок; в апреле ранний лук Сурхандарьи разворачивает цены вниз',
+      trend: 'Ослабление рубля к тенге делает казахстанский лук дороже для импортёров и открывает дорогу росту внутренних российских цен; в апреле ранний лук Сурхандарьи разворачивает цены вниз',
       highlight: true,
     },
     {
@@ -559,14 +576,26 @@ export function buildCatBoostShapCards({ officialForecast, officialSnapshotData,
     },
     {
       key: 'financing',
-      label: 'Ключевая ставка ЦБ РФ (стоимость хранения)',
+      label: 'Ключевая ставка ЦБ РФ (стоимость денег)',
       absWeight: Math.max(0.025, Math.abs(fl.financing) + 0.02),
       signedLog: fl.financing,
       color: '#C0303A',
       currentVal: `${(macro?.keyRate?.value ?? signals?.fx?.keyRate?.value ?? officialSnapshotData?.drivers?.keyRate?.value ?? 18.0).toFixed(1)}% годовых`,
       asOf: `ЦБ РФ · ${officialSnapshotData?.drivers?.keyRate?.period ?? '2026-10'}`,
       source: 'Банк России (ключевая ставка)',
-      trend: 'Дорогие оборотные кредиты ускоряют осенний сбыт и сжимают предложение весной',
+      trend: `Ставка ЦБ (18–21%): удержание товара забирает ~${(spotConsensus ? spotConsensus * 0.19 / 12 : 0.32).toFixed(2)} ₽/кг в месяц (упущенная выгода по депозиту или процент по кредиту)`,
+      highlight: false,
+    },
+    {
+      key: 'storage_tier',
+      label: 'Сегментация складов (3 эшелона рынка)',
+      absWeight: 0.032,
+      signedLog: -0.012,
+      color: '#059669',
+      currentVal: '1) Ангары (до 1 дек.) · 2) Вентиляция (дек–фев) · 3) Холод (0..+1°C)',
+      asOf: 'Отраслевой регламент',
+      source: 'Агрономическая модель лежкости',
+      trend: 'Временные ангары сбрасывают до 1 дек.; склады с вентиляцией торгуют дек–февр.; камеры 0..+1°C снимают весеннюю премию',
       highlight: false,
     },
     {
@@ -583,14 +612,14 @@ export function buildCatBoostShapCards({ officialForecast, officialSnapshotData,
     },
     {
       key: 'weather',
-      label: 'Погодный радар 10 дн. (Волгоград / Жамбыл / Термез)',
+      label: 'Погодный радар 4 хабов (ЮФО / КЗ / УЗ / Москва)',
       absWeight: Math.max(0.018, Math.abs(fl.weather) + 0.014),
       signedLog: fl.weather,
       color: '#6366F1',
-      currentVal: `Волг. min: ${Number(vlgMin).toFixed(1)}°C · Тараз КЗ: ${Number(zhmMin).toFixed(1)}°C`,
+      currentVal: `Волг. min: ${Number(vlgMin).toFixed(1)}°C · Тараз КЗ: ${Number(zhmMin).toFixed(1)}°C · МСК min: ${Number(signals?.weatherHubs?.moscow?.minTemp10d ?? -2.0).toFixed(1)}°C`,
       asOf: signals?.weatherHubs?.volgograd?.status === 'live' ? 'Open-Meteo LIVE (10 дн.)' : `ERA5 / Open-Meteo`,
       source: 'Open-Meteo 10d Forecast + ERA5 (81 мес.)',
-      trend: 'Морозы < −3°C в Волгограде форсируют сброс ангаров; < −10°C в Таразе режут импорт КЗ',
+      trend: 'Волгоград < −2°C (сброс ангаров); Тараз КЗ < −8°C (перемерзание буртов КЗ); Термез УЗ (ранний лук); Москва < −10°C (теплый реф +1.5–2.5 ₽/кг)',
       highlight: false,
     },
   ];

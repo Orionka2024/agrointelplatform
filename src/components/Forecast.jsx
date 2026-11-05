@@ -6,6 +6,7 @@ import { CROP_PROFILES, CROP_TYPES, getCropProfile } from '../../shared/cropProf
 import { buildUserPriceCsv } from '../../shared/localBasis.js';
 import { warehouseToMoscow, BRIDGE_LABELS } from '../../shared/bridge.js';
 import { buildWeeklyDecisionPlan, buildCatBoostShapCards } from '../../shared/weeklyDecisionPlan.js';
+import { STORAGE_TIERS } from '../../shared/storageEconomics.js';
 import { upsertStoredUserPrice } from '../utils/userPriceStore.js';
 import MonthlySalesPlanTable from './MonthlySalesPlanTable';
 
@@ -130,6 +131,7 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
 
   const [activeCrop, setActiveCrop] = useState('onion');
   const [activeTab, setActiveTab] = useState('forecast'); // 'forecast' | 'official' | 'bridge' | 'validation'
+  const [storageTierId, setStorageTierId] = useState('unventilated'); // 'unventilated' | 'ventilated' | 'refrigerated'
   const [simId, setSimId] = useState('base');
   const [priceDraft, setPriceDraft] = useState('');
   const [savingPrice, setSavingPrice] = useState(false);
@@ -157,6 +159,11 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
 
   const activePreset = SCENARIO_PRESETS.find((s) => s.id === simId) || SCENARIO_PRESETS[0];
 
+  const activeStorageParams =
+    activeCrop === 'onion' && STORAGE_TIERS[storageTierId]
+      ? STORAGE_TIERS[storageTierId].params
+      : (activeCrop === 'onion' ? (model.storage?.params ?? cropProfile.storageParams) : cropProfile.storageParams);
+
   const basePlan = buildWeeklyDecisionPlan({
     cropId: activeCrop,
     cropProfile,
@@ -164,7 +171,8 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
     today: model.today,
     baseWarehousePrice: liveInputPrice,
     bridge: model.bridge,
-    storageParams: activeCrop === 'onion' ? (model.storage?.params ?? cropProfile.storageParams) : cropProfile.storageParams,
+    storageParams: activeStorageParams,
+    storageTierId: activeCrop === 'onion' ? storageTierId : null,
     scenarioDeltaPct: 0,
     scenarioId: 'base',
     liveSignals: signals,
@@ -177,7 +185,8 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
     today: model.today,
     baseWarehousePrice: liveInputPrice,
     bridge: model.bridge,
-    storageParams: activeCrop === 'onion' ? (model.storage?.params ?? cropProfile.storageParams) : cropProfile.storageParams,
+    storageParams: activeStorageParams,
+    storageTierId: activeCrop === 'onion' ? storageTierId : null,
     scenarioDeltaPct: activePreset.deltaPct,
     scenarioId: simId,
     liveSignals: signals,
@@ -482,6 +491,40 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                     </div>
                   </div>
                 </details>
+              )}
+
+              {/* 3-Tier Storage Segmentation Strip */}
+              {activeCrop === 'onion' && (
+                <div className="import-sim-panel" style={{ marginBottom: 10 }}>
+                  <div className="import-sim-header">
+                    <div className="import-sim-title">
+                      <span>Эшелон склада (сегментация рынка лука РФ):</span>
+                      <span className={`badge ${STORAGE_TIERS[storageTierId]?.badgeCls || 'neu'}`}>
+                        {STORAGE_TIERS[storageTierId]?.name} · {STORAGE_TIERS[storageTierId]?.lifecycle}
+                      </span>
+                    </div>
+                    <div className="import-scenarios-row">
+                      {Object.values(STORAGE_TIERS).map((st) => (
+                        <button
+                          key={st.id}
+                          type="button"
+                          className={`scenario-btn ${storageTierId === st.id ? `active ${st.badgeCls}` : ''}`}
+                          onClick={() => setStorageTierId(st.id)}
+                        >
+                          {st.shortName}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="import-desc-box" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}>
+                    <div style={{ fontSize: 11.5, color: 'var(--txt)', lineHeight: 1.45 }}>
+                      <strong>{STORAGE_TIERS[storageTierId]?.name}:</strong> {STORAGE_TIERS[storageTierId]?.desc}
+                    </div>
+                    <div style={{ fontSize: 11, color: storageTierId === 'unventilated' ? 'var(--amber)' : 'var(--txt2)' }}>
+                      💡 <strong>Стратегия:</strong> {STORAGE_TIERS[storageTierId]?.recommendation} ({STORAGE_TIERS[storageTierId]?.priceTrendNote})
+                    </div>
+                  </div>
+                </div>
               )}
 
               {/* Scenario Simulator Strip */}

@@ -11,6 +11,8 @@
  *    detects unheated-shed freeze dumping, Central Asian clamp frost shocks, and reefer logistics surcharges.
  */
 
+import { STORAGE_TIERS } from './storageEconomics.js';
+
 const RU_MONTH_MAP = {
   января: 1,
   февраля: 2,
@@ -204,24 +206,39 @@ export function computeMarketFactorAnalytics({ fx, weatherHubs, spotChannels, ba
   // 3. Egypt spring maritime parity (Alexandria -> Novorossiysk -> Moscow, $0.34/kg CIF+customs)
   const egLandedMoscowExVat = +(0.34 * usdRub).toFixed(2);
 
-  // 4. Weather shock evaluation across the 4 hubs
+  // 4. Weather shock evaluation across the 4 key hubs
   const vlgMin = weatherHubs?.volgograd?.minTemp10d ?? 1.0;
   const zhmMin = weatherHubs?.zhambyl?.minTemp10d ?? 2.5;
   const uzMax = weatherHubs?.surkhandarya?.maxTemp10d ?? 21.0;
+  const uzMin = weatherHubs?.surkhandarya?.minTemp10d ?? 8.0;
   const mskMin = weatherHubs?.moscow?.minTemp10d ?? -1.0;
 
-  // Unheated Volgograd sheds must liquidate if 10-day minTemp drops <= -2°C in autumn
+  // Hub 1: Волгоград / Ростов / Астрахань (ЮФО):
+  // Падение ночной температуры ниже −2°C сигнализирует о старте массовой распродажи ангаров (краткосрочная просадка цены на 2–3 недели)
+  const vlgFrostDumpActive = vlgMin <= -2;
   const vlgFrostDumpPct = vlgMin <= -5 ? -2.2 : vlgMin <= -2 ? -1.1 : 0;
   const vlgWinterTighteningPct = vlgMin <= -5 ? 1.8 : vlgMin <= -2 ? 0.9 : 0;
 
-  // Zhambyl (KZ) clamp frost shock (< -8°C damages field/burt stocks and cuts transit)
+  // Hub 2: Жамбыл / Тараз (Казахстан):
+  // Морозы ниже −8°C перемерзают казахстанские бурты и парализуют экспорт в РФ (бычий фактор: цены в РФ сразу получают толчок вверх)
+  const kzFrostShockActive = zhmMin <= -8;
   const kzFrostShockPct = zhmMin <= -14 ? 6.5 : zhmMin <= -8 ? 3.2 : zhmMin >= 3 ? -1.2 : 0;
+
+  // Hub 3: Термез / Сурхандарья (Узбекистан):
+  // Аномально теплая весна в феврале-марте смещает начало поставок раннего лука на 1–2 недели вперед (ранний слом цен старого урожая)
+  const uzWarmSpringActive = uzMax >= 22 || uzMin >= 10;
+  const uzWarmSpringShiftPct = uzMax >= 24 ? -1.8 : uzWarmSpringActive ? -1.0 : 0;
+
+  // Hub 4: Москва (РЦ и оптовые базы):
+  // Морозы ниже −10°C требуют обязательного использования отапливаемых рефрижераторов (+1.5–2.5 ₽/кг к логистике)
+  const mskReeferRequired = mskMin <= -10;
+  const mskReeferSurchargeRubKg = mskMin <= -10 || vlgMin <= -10 ? 2.0 : mskMin <= -5 ? 0.8 : 0;
 
   // Import pressure in November: if KZ landed parity is close to or below local EXW, transit caps prices
   const kzAutumnCapPct = kzSpreadVsLocal <= 0 ? -2.8 : kzSpreadVsLocal <= 1.2 ? -1.5 : 0.4;
 
-  // Reefer surcharge risk on M-6 Volgograd -> Moscow
-  const mskReeferSurchargeRubKg = mskMin <= -12 || vlgMin <= -12 ? 1.4 : mskMin <= -5 ? 0.5 : 0;
+  // Monthly financing opportunity cost per kg at current CBR key rate (18–21%)
+  const monthlyFinancingCostRubKg = +(baseWarehouseExVat * (keyRate / 100) / 12).toFixed(2);
 
   // Spot Volgograd consensus across clean `ask` boards (minus ~0.3 RUB/kg typical ask->deal discount)
   const vlgAskMedians = (spotChannels || [])
@@ -267,13 +284,49 @@ export function computeMarketFactorAnalytics({ fx, weatherHubs, spotChannels, ba
       egLandedMoscowExVat,
       mskReeferSurchargeRubKg,
     },
+    hubAlerts: {
+      volgograd: {
+        active: vlgFrostDumpActive,
+        minTemp: vlgMin,
+        title: 'Волгоград / Ростов / Астрахань (ЮФО)',
+        rule: 'Падение ночной температуры ниже −2°C сигнализирует о старте массовой распродажи ангаров (краткосрочная просадка цены на 2–3 недели).',
+        status: vlgFrostDumpActive ? 'АКТИВЕН СБРОС АНГАРОВ' : 'Штатный режим сбора/закладки',
+      },
+      zhambyl: {
+        active: kzFrostShockActive,
+        minTemp: zhmMin,
+        title: 'Жамбыл / Тараз (Казахстан)',
+        rule: 'Морозы ниже −8°C перемерзают казахстанские бурты и парализуют экспорт в РФ (бычий фактор: цены в РФ сразу получают толчок вверх).',
+        status: kzFrostShockActive ? 'ИМПОРТНЫЙ ШОК: БУРТЫ ЗАМЁРЗЛИ' : 'Штатный транзит в РФ',
+      },
+      surkhandarya: {
+        active: uzWarmSpringActive,
+        maxTemp: uzMax,
+        title: 'Термез / Сурхандарья (Узбекистан)',
+        rule: 'Аномально теплая весна в феврале-марте смещает начало поставок раннего лука на 1–2 недели вперед (ранний слом цен старого урожая).',
+        status: uzWarmSpringActive ? 'УСКОРЕНИЕ РАННЕГО УРОЖАЯ' : 'Штатная вегетация озимого лука',
+      },
+      moscow: {
+        active: mskReeferRequired,
+        minTemp: mskMin,
+        title: 'Москва (РЦ и оптовые базы)',
+        rule: 'Морозы ниже −10°C требуют обязательного использования отапливаемых рефрижераторов (+1.5–2.5 ₽/кг к логистике).',
+        status: mskReeferRequired ? 'ОБЯЗАТЕЛЬНЫЙ ОТАПЛИВАЕМЫЙ РЕФ' : 'Штатная доставка изотермой/тентом',
+      },
+    },
+    macroTransmission: {
+      kztParityNote: 'Ослабление рубля к тенге делает казахстанский лук дороже для импортёров и открывает дорогу росту внутренних российских цен.',
+      financingNote: `Ставка рефинансирования ЦБ (${keyRate.toFixed(1)}%): финансирование запасов забирает ~${monthlyFinancingCostRubKg} ₽ на каждый килограмм в месяц в виде упущенной выгоды по депозиту или процентов по кредитной линии.`,
+      monthlyFinancingCostRubKg,
+    },
+    storageTiers: STORAGE_TIERS,
     impulses: {
       vlgFrostDumpPct,
       vlgWinterTighteningPct,
       kzFrostShockPct,
       kzAutumnCapPct,
       fxParityShiftPct: +(((kztRub - 0.189) / 0.189) * 35 + ((usdRub - 91) / 91) * 15).toFixed(2),
-      uzWarmSpringShiftPct: uzMax >= 24 ? -1.8 : 0,
+      uzWarmSpringShiftPct,
     },
   };
 }
@@ -296,47 +349,47 @@ export function buildDefaultMarketSignals(today = '2026-10-31', baseWarehouseExV
   const weatherHubs = {
     volgograd: {
       id: 'volgograd',
-      name: 'Волгоград (Городище)',
+      name: 'Волгоград / Ростов / Астрахань (ЮФО)',
       role: 'Сырьевая база и склады EXW',
       status: 'snapshot',
       minTemp10d: -1.2,
       maxTemp10d: 11.4,
       precipMm10d: 6.2,
       frostDays: 2,
-      summary: 'Ночные переходы к −1°C ускоряют разгрузку неотапливаемых ангаров в ноябре',
+      summary: 'Ночные переходы к −1°C: падение ниже −2°C сигнализирует о старте массовой распродажи ангаров (просадка цен на 2–3 нед.)',
     },
     zhambyl: {
       id: 'zhambyl',
-      name: '🇰🇿 Жамбыл / Тараз (КЗ)',
+      name: '🇰🇿 Жамбыл / Тараз (Казахстан)',
       role: 'Импорт №1 (48% ввоза РФ)',
       status: 'snapshot',
       minTemp10d: 1.8,
       maxTemp10d: 15.2,
       precipMm10d: 3.1,
       frostDays: 0,
-      summary: 'Сухая погода без сильных морозов: транзит фур из Казахстана идёт в штатном режиме',
+      summary: 'Штатный осенний транзит в РФ; морозы ниже −8°C перемерзают казахстанские бурты и дают толчок росту цен в РФ',
     },
     surkhandarya: {
       id: 'surkhandarya',
-      name: '🇺🇿 Сурхандарья / Термез (УЗ)',
-      role: 'Ранний лук (апрельский потолок)',
+      name: '🇺🇿 Термез / Сурхандарья (Узбекистан)',
+      role: 'Ранний озимый лук (апрельский потолок)',
       status: 'snapshot',
       minTemp10d: 8.4,
       maxTemp10d: 22.6,
       precipMm10d: 0.8,
       frostDays: 0,
-      summary: 'Благоприятный сев озимого («августовского») лука под ранний экспорт в РФ с середины апреля',
+      summary: 'Благоприятная вегетация озимого лука: аномальное тепло смещает старт экспорта в РФ на 1–2 недели вперёд (ранний слом цен старого фонда)',
     },
     moscow: {
       id: 'moscow',
-      name: 'Москва (Фуд Сити / РЦ)',
+      name: 'Москва (Фуд Сити / РЦ сетей)',
       role: 'Крупный опт и приёмка сетей',
       status: 'snapshot',
       minTemp10d: -2.0,
       maxTemp10d: 7.5,
       precipMm10d: 11.4,
       frostDays: 3,
-      summary: 'Штатная доставка тентом/термосом по М-6; обязательный реф с подогревом потребуется при < −10°C',
+      summary: 'Штатная доставка изотермой по М-6; морозы ниже −10°C требуют обязательного использования отапливаемых рефрижераторов (+1.5–2.5 ₽/кг к логистике)',
     },
   };
 
