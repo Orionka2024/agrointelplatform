@@ -43,7 +43,11 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 if (!BOT_TOKEN || !CHAT_ID) {
-  console.error('ERROR: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing in .env.local');
+  console.error('❌ ERROR: Missing Telegram credentials!');
+  if (!BOT_TOKEN) console.error('  -> TELEGRAM_BOT_TOKEN is missing or empty.');
+  if (!CHAT_ID) console.error('  -> TELEGRAM_CHAT_ID is missing or empty.');
+  console.error('\nEnsure both secrets are added under:');
+  console.error('GitHub Repo -> Settings -> Secrets and variables -> Actions -> Repository secrets');
   process.exit(1);
 }
 
