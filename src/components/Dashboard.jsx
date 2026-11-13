@@ -20,6 +20,7 @@ import { upsertStoredUserPrice } from '../utils/userPriceStore.js';
 import AddActualPrice from './AddActualPrice';
 import MonthlySalesPlanTable from './MonthlySalesPlanTable';
 import WeatherWidget from './WeatherWidget';
+import VolgogradOnionIntelPanel from './VolgogradOnionIntelPanel';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
@@ -720,6 +721,9 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Validated Volgograd Onion Market Intelligence & Decision Support Layer */}
+      <VolgogradOnionIntelPanel model={model} signals={signals} />
 
       {/* Main Split: Crop Rating Matrix + Macro & Importers */}
       <div className="row-32">

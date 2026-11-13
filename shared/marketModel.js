@@ -19,6 +19,7 @@ import { evaluateSeasonalPressure } from './seasonality.js';
 import { buildDemoForecast, DEMO_ISSUE_DATE, DEMO_BRIDGE, DEMO_STORAGE, DEMO_BALANCE, DEMO_SCENARIO_SENSITIVITIES, DEMO_ONION_MOSCOW_INCL, DEMO_SEASONAL_PRESSURES } from './demo.js';
 import { DEFAULT_VAT_RATE, TARGET_SPECS } from './spec.js';
 import { moscowToWarehouse } from './bridge.js';
+import { buildVolgogradOnionIntelligence } from './onionValidatedIntel.js';
 
 export const BENCHMARK_BRIDGE = {
   truckCostRub: 135000,
@@ -224,9 +225,25 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
           verifiedAt: o.verification?.verifiedAt || null,
         }));
 
+  const onionIntel = buildVolgogradOnionIntelligence({
+    today,
+    observations: demo ? [] : observations,
+    signals: {
+      asOf: today,
+      fx: {
+        kztRub: macroView.kztRub.value !== null ? { value: macroView.kztRub.value } : null,
+        asOf: macroView.kztRub.provenance?.asOf || today,
+      },
+      spotChannels: [],
+    },
+    storageParams,
+    assumptions,
+  });
+
   return {
     mode: demo ? 'demo' : 'observed', today, storeAvailable, evidence,
     verifiedObservations,
+    onionIntel,
     monitoring: monitorMarket(observations, indicators, today),
     assumptions, bridge, vatRate, sensitivities: sens,
     prices, series, bridgeValidation, bridgeResult, empirical, spread,
