@@ -44,11 +44,12 @@ export const TARGET_SPECS = {
 };
 
 export const MARKETS = ['warehouse_volgograd', 'moscow_wholesale', 'other'];
-export const KINDS = ['transaction', 'bid', 'ask', 'index'];
+export const KINDS = ['transaction', 'bid', 'ask', 'indicative_offer', 'index'];
 export const KIND_LABELS = {
   transaction: 'Сделка (фактическая)',
   bid: 'Заявка покупателя (bid)',
   ask: 'Цена предложения продавца (ask)',
+  indicative_offer: 'Индикативная оферта (ask ≠ сделка)',
   index: 'Опубликованный индекс / котировка',
 };
 

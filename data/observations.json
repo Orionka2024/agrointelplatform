@@ -20660,7 +20660,10 @@
   {
     "id": "407527e2",
     "naturalKey": "1378887e",
-    "kind": "transaction",
+    "kind": "indicative_offer",
+    "originalKind": "transaction",
+    "reclassifiedAt": "2026-11-13",
+    "reclassifiedReason": "Неподтверждённая запись Агросервера без реквизитов договора и контрагента переклассифицирована из transaction в indicative_offer (P0.1)",
     "market": "warehouse_volgograd",
     "geography": "Волгоградская обл.",
     "observationDate": "2026-10-15",
@@ -20684,19 +20687,23 @@
     "volumeT": null,
     "source": "Агросервер",
     "sourceRef": null,
-    "notes": null,
+    "notes": "Оригинальная запись сохранена в истории как indicative_offer (оферта доски объявлений без подтверждения сделки)",
     "quality": {
       "outlier": false,
       "warnings": [
         "retrieved_date отсутствует — принята дата импорта",
-        "спецификация (grade/packaging) не указана"
+        "спецификация (grade/packaging) не указана",
+        "переклассифицировано из transaction в indicative_offer (нет подтверждения сделки)"
       ]
     }
   },
   {
     "id": "8d86fc42",
     "naturalKey": "74a83370",
-    "kind": "transaction",
+    "kind": "indicative_offer",
+    "originalKind": "transaction",
+    "reclassifiedAt": "2026-11-13",
+    "reclassifiedReason": "Неподтверждённая запись Агросервера без реквизитов договора и контрагента переклассифицирована из transaction в indicative_offer (P0.1)",
     "market": "warehouse_volgograd",
     "geography": "Волгоградская обл.",
     "observationDate": "2026-10-22",
@@ -20720,12 +20727,13 @@
     "volumeT": null,
     "source": "Агросервер",
     "sourceRef": null,
-    "notes": null,
+    "notes": "Оригинальная запись сохранена в истории как indicative_offer (оферта доски объявлений без подтверждения сделки)",
     "quality": {
       "outlier": false,
       "warnings": [
         "retrieved_date отсутствует — принята дата импорта",
-        "спецификация (grade/packaging) не указана"
+        "спецификация (grade/packaging) не указана",
+        "переклассифицировано из transaction в indicative_offer (нет подтверждения сделки)"
       ]
     }
   }

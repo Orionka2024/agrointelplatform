@@ -36,4 +36,6 @@ data/*.tmp
 
 data/*.sqlite*
 data/sources/rosstat/R-03-2025.docx
+Volgograd_78ha_Strategy.docx
+P2-audit/
 

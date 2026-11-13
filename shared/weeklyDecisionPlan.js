@@ -1,8 +1,27 @@
-import { addWeeks, weekStart } from './dates.js';
+import { addWeeks, weekStart, daysBetween } from './dates.js';
 import { warehouseToMoscow } from './bridge.js';
-import { storageAtHorizon, evaluateStorage, STORAGE_TIERS } from './storageEconomics.js';
+import { storageAtHorizon, storageAtCalendarDays, evaluateStorage, STORAGE_TIERS, STANDARD_MONTH_DAYS, daysToMonths } from './storageEconomics.js';
 import { watchlistLogOffset, WATCH_HORIZON_WEEKS } from './exportWatchlist.js';
 import { buildShortTermDrivers, formatShortTermDriversText } from './shortTermDrivers.js';
+import { resolveDatedCbrMacro } from './marketSignals.js';
+import { officialForecast as defaultOfficialForecast } from './officialData.js';
+
+export const VOLGOGRAD_ONION_TARGET_SPEC = {
+  targetId: 'volgograd_yellow_onion_exw_20t',
+  label: 'Лук репчатый жёлтый 1 сорт 50+ мм EXW Волгоград (20 т)',
+  cropId: 'onion',
+  cropNameRu: 'Лук репчатый жёлтый',
+  grade: '1 сорт',
+  caliberMm: '50+',
+  packaging: 'сетка 25 кг (зачётный вес)',
+  lotSizeT: 20,
+  deliveryBasis: 'EXW склад Волгоградской области',
+  unit: 'RUB/kg',
+  vat: 'excluded',
+  loadingTerms: 'погрузка в транспорт силами склада',
+  paymentTerms: '100% предоплата или согласованный факторинг',
+  windowDays: 7,
+};
 
 const RU_MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 
@@ -46,19 +65,25 @@ function interpolateKnots(knots, targetMs) {
  *  3) Dec 29–Jan 15: Russian New Year wholesale pause & interregional trucking lull
  *  4) Late Jan–Mar: Post-holiday DC restocking + KZ clamp depletion -> March cold-storage peak
  *  5) Apr: Early new-crop onion arrivals from Surkhandarya (Uzbekistan) & Egypt rolling old-crop prices down
+ *
+ * NOTE (P2.1 / Audit §1 & §6.1):
+ * The wholesale benchmark market price for standard yellow onion 50+ mm EXW Volgograd is INDEPENDENT
+ * of which warehouse tier an individual farmer operates. A farmer changing storageTierId
+ * changes their own losses, OPEX, break-even, and net return, NEVER the market commodity forecast!
  */
-function evaluateOnionWeeklyRegime(targetDate, liveSignals, h = 0) {
+export function evaluateOnionWeeklyRegime(targetDate, liveSignals, h = 0) {
   const regime = evaluateOnionSeasonalRegime(targetDate, liveSignals);
   const wlOffset = watchlistLogOffset(liveSignals?.analytics?.watchlist, h);
   if (!wlOffset) return regime;
   return { ...regime, logOffset: regime.logOffset + wlOffset, watchlistLogOffset: wlOffset };
 }
 
-function evaluateOnionSeasonalRegime(targetDate, liveSignals) {
+export function evaluateOnionSeasonalRegime(targetDate, liveSignals) {
   const [, month, day] = targetDate.split('-').map(Number);
   const imp = liveSignals?.analytics?.impulses || {};
-  const kzCap = (imp.kzAutumnCapPct ?? -1.5) * 0.0035;
-  const vlgFrostDump = (imp.vlgFrostDumpPct ?? 0) * 0.0045;
+  const kzCap = (imp.kzAutumnCapPct ?? -1.0) * 0.0035;
+  // Regional market pressure from temporary shed liquidation before frosts
+  const vlgFrostDump = 0;
   const vlgTight = (imp.vlgWinterTighteningPct ?? 0) * 0.004;
   const kzFrost = (imp.kzFrostShockPct ?? 0) * 0.0045;
   const fxShift = (imp.fxParityShiftPct ?? 0) * 0.0025;
@@ -79,7 +104,7 @@ function evaluateOnionSeasonalRegime(targetDate, liveSignals) {
       driverTag: 'KZ_TRANSIT_SHEDS',
       phase: {
         tag: 'Транзит КЗ · Сброс ангаров',
-        desc: 'Активный ввоз из Жамбылской обл. КЗ и разгрузка неотапливаемых ангаров ЮФО до морозов сдерживают спот',
+        desc: 'Активный ввоз из Жамбылской обл. КЗ и разгрузка неотапливаемых ангаров ЮФО сдерживают спот',
       },
     };
   }
@@ -251,14 +276,14 @@ export function buildWeekDeltaExplanation({
   const [, month, day] = targetDate.split('-').map(Number);
   const isUp = wowDelta > 0.08;
   const isDown = wowDelta < -0.08;
-  const signStr = wowDelta > 0 ? `+${wowDelta.toFixed(2)}` : wowDelta.toFixed(2);
+  const signStr = wowDelta > 0 ? `+${wowDelta.toFixed(1)}` : wowDelta.toFixed(1);
 
   // Weather hubs from live signals or defaults
   const vlgMin = liveSignals?.weatherHubs?.volgograd?.minTemp10d ?? -1.2;
   const zhmMin = liveSignals?.weatherHubs?.zhambyl?.minTemp10d ?? 2.5;
   const uzMax = liveSignals?.weatherHubs?.surkhandarya?.maxTemp10d ?? 21.0;
   const mskMin = liveSignals?.weatherHubs?.moscow?.minTemp10d ?? -1.0;
-  const keyRate = liveSignals?.fx?.keyRate?.value ?? 19.0;
+  const keyRate = liveSignals?.fx?.keyRate?.value ?? 14.0;
 
   let summary = '';
   let marketText = '';
@@ -271,18 +296,18 @@ export function buildWeekDeltaExplanation({
 
     if (driverTag === 'KZ_TRANSIT_SHEDS' || (month === 10 || (month === 11 && day <= 23))) {
       summary = isDown
-        ? `Просадка цены (${signStr} ₽/кг): наложение активного ввоза дешёвого лука из Жамбылской области (Казахстан) и массового сброса неотапливаемых ангаров в ЮФО.`
-        : `Сдержанная динамика (${signStr} ₽/кг): массовый приток лука из Казахстана и ликвидация полевых ангаров до заморозков сдерживают рост котировок.`;
-      marketText = `Пик сезонного предложения в оптовом звене. Казахстанский лук с открытых полей Тараза заходит по минимальным осенним ценам, а фермеры Волгограда, Ростова и Астрахани без вентиляции активно распродают объёмы, опасаясь подмораживания шеек.`;
+        ? `Коррекция цены (${signStr} ₽/кг): сезонный ввоз лука из Жамбылской области (Казахстан) и реализация партий из необорудованных хранилищ ЮФО.`
+        : `Сдержанная динамика (${signStr} ₽/кг): осенний приток лука из Казахстана и реализация партий без активной вентиляции сдерживают спот.`;
+      marketText = `Сезонное предложение в оптовом звене. Казахстанский лук из Тараза и партии из необорудованных складов ЮФО формируют текущее предложение, тогда как стационарные склады работают в режиме планового хранения.`;
       weatherText = vlgMin <= -2
-        ? `Внимание: в ЮФО зафиксированы заморозки ниже −2°C (факт: ${vlgMin.toFixed(1)}°C), что форсирует сброс ангаров и давит на цену. В Таразе (${zhmMin.toFixed(1)}°C) отгрузки идут штатно.`
-        : `Температура в ЮФО (${vlgMin.toFixed(1)}°C) пока позволяет уборку и закладку, но падение ночной температуры ниже −2°C вызовет волну распродаж ангаров. В Таразе (+${zhmMin.toFixed(1)}°C) погодных помех для транзита нет.`;
+        ? `Наружная температура в ЮФО опускалась до ${vlgMin.toFixed(1)}°C: сама по себе температура −2°C на улице не требует срочной распродажи из стационарных хранилищ. В Таразе (${zhmMin.toFixed(1)}°C) отгрузки идут штатно.`
+        : `Температура наружного воздуха в ЮФО (${vlgMin.toFixed(1)}°C) и в Таразе (+${zhmMin.toFixed(1)}°C) позволяет вести штатную вентиляцию и отгрузки.`;
       storageText = activeTierId === 'unventilated'
-        ? `Критический период для склада без вентиляции! Нельзя затягивать реализацию: при первых заморозках конденсат приведёт к шейковой гнили.`
-        : `Для вентилируемого склада это плановый период сушки и охлаждения наружным воздухом при +1..+3°C. Текущие технологические потери минимальны (~${totalLossPct}%).`;
+        ? `Для склада без активной вентиляции решение зависит от фактической температуры и влажности внутри помещения (при влажности >85% и отсутствии продувки возрастает риск конденсата и шейковой гнили).`
+        : `Для вентилируемого склада поддерживается плановый режим внутри камеры (+1..+3°C, влажность 70–75%). Текущие технологические потери минимальны (~${totalLossPct}%).`;
       actionableTip = activeTierId === 'unventilated'
-        ? `Срочно распродавать урожай до 1 декабря, пока сохраняется товарный вид.`
-        : `Не демпинговать вместе с ангарами. Сушить стандартный товарный фонд (5+ см) под предновогодние контракты с ритейлом.`;
+        ? `Оценить фактическую температуру, влажность внутри помещения и процент шейковой гнили: ускоренная реализация нужна только при нарушении внутреннего микроклимата партии.`
+        : `Не снижать цену вслед за объявлениями на досках. Контролировать температуру, влажность (70–75%) и вентиляцию камеры под плановые контракты.`;
     } else if (driverTag === 'STORAGE_SHIFT' || ((month === 11 && day >= 24) || (month === 12 && day <= 10))) {
       summary = `Разворот тренда вверх (${signStr} ₽/кг): слабые полевые партии распроданы, отгрузки переходят на стационарные вентилируемые склады.`;
       marketText = `Завершение периода дешёвого полевого сброса. На спотовом рынке исчерпано предложение от хозяйств без специализированных складов; на арену выходят профессиональные партии с активной вентиляцией.`;
@@ -343,7 +368,10 @@ export function buildWeekDeltaExplanation({
       summary = `Недельная корректировка цены склада на ${signStr} ₽/кг в рамках сезонного тренда.`;
       marketText = `Стандартная сезонная динамика оптового рынка. Баланс спроса ритейла и предложения складов.`;
       weatherText = `Фактический температурный фон соответствует климатической норме сезона.`;
-      storageText = `Плановое хранение: потери ~${totalLossPct}%, безубыточность ${breakEvenPrice.toFixed(1)} ₽/кг.`;
+      storageText =
+        totalLossPct !== null && breakEvenPrice !== null
+          ? `Плановое хранение: потери ~${totalLossPct}%, безубыточность ${breakEvenPrice.toFixed(1)} ₽/кг.`
+          : 'Плановое хранение: параметры безубыточности уточняются.';
       actionableTip = `Придерживаться утверждённого графика отгрузок.`;
     }
   } else {
@@ -355,7 +383,10 @@ export function buildWeekDeltaExplanation({
         : `Стабильный ценовой баланс недели (${signStr} ₽/кг).`;
     marketText = `Сезонный профиль реализации для культуры «${cropName}». Спрос поддерживается регулярными контрактами торговых сетей и оптовых баз.`;
     weatherText = `Температурный режим ЮФО и Центральной России определяет условия транспортировки и сохранности партии.`;
-    storageText = `Накопленный отход и усушка составляют ~${totalLossPct}%. Чистая выручка с 1 кг заложенного урожая: ~${netPerKg.toFixed(1)} ₽/кг.`;
+    storageText =
+      totalLossPct !== null && netPerKg !== null
+        ? `Накопленный отход и усушка составляют ~${totalLossPct}%. Чистая выручка с 1 кг заложенного урожая: ~${netPerKg.toFixed(1)} ₽/кг.`
+        : 'Хранение не предусмотрено для данной культуры (межсезонье / скоропортящаяся продукция).';
     actionableTip = `Соблюдать температурно-влажностный режим в камерах и плановый график выборки партий.`;
   }
 
@@ -377,7 +408,10 @@ export function buildWeekDeltaExplanation({
     {
       title: 'Экономика склада и биологические риски',
       icon: '🏢',
-      badge: `потери ~${totalLossPct}% · порог ${breakEvenPrice.toFixed(1)} ₽`,
+      badge:
+        totalLossPct !== null && breakEvenPrice !== null
+          ? `потери ~${totalLossPct}% · порог ${breakEvenPrice.toFixed(1)} ₽`
+          : 'межсезонье',
       cls: activeTierId === 'unventilated' && idx >= 4 ? 'dn' : (activeTierId === 'ventilated' && idx >= 17 ? 'warn' : 'info'),
       text: storageText,
     },
@@ -453,6 +487,192 @@ export function buildWeekDeltaExplanation({
   };
 }
 
+export const CONDITIONAL_FORECAST_BANNER =
+  'Текущая цена сделки по луку EXW Волгоград не подтверждена. Прогноз является условным.';
+export function buildCatboostKnots(officialForecast, issueDate, pStart) {
+  if (!officialForecast?.rows?.length) return null;
+  const startMs = parseUtcMs(issueDate);
+  const cutoffIso = `${officialForecast.inputCutoff}-15`;
+  const lastVal = officialForecast.lastValue || 18.11816;
+  const firstRow = officialForecast.rows[0];
+  const firstPt = firstRow.catboostPoint ?? firstRow.point ?? lastVal;
+  const firstQ80 = firstRow.catboostQ80 ?? firstRow.validation?.q80 ?? 2.6;
+  const firstMae = firstRow.catboostHoldoutMae ?? firstRow.validation?.final?.mae ?? 2.6;
+  const firstNaive = firstRow.validation?.naiveFinal?.mae ?? 3.2;
+
+  const knots = [];
+  knots.push({
+    ms: parseUtcMs(cutoffIso),
+    logP: Math.log(lastVal),
+    relBand80: firstQ80 / firstPt,
+    relMae: firstMae / firstPt,
+    skillPct: firstNaive > 0 ? Math.max(0, (1 - firstMae / firstNaive) * 100) : 0,
+  });
+
+  for (const r of officialForecast.rows) {
+    const cbPt = r.catboostPoint ?? r.point;
+    const eqPt = r.point ?? r.catboostPoint;
+    const lead = r.lead ?? 3;
+    const wCb = lead <= 3 ? 1 : Math.exp(-Math.max(0, (lead - 3.5) * 0.52));
+    const pt = cbPt > 0 && eqPt > 0 ? wCb * cbPt + (1 - wCb) * eqPt : (cbPt ?? eqPt);
+    if (!(pt > 0)) continue;
+    const q80 = r.catboostQ80 ?? r.validation?.q80 ?? firstQ80;
+    const mae = r.catboostHoldoutMae ?? r.validation?.final?.mae ?? firstMae;
+    const naiveMae = r.validation?.naiveFinal?.mae ?? mae;
+    knots.push({
+      ms: parseUtcMs(`${r.targetMonth}-15`),
+      logP: Math.log(pt),
+      relBand80: q80 > 0 ? q80 / pt : 0.14,
+      relMae: mae > 0 ? mae / pt : 0.12,
+      skillPct: naiveMae > 0 ? ((1 - mae / naiveMae) * 100) : 0,
+    });
+  }
+  knots.sort((a, b) => a.ms - b.ms);
+  const k0 = interpolateKnots(knots, startMs);
+  const startRef = k0 ? Math.exp(k0.logP) : lastVal;
+  const basisFactor = startRef > 0 ? pStart / startRef : 1;
+  return { knots, basisFactor, startRef };
+}
+
+/**
+ * Unified target forecast evaluator for yellow onion EXW Volgograd (20 t lot).
+ * All UI panels (Dashboard, Forecast, Intel Panel) and backtest routines consume
+ * this exact point and intervals given identical inputs.
+ */
+export function evaluateVolgogradOnionTargetForecast({
+  targetId = 'volgograd_yellow_onion_exw_20t',
+  targetSpec = VOLGOGRAD_ONION_TARGET_SPEC,
+  issueAsOf = '2026-11-13',
+  targetDate = '2026-11-16',
+  windowDays = 7,
+  observations = [],
+  baseWarehousePrice = 15.5,
+  hasVerifiedWarehouseDeal = false,
+  officialForecast = null,
+  liveSignals = null,
+  scenarioDeltaPct = 0,
+  scenarioId = 'base',
+}) {
+  const daysToTarget = Math.max(0, daysBetween(issueAsOf, targetDate));
+  const holdingMonths = daysToMonths(daysToTarget);
+  const targetMs = parseUtcMs(targetDate);
+
+  // Separate anchors: local closed transaction vs buyer bid vs statistical benchmark vs conditional scenario
+  const localTransactions = (observations || []).filter((o) => {
+    if (!o || o.isYellowStandard === false) return false;
+    const type = o.evidenceType || o.kind;
+    const isTrans = type === 'completed_transaction' || type === 'transaction';
+    const isLocal = /волгоград/i.test(o.location || o.region || '') || o.region === 'Волгоградская обл.';
+    const date = o.observationDate || o.date;
+    const inWindow = date && date <= issueAsOf && daysBetween(date, issueAsOf) <= windowDays && daysBetween(date, issueAsOf) >= 0;
+    const isVer = o.verificationStatus === 'verified' || o.verified === true || o.verification?.status === 'verified';
+    return isTrans && isLocal && inWindow && isVer && Number.isFinite(Number(o.valueExVat ?? o.priceExVatRubKg ?? o.value));
+  });
+
+  const localBids = (observations || []).filter((o) => {
+    if (!o || o.isYellowStandard === false) return false;
+    const type = o.evidenceType || o.kind;
+    const isBid = type === 'executable_bid' || type === 'bid';
+    const isLocal = /волгоград/i.test(o.location || o.region || '') || o.region === 'Волгоградская обл.';
+    const date = o.observationDate || o.date;
+    const inWindow = date && date <= issueAsOf && daysBetween(date, issueAsOf) <= windowDays && daysBetween(date, issueAsOf) >= 0;
+    const isVer = o.verificationStatus === 'verified' || o.verified === true || o.verification?.status === 'verified';
+    return isBid && isLocal && inWindow && isVer && Number.isFinite(Number(o.valueExVat ?? o.priceExVatRubKg ?? o.value));
+  });
+
+  const latestTransaction = localTransactions.length ? localTransactions.at(-1) : null;
+  const latestBid = localBids.length ? localBids.at(-1) : null;
+
+  let effectiveAnchorPrice = Number.isFinite(Number(baseWarehousePrice)) && Number(baseWarehousePrice) > 0 ? Number(baseWarehousePrice) : 15.5;
+  let effectiveAnchorType = 'conditional_scenario_benchmark';
+  let hasVerifiedAnchor = hasVerifiedWarehouseDeal;
+
+  if (latestTransaction) {
+    effectiveAnchorPrice = Number(latestTransaction.valueExVat ?? latestTransaction.priceExVatRubKg ?? latestTransaction.value);
+    effectiveAnchorType = 'completed_transaction';
+    hasVerifiedAnchor = true;
+  } else if (latestBid) {
+    effectiveAnchorPrice = Number(latestBid.valueExVat ?? latestBid.priceExVatRubKg ?? latestBid.value);
+    effectiveAnchorType = 'executable_bid';
+    hasVerifiedAnchor = true;
+  }
+
+  const pStart = +effectiveAnchorPrice.toFixed(1);
+  const isConditionalForecast = !hasVerifiedAnchor;
+
+  const effectiveOfficial = officialForecast || defaultOfficialForecast;
+  const knots = buildCatboostKnots(effectiveOfficial, issueAsOf, pStart);
+  let baseWh;
+  let relBand80 = 0.14;
+  let relMae = 0.12;
+
+  const hLead = Math.max(1, Math.round(daysToTarget / 7));
+  const leadIdx = Math.max(0, hLead - 1);
+
+  if (knots && knots.knots.length > 0) {
+    const k = interpolateKnots(knots.knots, targetMs);
+    const regime = evaluateOnionWeeklyRegime(targetDate, liveSignals, hLead);
+    baseWh = Math.exp(k.logP + regime.logOffset) * knots.basisFactor;
+    relBand80 = k.relBand80;
+    relMae = k.relMae;
+  } else {
+    baseWh = pStart;
+  }
+
+  const scenarioMultiplier = computeScenarioMultiplier(scenarioId, scenarioDeltaPct, targetDate, leadIdx);
+  const rawWhPrice = baseWh * scenarioMultiplier;
+  const point = +rawWhPrice.toFixed(1);
+  const relBand95 = Math.min(0.65, relBand80 * 1.55);
+
+  const lo80 = +Math.max(0.5, rawWhPrice * (1 - relBand80)).toFixed(1);
+  const hi80 = +(rawWhPrice * (1 + relBand80)).toFixed(1);
+  const lo95 = +Math.max(0.5, rawWhPrice * (1 - relBand95)).toFixed(1);
+  const hi95 = +(rawWhPrice * (1 + relBand95)).toFixed(1);
+
+  return {
+    targetId,
+    targetSpec: { ...VOLGOGRAD_ONION_TARGET_SPEC, ...targetSpec },
+    issueAsOf,
+    targetDate,
+    daysToTarget,
+    holdingMonths,
+    isConditionalForecast,
+    conditionalWarning: isConditionalForecast ? CONDITIONAL_FORECAST_BANNER : null,
+    anchors: {
+      localTransaction: latestTransaction ? {
+        priceExVat: Number(latestTransaction.valueExVat ?? latestTransaction.value),
+        date: latestTransaction.observationDate || latestTransaction.date,
+        source: latestTransaction.sourceUrl || latestTransaction.documentRef,
+      } : null,
+      executableBid: latestBid ? {
+        priceExVat: Number(latestBid.valueExVat ?? latestBid.value),
+        date: latestBid.observationDate || latestBid.date,
+        source: latestBid.sourceUrl || latestBid.documentRef,
+      } : null,
+      statisticalBenchmark: {
+        rfProducerPriceExVat: 18.11816,
+        sfdProducerPriceExVat: 17.53219,
+        source: 'Росстат ЕМИСС (СХО без НДС)',
+        period: '2026-09',
+        availableDate: '2026-10-28',
+      },
+      conditionalScenarioBase: pStart,
+      effectiveAnchorPrice: pStart,
+      effectiveAnchorType,
+    },
+    rawPoint: +rawWhPrice.toFixed(4),
+    point,
+    lo80,
+    hi80,
+    lo95,
+    hi95,
+    relBand80: +relBand80.toFixed(4),
+    relBand95: +relBand95.toFixed(4),
+    calibrationMethod: 'empirical_holdout_quantiles',
+    modelVersion: 'catboost-weekly-v2',
+  };
+}
+
 /**
  * Builds the 26-week warehouse & Moscow trajectory and the 5-stage monthly sales plan.
  */
@@ -462,6 +682,7 @@ export function buildWeeklyDecisionPlan({
   officialForecast,
   today = '2026-10-30',
   baseWarehousePrice = 15.5,
+  hasVerifiedWarehouseDeal = false,
   bridge,
   storageParams,
   storageTierId = null,
@@ -474,66 +695,30 @@ export function buildWeeklyDecisionPlan({
   const startMonday = weekStart(today);
   const startMs = parseUtcMs(today);
   const pStart = Number.isFinite(baseWarehousePrice) && baseWarehousePrice > 0
-    ? baseWarehousePrice
-    : (cropProfile?.benchmarkWarehousePrice ?? 15.5);
+    ? +Number(baseWarehousePrice).toFixed(1)
+    : +(cropProfile?.benchmarkWarehousePrice ?? 15.5).toFixed(1);
+  const isConditionalForecast = !hasVerifiedWarehouseDeal;
+  const conditionalWarning = isConditionalForecast ? CONDITIONAL_FORECAST_BANNER : null;
 
-  const isOnionCatBoost = cropId === 'onion' && officialForecast?.rows?.length > 0;
-  let knots = [];
-  let startRef = pStart;
+  const effectiveOfficial = officialForecast || defaultOfficialForecast;
+  const isOnionCatBoost = cropId === 'onion' && effectiveOfficial?.rows?.length > 0;
+  const knotBundle = isOnionCatBoost ? buildCatboostKnots(effectiveOfficial, today, pStart) : null;
+  const knots = knotBundle?.knots || [];
+  const basisFactor = knotBundle?.basisFactor || 1;
 
-  if (isOnionCatBoost) {
-    const cutoffIso = `${officialForecast.inputCutoff}-15`;
-    const lastVal = officialForecast.lastValue || 18.11816;
-    const firstRow = officialForecast.rows[0];
-    const firstPt = firstRow.catboostPoint ?? firstRow.point ?? lastVal;
-    const firstQ80 = firstRow.catboostQ80 ?? firstRow.validation?.q80 ?? 2.6;
-    const firstMae = firstRow.catboostHoldoutMae ?? firstRow.validation?.final?.mae ?? 2.6;
-    const firstNaive = firstRow.validation?.naiveFinal?.mae ?? 3.2;
-
-    knots.push({
-      ms: parseUtcMs(cutoffIso),
-      logP: Math.log(lastVal),
-      relBand80: firstQ80 / firstPt,
-      relMae: firstMae / firstPt,
-      skillPct: firstNaive > 0 ? Math.max(0, (1 - firstMae / firstNaive) * 100) : 0,
-    });
-
-    for (const r of officialForecast.rows) {
-      const cbPt = r.catboostPoint ?? r.point;
-      const eqPt = r.point ?? r.catboostPoint;
-      // Blend short-lead GBDT momentum with seasonal-equilibrium rollover at longer leads (Apr–Jun)
-      const lead = r.lead ?? 3;
-      const wCb = lead <= 3 ? 1 : Math.exp(-Math.max(0, (lead - 3.5) * 0.52));
-      const pt = cbPt > 0 && eqPt > 0 ? wCb * cbPt + (1 - wCb) * eqPt : (cbPt ?? eqPt);
-      if (!(pt > 0)) continue;
-      const q80 = r.catboostQ80 ?? r.validation?.q80 ?? firstQ80;
-      const mae = r.catboostHoldoutMae ?? r.validation?.final?.mae ?? firstMae;
-      const naiveMae = r.validation?.naiveFinal?.mae ?? mae;
-      knots.push({
-        ms: parseUtcMs(`${r.targetMonth}-15`),
-        logP: Math.log(pt),
-        relBand80: q80 > 0 ? q80 / pt : 0.14,
-        relMae: mae > 0 ? mae / pt : 0.12,
-        skillPct: naiveMae > 0 ? ((1 - mae / naiveMae) * 100) : 0,
-      });
-    }
-    knots.sort((a, b) => a.ms - b.ms);
-    const k0 = interpolateKnots(knots, startMs);
-    startRef = k0 ? Math.exp(k0.logP) : lastVal;
-  }
-
-  const basisFactor = startRef > 0 ? pStart / startRef : 1;
-  const sellNowEval = effectiveStorageParams ? evaluateStorage(pStart, pStart, storageAtHorizon(effectiveStorageParams, 0, activeTierId)) : null;
+  const sellNowEval = effectiveStorageParams ? evaluateStorage(pStart, pStart, storageAtCalendarDays(effectiveStorageParams, 0, activeTierId)) : null;
   const sellNowNet =
     sellNowEval?.status === 'ok' && Number.isFinite(sellNowEval.netNowPerKgStored)
-      ? sellNowEval.netNowPerKgStored
-      : Math.max(0, pStart - (effectiveStorageParams?.sellNowCostRubKg ?? 0.2));
+      ? +sellNowEval.netNowPerKgStored.toFixed(1)
+      : +Math.max(0, pStart - (effectiveStorageParams?.sellNowCostRubKg ?? 0.2)).toFixed(1);
 
   let prevWh = pStart;
   const weeks = Array.from({ length: 26 }, (_, idx) => {
     const h = idx + 1;
     const targetDate = addWeeks(startMonday, h);
     const targetMs = parseUtcMs(targetDate);
+    const holdingDays = Math.max(0, daysBetween(today, targetDate));
+    const months = +(daysToMonths(holdingDays)).toFixed(2);
 
     let baseWh;
     let relBand80 = null;
@@ -558,40 +743,34 @@ export function buildWeeklyDecisionPlan({
         ? computeScenarioMultiplier(scenarioId, scenarioDeltaPct, targetDate, idx)
         : 1 + (scenarioDeltaPct / 100) * Math.min(1, 0.35 + (0.65 * idx) / 6);
     const prevWhPrice = prevWh;
-    const whPrice = +(baseWh * scenarioMultiplier).toFixed(2);
-    const baseWhRounded = +baseWh.toFixed(2);
-    const wowDelta = +(whPrice - prevWhPrice).toFixed(2);
+    const rawWhPrice = baseWh * scenarioMultiplier;
+    const whPrice = +rawWhPrice.toFixed(1);
+    const baseWhRounded = +baseWh.toFixed(1);
+    const wowDelta = +(whPrice - prevWhPrice).toFixed(1);
     const wowPct = prevWhPrice > 0 ? +(((whPrice - prevWhPrice) / prevWhPrice) * 100).toFixed(1) : 0;
     prevWh = whPrice;
 
-    const months = +((idx + 1) / 4.33).toFixed(2);
-    const horizonStorage = effectiveStorageParams ? storageAtHorizon(effectiveStorageParams, months, activeTierId) : null;
+    // Calendar day storage accounting: uses exact holdingDays (3 days for W+1 13.11 -> 16.11)
+    const horizonStorage = effectiveStorageParams ? storageAtCalendarDays(effectiveStorageParams, holdingDays, activeTierId) : null;
     const stEval = horizonStorage ? evaluateStorage(pStart, whPrice, horizonStorage) : null;
 
-    const netPerKg = +(
-      stEval?.status === 'ok' && Number.isFinite(stEval.netLaterPerKgStored)
-        ? stEval.netLaterPerKgStored
-        : whPrice * 0.9
-    ).toFixed(2);
-    const gainVsNow = +(
-      stEval?.status === 'ok' && Number.isFinite(stEval.gain)
-        ? stEval.gain
-        : netPerKg - sellNowNet
-    ).toFixed(2);
-    const breakEvenPrice = +(
-      stEval?.status === 'ok' && Number.isFinite(stEval.breakEvenFuturePrice)
-        ? stEval.breakEvenFuturePrice
-        : pStart
-    ).toFixed(2);
-    const totalLossPct =
-      stEval?.status === 'ok' && Number.isFinite(stEval.saleableYield)
-        ? +(100 * (1 - stEval.saleableYield)).toFixed(1)
-        : 0;
+    const netPerKg = stEval?.status === 'ok' && Number.isFinite(stEval.netLaterPerKgStored)
+      ? +stEval.netLaterPerKgStored.toFixed(1)
+      : null;
+    const gainVsNow = stEval?.status === 'ok' && Number.isFinite(stEval.gain)
+      ? +stEval.gain.toFixed(1)
+      : null;
+    const breakEvenPrice = stEval?.status === 'ok' && Number.isFinite(stEval.breakEvenFuturePrice)
+      ? +stEval.breakEvenFuturePrice.toFixed(1)
+      : null;
+    const totalLossPct = stEval?.status === 'ok' && Number.isFinite(stEval.saleableYield)
+      ? +(100 * (1 - stEval.saleableYield)).toFixed(1)
+      : null;
 
     const mskCalc = warehouseToMoscow(whPrice, bridge);
-    const mskPrice = +(mskCalc?.moscowInclVat ?? (whPrice * 1.1 + 9.5)).toFixed(2);
-    const mskExVat = +(mskCalc?.moscowExVat ?? (whPrice + 8.5)).toFixed(2);
-    const spread = +(mskPrice - whPrice).toFixed(2);
+    const mskPrice = +(mskCalc?.moscowInclVat ?? (whPrice * 1.1 + 9.5)).toFixed(1);
+    const mskExVat = +(mskCalc?.moscowExVat ?? (whPrice + 8.5)).toFixed(1);
+    const spread = +(mskPrice - whPrice).toFixed(1);
 
     let phase = onionRegime?.phase
       ? onionRegime.phase
@@ -602,7 +781,7 @@ export function buildWeeklyDecisionPlan({
     if (activeTierId === 'unventilated' && idx >= 4) {
       phase = {
         tag: '⚠️ Риск порчи (без вентиляции)',
-        desc: 'Склад без активной вентиляции: критический риск отпотевания и гнили при заморозках. Рекомендован сброс партий до начала декабря.',
+        desc: 'Склад без активной вентиляции: повышенный риск отпотевания и гнили при отсутствии воздухообмена. Требуется контроль состояния партии.',
       };
     } else if (activeTierId === 'ventilated' && idx >= 17) {
       phase = {
@@ -611,9 +790,9 @@ export function buildWeeklyDecisionPlan({
       };
     }
 
-    const lo80 = relBand80 !== null ? +Math.max(0, whPrice * (1 - relBand80)).toFixed(1) : null;
-    const hi80 = relBand80 !== null ? +(whPrice * (1 + relBand80)).toFixed(1) : null;
-    const mae = relMae !== null ? +(whPrice * relMae).toFixed(2) : null;
+    const lo80 = relBand80 !== null ? +Math.max(0, rawWhPrice * (1 - relBand80)).toFixed(1) : null;
+    const hi80 = relBand80 !== null ? +(rawWhPrice * (1 + relBand80)).toFixed(1) : null;
+    const mae = relMae !== null ? +(rawWhPrice * relMae).toFixed(1) : null;
 
     const deltaExplanation = buildWeekDeltaExplanation({
       cropId,
@@ -628,7 +807,7 @@ export function buildWeeklyDecisionPlan({
       onionRegime,
       activeTierId,
       scenarioId,
-      scenarioDeltaRub: +(whPrice - baseWhRounded).toFixed(2),
+      scenarioDeltaRub: +(whPrice - baseWhRounded).toFixed(1),
       liveSignals,
       totalLossPct,
       breakEvenPrice,
@@ -650,7 +829,7 @@ export function buildWeeklyDecisionPlan({
       wowDelta,
       wowPct,
       driverTag: onionRegime?.driverTag || null,
-      scenarioDeltaRub: +(whPrice - baseWhRounded).toFixed(2),
+      scenarioDeltaRub: +(whPrice - baseWhRounded).toFixed(1),
       netPerKg,
       gainVsNow,
       breakEvenPrice,
@@ -664,6 +843,8 @@ export function buildWeeklyDecisionPlan({
       hi80,
       mae,
       skillPct: skillPct !== null ? Math.round(skillPct) : null,
+      isConditionalForecast,
+      conditionalWarning,
     };
   });
 
@@ -676,7 +857,7 @@ export function buildWeeklyDecisionPlan({
       weekRange: [0, 3],
       badge: 'Сброс слабых партий',
       badgeCls: 'neu',
-      recommendation: 'Партии средней лежкости, мелкий калибр (4–5 см), слабая чешуя — разгрузить временные ангары до морозов',
+      recommendation: 'Партии средней лежкости, мелкий калибр (4–5 см), слабая чешуя — разгрузить временные ангары при ухудшении микроклимата внутри склада',
     },
     {
       id: 'dec',
@@ -738,9 +919,9 @@ export function buildWeeklyDecisionPlan({
     };
   });
 
-  const weightedGrossRubKg = +stages.reduce((s, r) => s + (r.whAvg * r.sharePct) / 100, 0).toFixed(2);
-  const weightedNetRubKg = +stages.reduce((s, r) => s + (r.netAvg * r.sharePct) / 100, 0).toFixed(2);
-  const stagedAdvantageRubKg = +(weightedNetRubKg - sellNowNet).toFixed(2);
+  const weightedGrossRubKg = +stages.reduce((s, r) => s + (r.whAvg * r.sharePct) / 100, 0).toFixed(1);
+  const weightedNetRubKg = +stages.reduce((s, r) => s + (r.netAvg * r.sharePct) / 100, 0).toFixed(1);
+  const stagedAdvantageRubKg = +(weightedNetRubKg - sellNowNet).toFixed(1);
 
   // Peak week metrics
   let peakWeek = weeks[0];
@@ -752,10 +933,12 @@ export function buildWeeklyDecisionPlan({
 
   return {
     isOnionCatBoost,
+    isConditionalForecast,
+    conditionalWarning,
     basisFactor,
     startMonday,
     baseWarehousePrice: pStart,
-    sellNowNet: +sellNowNet.toFixed(2),
+    sellNowNet: +sellNowNet.toFixed(1),
     weeks,
     stages,
     weightedGrossRubKg,
@@ -790,9 +973,10 @@ export function buildCatBoostShapCards({ officialForecast, officialSnapshotData,
   const spotConsensus = signals?.analytics?.impliedDealSpotExVat;
   const kzParity = signals?.analytics?.parity?.kzLandedVolgogradExVat;
   const uzParity = signals?.analytics?.parity?.uzEarlyLandedSouthExVat;
-  const kztVal = signals?.fx?.kztRub?.value ?? macro?.kztRub?.value ?? officialSnapshotData?.drivers?.kztRub?.value ?? 0.189;
-  const uzsVal = signals?.fx?.uzsPer10k?.value;
-  const usdVal = signals?.fx?.usdRub?.value ?? macro?.usdRub?.value ?? officialSnapshotData?.drivers?.usdRub?.value ?? 89.5;
+  const datedMacro = resolveDatedCbrMacro('2026-11-13');
+  const kztVal = signals?.fx?.kztRub?.value ?? macro?.kztRub?.value ?? officialSnapshotData?.drivers?.kztRub?.value ?? datedMacro.kztRub ?? 0.186573;
+  const uzsVal = signals?.fx?.uzsPer10k?.value ?? datedMacro.uzsPer10k;
+  const usdVal = signals?.fx?.usdRub?.value ?? macro?.usdRub?.value ?? officialSnapshotData?.drivers?.usdRub?.value ?? datedMacro.usdRub ?? 97.8;
   const zhmMin = signals?.weatherHubs?.zhambyl?.minTemp10d ?? officialSnapshotData?.drivers?.weather?.zhambyl?.tempMinC ?? 4.5;
   const vlgMin = signals?.weatherHubs?.volgograd?.minTemp10d ?? officialSnapshotData?.drivers?.weather?.volgograd?.tempMinC ?? 2.1;
   const foodStarCh = signals?.spotChannels?.find((c) => c.id === 'foodstar_msk');

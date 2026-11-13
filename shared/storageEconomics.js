@@ -52,11 +52,11 @@ export const STORAGE_TIERS = {
     name: 'Временный ангар / без вентиляции',
     shortName: 'Без вентиляции',
     lifecycle: 'до 1 декабря',
-    badge: 'Сброс при заморозках',
+    badge: 'Контроль микроклимата',
     badgeCls: 'warn',
-    desc: 'Жизненный цикл — до 1 декабря. Цена падает при заморозках из-за вынужденного сброса партий; высокий риск отпотевания и гнили.',
-    recommendation: 'Рекомендован сброс партий до заморозков (< −2°C). При стартовой цене 20 ₽/кг удержание ведет к лавинообразным убыткам.',
-    priceTrendNote: 'Падение цены при ночных заморозках (сброс партий в ноябре); после января партия теряет товарность.',
+    desc: 'Жизненный цикл — до 1 декабря. Риск определяется фактической температурой и влажностью внутри склада, отсутствием вентиляции и долей шейковой гнили.',
+    recommendation: 'Оценить температуру и влажность внутри помещения, отсутствие активной вентиляции и качество партии (наружная температура −2°C сама по себе не является автоматическим триггером срочной распродажи).',
+    priceTrendNote: 'Реализация зависит от фактического состояния партии и микроклимата внутри ангара; после января партия без вентиляции теряет товарность.',
     params: {
       tierId: 'unventilated',
       months: 1.5,
@@ -67,7 +67,10 @@ export const STORAGE_TIERS = {
       energyRubKgMonth: 0.08,
       handlingRubKg: 0.40,
       sortingRubKgSold: 0.90,
-      financingRatePctYear: 19.0,
+      financingRatePctYear: 14.0,
+      cbrKeyRatePctYear: 14.0,
+      commercialCreditRatePctYear: 19.0,
+      preferentialCreditRatePctYear: 8.0,
       sellNowCostRubKg: 0.20,
       acquisitionCostRubKg: 12.0,
       optimalTemp: '+4..+8°C (нерегулируемая)',
@@ -82,8 +85,8 @@ export const STORAGE_TIERS = {
     badge: 'Плановые продажи',
     badgeCls: 'info',
     desc: 'Активная продувка наружным воздухом без холодильных агрегатов. Жизненный цикл — декабрь – февраль (до весеннего потепления > +4°C).',
-    recommendation: 'В ноябре не паниковать: вентиляция защищает от сырости и сброса. Продавать частями в декабре–феврале. Полная зачистка до марта!',
-    priceTrendNote: 'Защищён от ноябрьского сброса ангаров; реализует товарный фонд до прихода весеннего тепла и прорастания пера.',
+    recommendation: 'Поддерживать режим внутри камеры (+1..+3°C, влажность 70–75%). Реализовывать партиями по мере подтверждения ставок покупателей выше точки безубыточности.',
+    priceTrendNote: 'Защищён от уличных заморозков активной вентиляцией; реализует товарный фонд до прихода весеннего тепла и прорастания пера.',
     params: {
       tierId: 'ventilated',
       months: 3.5,
@@ -94,7 +97,10 @@ export const STORAGE_TIERS = {
       energyRubKgMonth: 0.35,
       handlingRubKg: 0.50,
       sortingRubKgSold: 0.60,
-      financingRatePctYear: 19.0,
+      financingRatePctYear: 14.0,
+      cbrKeyRatePctYear: 14.0,
+      commercialCreditRatePctYear: 19.0,
+      preferentialCreditRatePctYear: 8.0,
       sellNowCostRubKg: 0.20,
       acquisitionCostRubKg: 12.0,
       optimalTemp: '+1..+3°C (только зимой)',
@@ -109,7 +115,7 @@ export const STORAGE_TIERS = {
     badge: 'Максимальная премия',
     badgeCls: 'up',
     desc: 'Жизненный цикл — февраль – конец марта. Снимают максимальную весеннюю премию до прихода Узбекистана.',
-    recommendation: 'Удержание до пика дефицита отечественного фонда в феврале–марте до захода раннего лука из Узбекистана.',
+    recommendation: 'Плановое хранение при 0..+1°C и влажности 65–70% с продажей по подтверждённым контрактам выше расчётного порога безубыточности.',
     priceTrendNote: 'Максимальная весенняя премия на пике истощения отечественных фондов до прихода раннего узбекского лука.',
     params: {
       tierId: 'refrigerated',
@@ -121,7 +127,10 @@ export const STORAGE_TIERS = {
       energyRubKgMonth: 0.65,
       handlingRubKg: 0.55,
       sortingRubKgSold: 0.50,
-      financingRatePctYear: 19.0,
+      financingRatePctYear: 14.0,
+      cbrKeyRatePctYear: 14.0,
+      commercialCreditRatePctYear: 19.0,
+      preferentialCreditRatePctYear: 8.0,
       sellNowCostRubKg: 0.20,
       acquisitionCostRubKg: 12.0,
       optimalTemp: '0..+1°C',
@@ -148,32 +157,109 @@ export function validateStorageParams(p) {
   return { ok: missing.length === 0 && invalid.length === 0, missing, invalid };
 }
 
+export const STANDARD_MONTH_DAYS = 30.4375;
+
+export function daysToMonths(days) {
+  const d = Number(days);
+  return Number.isFinite(d) && d > 0 ? d / STANDARD_MONTH_DAYS : 0;
+}
+
+export function storageAtCalendarDays(params, holdingDays, tierId = null) {
+  if (!params) return null;
+  const months = daysToMonths(holdingDays);
+  return storageAtHorizon(params, months, tierId);
+}
+
 export function evaluateStorage(pNow, pFuture, params) {
   const v = validateStorageParams(params);
   if (!v.ok) return { status: 'incomplete', missing: v.missing, invalid: v.invalid };
   if (!Number.isFinite(pNow) || pNow <= 0) return { status: 'invalid_input', reason: 'Цена продажи сейчас должна быть > 0' };
   if (!Number.isFinite(pFuture) || pFuture <= 0) return { status: 'invalid_input', reason: 'Будущая цена должна быть > 0' };
   const P = Object.fromEntries(STORAGE_REQUIRED.map(k => [k, Number(params[k])]));
-  const saleableYield = (1 - P.shrinkPct / 100) * (1 - P.rotPct / 100);
-  const gradeFactor = 1 - (P.downgradeSharePct / 100) * (P.downgradeDiscountPct / 100);
-  const realisation = saleableYield * pFuture * gradeFactor;
+
+  // 1. Physical mass balance per 1.0 kg stored
+  const shrinkPct = Math.max(0, Math.min(100, P.shrinkPct));
+  const rotPct = Math.max(0, Math.min(100, P.rotPct));
+  const afterShrinkKg = Math.max(0, 1 - shrinkPct / 100);
+  const saleableYield = afterShrinkKg * Math.max(0, 1 - rotPct / 100);
+  const shrinkLossKg = 1 - afterShrinkKg;
+  const rotLossKg = afterShrinkKg - saleableYield;
+  const wasteKg = 1 - saleableYield;
+
+  // 2. Commercial grade breakdown (downgrading preserves mass)
+  const downgradeSharePct = Math.max(0, Math.min(100, P.downgradeSharePct));
+  const downgradeDiscountPct = Math.max(0, Math.min(100, P.downgradeDiscountPct));
+  const downgradeShare = downgradeSharePct / 100;
+  const grade1Kg = saleableYield * (1 - downgradeShare);
+  const grade2Kg = saleableYield * downgradeShare;
+  const gradeFactor = 1 - downgradeShare * (downgradeDiscountPct / 100);
+  const grade2PriceRubKg = params.grade2PriceRubKg !== undefined && Number.isFinite(Number(params.grade2PriceRubKg))
+    ? Number(params.grade2PriceRubKg)
+    : pFuture * (1 - downgradeDiscountPct / 100);
+  const realisation = saleableYield > 0
+    ? (params.grade2PriceRubKg !== undefined ? grade1Kg * pFuture + grade2Kg * grade2PriceRubKg : saleableYield * pFuture * gradeFactor)
+    : 0;
+
+  // 3. Explicit cost components with double-charging protection
   const energy = P.energyRubKgMonth * P.months;
-  const sorting = P.sortingRubKgSold * saleableYield;
+  const handling = params.handlingAlreadyIncurred === true || params.handlingIncludedInPrice === true
+    ? 0
+    : P.handlingRubKg;
+  const sorting = params.sortingAlreadyIncurred === true || params.sortingIncludedInPrice === true
+    ? 0
+    : P.sortingRubKgSold * saleableYield;
+  const packaging = params.packagingAlreadyPaid === true || params.packagingIncludedInPrice === true || params.alreadyPackaged === true
+    ? 0
+    : (Number(params.packagingRubKg ?? 0)) * saleableYield;
+  const wasteDisposal = (Number(params.wasteDisposalCostRubKg ?? 0)) * wasteKg;
+  const byproductRevenue = (Number(params.byproductPriceRubKg ?? 0)) * wasteKg;
   const financing = pNow * (P.financingRatePctYear / 100) * (P.months / 12);
-  const costsLater = energy + P.handlingRubKg + sorting + financing;
+  const costsLater = energy + handling + sorting + packaging + wasteDisposal + financing - byproductRevenue;
+
+  // 4. Sell now net & decision gain
+  const sellNowCost = params.sellNowPackagingPaid === true || params.sellNowCostAlreadyIncurred === true
+    ? 0
+    : P.sellNowCostRubKg;
+  const netNowPerKgStored = pNow - sellNowCost;
   const netLaterPerKgStored = realisation - costsLater;
-  const netNowPerKgStored = pNow - P.sellNowCostRubKg;
   const gain = netLaterPerKgStored - netNowPerKgStored;
+
+  // 5. Break-even future price (Pf that gives gain == 0)
   const denom = saleableYield * gradeFactor;
-  const fixedLater = energy + P.handlingRubKg + sorting + financing;
+  const fixedLater = energy + handling + sorting + packaging + wasteDisposal + financing - byproductRevenue;
   const breakEvenFuturePrice = denom > 0 ? (netNowPerKgStored + fixedLater) / denom : null;
+
   const out = {
     status: 'ok',
-    saleableYield, kgSoldPerKgStored: saleableYield,
-    components: { realisation, energy, handling: P.handlingRubKg, sorting, financing },
-    costsLater, netLaterPerKgStored, netLaterPerKgSold: saleableYield > 0 ? netLaterPerKgStored / saleableYield : null,
-    netNowPerKgStored, gain, breakEvenFuturePrice,
-    breakEvenMarkupPct: breakEvenFuturePrice ? (breakEvenFuturePrice / pNow - 1) * 100 : null,
+    saleableYield,
+    kgSoldPerKgStored: saleableYield,
+    shrinkLossKg,
+    rotLossKg,
+    wasteKg,
+    grade1Kg,
+    grade2Kg,
+    gradeFactor,
+    grade2PriceRubKg,
+    storageOpexRubKg: energy + handling + sorting + packaging + wasteDisposal - byproductRevenue,
+    financingRubKg: financing,
+    totalPhysicalLossPct: +((1 - saleableYield) * 100).toFixed(1),
+    components: {
+      realisation,
+      energy,
+      handling,
+      sorting,
+      packaging,
+      wasteDisposal,
+      byproductRevenue,
+      financing,
+    },
+    costsLater,
+    netLaterPerKgStored,
+    netLaterPerKgSold: saleableYield > 0 ? netLaterPerKgStored / saleableYield : null,
+    netNowPerKgStored,
+    gain,
+    breakEvenFuturePrice,
+    breakEvenMarkupPct: breakEvenFuturePrice !== null && pNow > 0 ? (breakEvenFuturePrice / pNow - 1) * 100 : null,
   };
   const acq = num(params.acquisitionCostRubKg);
   if (acq !== null && Number.isFinite(acq) && acq >= 0) {

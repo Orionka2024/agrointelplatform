@@ -192,7 +192,18 @@ export default async function handler(req, res) {
     const cny = parseCbrValute(xml, 'R01375');
     const dm = xml.match(/Date="(\d{2})\.(\d{2})\.(\d{4})"/);
     if (usd) fx.usdRub = { value: +usd.perUnit.toFixed(2), source: 'ЦБ РФ (LIVE)' };
-    if (kzt) fx.kztRub = { value: +kzt.perUnit.toFixed(4), source: 'ЦБ РФ (LIVE)' };
+    if (kzt) {
+      const effectiveDate = dm ? `${dm[3]}-${dm[2]}-${dm[1]}` : today;
+      fx.kztRub = {
+        value: +kzt.perUnit.toFixed(6),
+        rawValue: kzt.value,
+        nominal: kzt.nominal,
+        valutaId: 'R01335',
+        asOf: effectiveDate,
+        effectiveDate,
+        source: `ЦБ РФ R01335 на ${effectiveDate} (100 ₸ = ${kzt.value.toFixed(4)} ₽)`,
+      };
+    }
     if (uzs) fx.uzsPer10k = { value: +(uzs.perUnit * 10000).toFixed(2), source: 'ЦБ РФ (LIVE)' };
     if (cny) fx.cnyRub = { value: +cny.perUnit.toFixed(2), source: 'ЦБ РФ (LIVE)' };
     if (usd || kzt) {

@@ -15,6 +15,9 @@ import { STORAGE_TIERS } from './storageEconomics.js';
 import { buildExportWatchlist } from './exportWatchlist.js';
 import { EXPORT_SIGNAL_RECORDS } from './exportSignalsData.js';
 import { sanitizeDisabledFactors, applyDisabledToImpulses } from './factorToggles.js';
+import { CBR_KZT_DAILY_META, CBR_KZT_DAILY_RECORDS, lookupCbrKztRate } from './cbrKztDailyData.js';
+
+export { CBR_KZT_DAILY_META, CBR_KZT_DAILY_RECORDS, lookupCbrKztRate };
 
 const RU_MONTH_MAP = {
   января: 1,
@@ -75,12 +78,15 @@ export function parseRuListingDate(text) {
   };
 }
 
+export const NON_STANDARD_ONION_VARIETY_RE =
+  /на перо|зелен|выгонк|севок|чернушк|шалот|шаллот|ялтинск|красн(?:ый|ого|ому|ым|ом|ая|ой|ую|ые|ых|ым|ыми)?|бел(?:ый|ого|ому|ым|ом|ая|ой|ую|ые|ых|ым|ыми)|фиолетов|синий|синего|сладк(?:ий|ого|ая|ие)|редарроу|ред\s*барон|кармен|камперо|экзибишен/i;
+
 /**
  * Parses AgroRU Volgograd Oblast onion board HTML (`rg-243620-p1.htm`) and filters out:
  *  - stale years (< referenceYear) or early summer/spring remnants,
  *  - peeled / vacuum / cut HoReCa onions (50–70 RUB/kg),
  *  - 2nd grade / small 2–5 cm peeling onions (8–11 RUB/kg),
- *  - green-forcing (`на перо`) or specialty red/white onions.
+ *  - green-forcing (`на перо`) or specialty red/white/purple/Yalta/shallot onions.
  */
 export function parseAgroRuVolgogradHtml(html, { referenceYear = 2026, minMonth = 8 } = {}) {
   const rawCards = String(html || '').split('<div class="tovar-list__card"').slice(1);
@@ -127,7 +133,7 @@ export function parseAgroRuVolgogradHtml(html, { referenceYear = 2026, minMonth 
       rejected.push({ title, rawPrice, reason: 'processed_or_peeled' });
       continue;
     }
-    if (/на перо|зелен|выгонк|севок|чернушк|шалот|ялтинск|красный|белый/.test(blob)) {
+    if (NON_STANDARD_ONION_VARIETY_RE.test(blob)) {
       rejected.push({ title, rawPrice, reason: 'non_standard_variety_or_forcing' });
       continue;
     }
@@ -182,27 +188,152 @@ export function parseFoodStarOnionHtml(html) {
   return price > 0 ? { price, asOf } : null;
 }
 
+export const CBR_RATES_BY_DATE = {
+  '2026-11-13': {
+    asOf: '2026-11-13',
+    usdRub: 97.8,
+    kztRub: 0.186573,
+    kztRawValue: 18.6573,
+    kztNominal: 100,
+    uzsPer10k: 76.2,
+    cnyRub: 13.52,
+    keyRate: 14.0,
+    sourceUrl: 'https://www.cbr.ru/scripts/XML_daily.asp',
+    keyRateUrl: 'https://www.cbr.ru/hd_base/KeyRate/',
+  },
+  '2026-10-31': {
+    asOf: '2026-10-31',
+    usdRub: 92.85,
+    kztRub: 0.177552,
+    kztRawValue: 17.7552,
+    kztNominal: 100,
+    previousVersion: { value: 0.1908, errorPct: 7.461 },
+    uzsPer10k: 72.6,
+    cnyRub: 13.04,
+    keyRate: 19.0,
+    sourceUrl: 'https://www.cbr.ru/scripts/XML_daily.asp',
+    keyRateUrl: 'https://www.cbr.ru/hd_base/KeyRate/',
+  },
+  '2026-10-24': {
+    asOf: '2026-10-24',
+    usdRub: 96.75,
+    kztRub: 0.179797,
+    kztRawValue: 17.9797,
+    kztNominal: 100,
+    previousVersion: { value: 0.198, errorPct: 10.124 },
+    uzsPer10k: 75.5,
+    cnyRub: 13.52,
+    keyRate: 21.0,
+    sourceUrl: 'https://www.cbr.ru/scripts/XML_daily.asp',
+    keyRateUrl: 'https://www.cbr.ru/hd_base/KeyRate/',
+  },
+};
+
+/**
+ * Resolves point-in-time CBR macro indicators as of `today` without ever looking ahead
+ * to a future date (`effectiveDate <= today`).
+ */
+export function resolveDatedCbrMacro(today = '2026-11-13') {
+  const iso = String(today || '').slice(0, 10);
+  const kztLookup = lookupCbrKztRate(iso);
+  const snapshotDates = Object.keys(CBR_RATES_BY_DATE).sort();
+  let bestSnapshot = null;
+  for (const d of snapshotDates) {
+    if (d <= iso) bestSnapshot = CBR_RATES_BY_DATE[d];
+  }
+  // If requested date is earlier than the first full macro snapshot (2026-10-24)
+  // but within the CBR KZT daily series (2020-01-01..), never inject 2026-11-13 future rates.
+  const earliestSnapshot = CBR_RATES_BY_DATE[snapshotDates[0]];
+  const ref = bestSnapshot || earliestSnapshot;
+  const effectiveAsOf = kztLookup.effectiveDate || (bestSnapshot ? bestSnapshot.asOf : iso);
+
+  return {
+    requestedDate: iso,
+    asOf: effectiveAsOf,
+    status: kztLookup.status === 'unavailable' ? 'unavailable' : bestSnapshot && bestSnapshot.asOf === iso ? 'official_cbr_dated' : 'official_cbr_effective',
+    usdRub: ref.usdRub,
+    kztRub: kztLookup.value,
+    kztRawValue: kztLookup.rawValue,
+    kztNominal: kztLookup.nominal ?? 100,
+    kztEffectiveDate: kztLookup.effectiveDate,
+    kztStatus: kztLookup.status,
+    uzsPer10k: ref.uzsPer10k,
+    cnyRub: ref.cnyRub,
+    keyRate: bestSnapshot ? bestSnapshot.keyRate : 16.0,
+    keyRateAsOf: bestSnapshot ? bestSnapshot.asOf : effectiveAsOf,
+    sourceUrl: kztLookup.sourceUrl || ref.sourceUrl,
+    keyRateUrl: ref.keyRateUrl,
+  };
+}
+
 /**
  * Computes landed import parity (RUB/kg) and multi-factor market pressure indices
  * from FX rates, 4-hub weather forecasts, and spot marketplace quotes.
  */
-export function computeMarketFactorAnalytics({ fx, weatherHubs, spotChannels, baseWarehouseExVat = 15.5, today = '2026-10-31', exportSignals = null, disabledFactors = [] }) {
+export function computeMarketFactorAnalytics({
+  fx,
+  weatherHubs,
+  spotChannels,
+  baseWarehouseExVat = 15.5,
+  today = '2026-11-13',
+  exportSignals = null,
+  disabledFactors = [],
+  warehouseConditions = null,
+  farmCreditRatePctYear = null,
+  kzContractBasis = 'EXW_separate_freight',
+}) {
   const disabled = sanitizeDisabledFactors(disabledFactors);
   const watchlist = buildExportWatchlist(exportSignals ?? EXPORT_SIGNAL_RECORDS, disabled);
-  const usdRub = fx?.usdRub?.value ?? 92.5;
-  const kztRub = fx?.kztRub?.value ?? 0.191;
-  const uzsPer10k = fx?.uzsPer10k?.value ?? 74.5; // RUB per 10,000 UZS
-  const keyRate = fx?.keyRate?.value ?? 18.0;
+  const datedRef = resolveDatedCbrMacro(today);
+  const usdRub = fx?.usdRub?.value ?? datedRef.usdRub;
+  const kztRub = fx?.kztRub?.value ?? datedRef.kztRub;
+  const kztAsOf = fx?.kztRub?.effectiveDate || fx?.kztRub?.asOf || fx?.asOf || datedRef.kztEffectiveDate || datedRef.asOf;
+  const uzsPer10k = fx?.uzsPer10k?.value ?? datedRef.uzsPer10k; // RUB per 10,000 UZS
+  const keyRate = fx?.keyRate?.value ?? datedRef.keyRate;
+  const keyRateAsOf = fx?.keyRate?.asOf || fx?.asOf || datedRef.keyRateAsOf;
+  const effectiveCreditRate = Number.isFinite(Number(farmCreditRatePctYear))
+    ? Number(farmCreditRatePctYear)
+    : keyRate;
 
-  // 1. Kazakhstan (Zhambyl / Taraz) autumn-winter landed parity to Volgograd / Southern RU
-  // Typical autumn EXW Taraz ~62 KZT/kg + ~4.1 RUB/kg cross-border truck & phytosanitary
-  const kzExwKztKg = 62;
-  const kzFreightRubKg = 4.1;
-  const kzLandedVolgogradExVat = +(kzExwKztKg * kztRub + kzFreightRubKg).toFixed(2);
-  const kzSpreadVsLocal = +(kzLandedVolgogradExVat - baseWarehouseExVat).toFixed(2);
+  // 1. Kazakhstan (Zhambyl / Taraz) landed parity to Volgograd / Southern RU
+  // Base scenario uses 55 KZT/kg (corridor 34 / 55 / 75 KZT/kg, labelled as scenario_assumption)
+  // Freight 116 000 RUB / 20 t = 5.80 RUB/kg is explicitly marked as estimate (assumption_pending_quotes)
+  const kzExwKztKg = 55;
+  const kzFreightRubKg = 5.8;
+  const kzSortingBaggingRubKg = 0.7;
+  const kzDocsPhytosanitaryRubKg = 0.25;
+  const kzLossPct = 2.5;
+  const kzSaleableFactor = 1 - kzLossPct / 100;
+  const kzImporterMarginRubKg = 0.8;
+  const kzPurchaseRubKg = Number.isFinite(kztRub) ? kzExwKztKg * kztRub : null;
+  const kzSubTotalBeforeLoss =
+    kzPurchaseRubKg !== null
+      ? kzPurchaseRubKg + kzFreightRubKg + kzSortingBaggingRubKg + kzDocsPhytosanitaryRubKg
+      : null;
+  const kzLandedVolgogradExVat =
+    kzSubTotalBeforeLoss !== null
+      ? +(kzSubTotalBeforeLoss / kzSaleableFactor + kzImporterMarginRubKg).toFixed(2)
+      : null;
+  // EAEU import VAT (10%) is assessed on the customs contract base (EXW goods or DAP goods+freight),
+  // NEVER on the importer's own resale margin (0.80 RUB/kg).
+  const kzCustomsTaxBaseShippedRubKg =
+    kzPurchaseRubKg === null
+      ? null
+      : kzContractBasis === 'DAP_included_freight'
+        ? kzPurchaseRubKg + kzFreightRubKg
+        : kzPurchaseRubKg;
+  const kzImportVatRubKg =
+    kzCustomsTaxBaseShippedRubKg !== null
+      ? +((kzCustomsTaxBaseShippedRubKg * 0.1) / kzSaleableFactor).toFixed(2)
+      : null;
+  const kzLandedCashOutflowIncVat =
+    kzLandedVolgogradExVat !== null && kzImportVatRubKg !== null
+      ? +(kzLandedVolgogradExVat + kzImportVatRubKg).toFixed(2)
+      : null;
+  const kzSpreadVsLocal =
+    kzLandedVolgogradExVat !== null ? +(kzLandedVolgogradExVat - baseWarehouseExVat).toFixed(2) : null;
 
   // 2. Uzbekistan (Surkhandarya / Termez) April early-crop landed parity
-  // Early April EXW Termez ~2,050 UZS/kg + ~6.4 RUB/kg refrigerated transit to Southern RU / ~9.2 RUB/kg to Moscow
   const uzExwUzsKg = 2050;
   const uzRubKg = (uzExwUzsKg / 10000) * uzsPer10k;
   const uzEarlyLandedSouthExVat = +(uzRubKg + 6.4).toFixed(2);
@@ -219,31 +350,41 @@ export function computeMarketFactorAnalytics({ fx, weatherHubs, spotChannels, ba
   const mskMin = weatherHubs?.moscow?.minTemp10d ?? -1.0;
 
   // Hub 1: Волгоград / Ростов / Астрахань (ЮФО):
-  // Падение ночной температуры ниже −2°C сигнализирует о старте массовой распродажи ангаров (краткосрочная просадка цены на 2–3 недели)
-  const vlgFrostDumpActive = vlgMin <= -2;
-  const vlgFrostDumpPct = vlgMin <= -5 ? -2.2 : vlgMin <= -2 ? -1.1 : 0;
-  const vlgWinterTighteningPct = vlgMin <= -5 ? 1.8 : vlgMin <= -2 ? 0.9 : 0;
+  // P1.7: Outdoor temperature -2°C does NOT automatically trigger urgent sale or price dump.
+  // Risk depends on indoor temperature, humidity, ventilation, and lot quality, or severe freeze (<= -5°C) for unheated sheds.
+  const hasActiveVentilation = warehouseConditions?.hasActiveVentilation ?? true;
+  const indoorTempC = warehouseConditions?.indoorTempC ?? 2.0;
+  const indoorHumidityPct = warehouseConditions?.indoorHumidityPct ?? 72;
+  const lotNeckRotPct = warehouseConditions?.neckRotPct ?? 1.5;
+  const indoorStorageCompromised =
+    (!hasActiveVentilation && (indoorTempC < 0 || indoorTempC > 6 || indoorHumidityPct > 85 || lotNeckRotPct > 5)) ||
+    vlgMin <= -5;
+
+  const vlgFrostDumpActive = indoorStorageCompromised;
+  // At -2°C outdoor, vlgFrostDumpPct is 0 (no automatic urgent sale or price dump at -2°C)
+  const vlgFrostDumpPct = indoorStorageCompromised ? (vlgMin <= -5 ? -1.5 : -0.8) : 0;
+  const vlgWinterTighteningPct = vlgMin <= -5 ? 1.8 : 0;
 
   // Hub 2: Жамбыл / Тараз (Казахстан):
-  // Морозы ниже −8°C перемерзают казахстанские бурты и парализуют экспорт в РФ (бычий фактор: цены в РФ сразу получают толчок вверх)
+  // Морозы ниже −8°C перемерзают казахстанские бурты и парализуют экспорт в РФ
   const kzFrostShockActive = zhmMin <= -8;
   const kzFrostShockPct = zhmMin <= -14 ? 6.5 : zhmMin <= -8 ? 3.2 : zhmMin >= 3 ? -1.2 : 0;
 
   // Hub 3: Термез / Сурхандарья (Узбекистан):
-  // Аномально теплая весна в феврале-марте смещает начало поставок раннего лука на 1–2 недели вперед (ранний слом цен старого урожая)
   const uzWarmSpringActive = uzMax >= 22 || uzMin >= 10;
   const uzWarmSpringShiftPct = uzMax >= 24 ? -1.8 : uzWarmSpringActive ? -1.0 : 0;
 
   // Hub 4: Москва (РЦ и оптовые базы):
-  // Морозы ниже −10°C требуют обязательного использования отапливаемых рефрижераторов (+1.5–2.5 ₽/кг к логистике)
   const mskReeferRequired = mskMin <= -10;
   const mskReeferSurchargeRubKg = mskMin <= -10 || vlgMin <= -10 ? 2.0 : mskMin <= -5 ? 0.8 : 0;
 
   // Import pressure in November: if KZ landed parity is close to or below local EXW, transit caps prices
-  const kzAutumnCapPct = kzSpreadVsLocal <= 0 ? -2.8 : kzSpreadVsLocal <= 1.2 ? -1.5 : 0.4;
+  const kzAutumnCapPct =
+    kzSpreadVsLocal === null ? 0 : kzSpreadVsLocal <= 0 ? -2.2 : kzSpreadVsLocal <= 1.2 ? -1.0 : 0.4;
 
-  // Monthly financing opportunity cost per kg at current CBR key rate (18–21%)
+  // Monthly financing opportunity cost per kg at official CBR key rate and farm credit rate
   const monthlyFinancingCostRubKg = +(baseWarehouseExVat * (keyRate / 100) / 12).toFixed(2);
+  const monthlyFarmCreditCostRubKg = +(baseWarehouseExVat * (effectiveCreditRate / 100) / 12).toFixed(2);
 
   // Spot Volgograd consensus across clean `ask` boards (minus ~0.3 RUB/kg typical ask->deal discount)
   const vlgAskMedians = (spotChannels || [])
@@ -253,7 +394,7 @@ export function computeMarketFactorAnalytics({ fx, weatherHubs, spotChannels, ba
   const impliedDealSpotExVat = +Math.max(12.0, rawAskMedian - 0.25).toFixed(2);
 
   // Composite Market Tension Score (-100 bearish surplus .. +100 bullish deficit)
-  const month = Number(String(today).slice(5, 7)) || 10;
+  const month = Number(String(today).slice(5, 7)) || 11;
   const seasonalTension = month >= 10 && month <= 11 ? -14 : month === 12 ? 18 : month >= 1 && month <= 3 ? 34 : -10;
   const tensionScore = Math.max(
     -100,
@@ -263,8 +404,8 @@ export function computeMarketFactorAnalytics({ fx, weatherHubs, spotChannels, ba
         seasonalTension +
           kzAutumnCapPct * 6 +
           kzFrostShockPct * 7 +
-          (kzSpreadVsLocal > 1.5 ? 10 : -6) +
-          (keyRate >= 18 ? -5 : 4)
+          (kzSpreadVsLocal !== null && kzSpreadVsLocal > 1.5 ? 10 : -6) +
+          (keyRate >= 18 ? -5 : 2)
       )
     )
   );
@@ -284,7 +425,16 @@ export function computeMarketFactorAnalytics({ fx, weatherHubs, spotChannels, ba
     watchlist,
     parity: {
       kzLandedVolgogradExVat,
+      kzImportVatRubKg,
+      kzLandedCashOutflowIncVat,
+      kzContractBasis,
       kzSpreadVsLocal,
+      kzExwKztKg,
+      kzExwEvidenceStatus: 'scenario_assumption',
+      kzFreightRubKg,
+      kzFreightEvidenceStatus: 'estimate',
+      kztRub,
+      kztAsOf,
       uzEarlyLandedSouthExVat,
       uzEarlyLandedMoscowInclVat,
       egLandedMoscowExVat,
@@ -295,8 +445,10 @@ export function computeMarketFactorAnalytics({ fx, weatherHubs, spotChannels, ba
         active: vlgFrostDumpActive,
         minTemp: vlgMin,
         title: 'Волгоград / Ростов / Астрахань (ЮФО)',
-        rule: 'Падение ночной температуры ниже −2°C сигнализирует о старте массовой распродажи ангаров (краткосрочная просадка цены на 2–3 недели).',
-        status: vlgFrostDumpActive ? 'АКТИВЕН СБРОС АНГАРОВ' : 'Штатный режим сбора/закладки',
+        rule: 'Наружная температура −2°C сама по себе не требует срочной распродажи из вентилируемых хранилищ; риск оценивается по температуре и влажности внутри склада, вентиляции и качеству партии.',
+        status: vlgFrostDumpActive
+          ? 'РИСК ВНУТРИ НЕВЕНТИЛИРУЕМОГО СКЛАДА'
+          : 'Штатный режим внутри вентилируемых камер',
       },
       zhambyl: {
         active: kzFrostShockActive,
@@ -321,9 +473,15 @@ export function computeMarketFactorAnalytics({ fx, weatherHubs, spotChannels, ba
       },
     },
     macroTransmission: {
-      kztParityNote: 'Ослабление рубля к тенге делает казахстанский лук дороже для импортёров и открывает дорогу росту внутренних российских цен.',
-      financingNote: `Ставка рефинансирования ЦБ (${keyRate.toFixed(1)}%): финансирование запасов забирает ~${monthlyFinancingCostRubKg} ₽ на каждый килограмм в месяц в виде упущенной выгоды по депозиту или процентов по кредитной линии.`,
+      kztParityNote: Number.isFinite(kztRub)
+        ? `Курс ЦБ РФ (R01335) на ${kztAsOf}: ${kztRub.toFixed(6)} ₽/₸ (100 ₸ = ${(kztRub * 100).toFixed(4)} ₽). Ослабление рубля к тенге удорожает казахстанский импорт.`
+        : `Курс ЦБ РФ (R01335) на запрошенную дату ${today} недоступен.`,
+      financingNote: `Ключевая ставка Банка России на ${keyRateAsOf}: ${keyRate.toFixed(1)}% годовых (~${monthlyFinancingCostRubKg} ₽/кг в мес.). Фактическая стоимость кредита хозяйства учитывается отдельно (8% льготный / 14% ЦБ / 19% коммерческий: ~${monthlyFarmCreditCostRubKg} ₽/кг в мес.).`,
+      cbrKeyRatePct: keyRate,
+      cbrKeyRateAsOf: keyRateAsOf,
+      farmCreditRatePct: effectiveCreditRate,
       monthlyFinancingCostRubKg,
+      monthlyFarmCreditCostRubKg,
     },
     storageTiers: STORAGE_TIERS,
     disabledFactors: disabled,
@@ -333,7 +491,9 @@ export function computeMarketFactorAnalytics({ fx, weatherHubs, spotChannels, ba
         vlgWinterTighteningPct,
         kzFrostShockPct,
         kzAutumnCapPct,
-        fxParityShiftPct: +(((kztRub - 0.189) / 0.189) * 35 + ((usdRub - 91) / 91) * 15).toFixed(2),
+        fxParityShiftPct: Number.isFinite(kztRub)
+          ? +(((kztRub - 0.186573) / 0.186573) * 35 + ((usdRub - 91) / 91) * 15).toFixed(2)
+          : 0,
         uzWarmSpringShiftPct,
       },
       disabled
@@ -342,18 +502,45 @@ export function computeMarketFactorAnalytics({ fx, weatherHubs, spotChannels, ba
 }
 
 /**
- * Verified baseline snapshot (as of 31 October 2026) used before/without network or when
- * individual marketplaces serve anti-bot CAPTCHAs.
+ * Verified baseline snapshot using official CBR rates dated to `today` (default 2026-11-13:
+ * keyRate = 14.0%, kztRub = 0.186573 RUB/KZT; or historical point-in-time CBR R01335 rate when requested).
  */
-export function buildDefaultMarketSignals(today = '2026-10-31', baseWarehouseExVat = 15.5) {
+export function buildDefaultMarketSignals(today = '2026-11-13', baseWarehouseExVat = 15.5) {
+  const dated = resolveDatedCbrMacro(today);
   const fx = {
-    asOf: '2026-10-31',
-    status: 'snapshot',
-    usdRub: { value: 92.85, changePct: 0.4, source: 'ЦБ РФ' },
-    kztRub: { value: 0.1908, changePct: 0.2, source: 'ЦБ РФ (100 ₸ = 19.08 ₽)' },
-    uzsPer10k: { value: 72.60, changePct: -0.1, source: 'ЦБ РФ (10 000 сум = 72.60 ₽)' },
-    cnyRub: { value: 13.04, changePct: 0.3, source: 'ЦБ РФ' },
-    keyRate: { value: 19.0, changePct: 0, source: 'Банк России' },
+    requestedDate: dated.requestedDate,
+    asOf: dated.asOf,
+    status: dated.status,
+    usdRub: { value: dated.usdRub, asOf: dated.asOf, changePct: 0.4, source: `ЦБ РФ на ${dated.asOf}` },
+    kztRub: {
+      value: dated.kztRub,
+      rawValue: dated.kztRawValue,
+      nominal: dated.kztNominal,
+      valutaId: 'R01335',
+      asOf: dated.kztEffectiveDate || dated.asOf,
+      effectiveDate: dated.kztEffectiveDate,
+      requestedDate: dated.requestedDate,
+      status: dated.kztStatus,
+      changePct: -0.2,
+      source: Number.isFinite(dated.kztRub)
+        ? `ЦБ РФ R01335 на ${dated.kztEffectiveDate} (100 ₸ = ${(dated.kztRub * 100).toFixed(4)} ₽)`
+        : 'Курс ЦБ РФ недоступен на запрошенную дату',
+      sourceUrl: dated.sourceUrl,
+    },
+    uzsPer10k: {
+      value: dated.uzsPer10k,
+      asOf: dated.asOf,
+      changePct: -0.1,
+      source: `ЦБ РФ на ${dated.asOf} (10 000 сум = ${dated.uzsPer10k.toFixed(2)} ₽)`,
+    },
+    cnyRub: { value: dated.cnyRub, asOf: dated.asOf, changePct: 0.3, source: `ЦБ РФ на ${dated.asOf}` },
+    keyRate: {
+      value: dated.keyRate,
+      asOf: dated.keyRateAsOf,
+      changePct: 0,
+      source: `Банк России на ${dated.keyRateAsOf} (cbr.ru/hd_base/KeyRate/)`,
+      sourceUrl: dated.keyRateUrl,
+    },
   };
 
   const weatherHubs = {
@@ -366,7 +553,7 @@ export function buildDefaultMarketSignals(today = '2026-10-31', baseWarehouseExV
       maxTemp10d: 11.4,
       precipMm10d: 6.2,
       frostDays: 2,
-      summary: 'Ночные переходы к −1°C: падение ниже −2°C сигнализирует о старте массовой распродажи ангаров (просадка цен на 2–3 нед.)',
+      summary: 'Ночные переходы к −1..−2°C: для вентилируемых складов режим штатный; риск касается только необорудованных буртов/ангаров при высокой влажности и гнили.',
     },
     zhambyl: {
       id: 'zhambyl',

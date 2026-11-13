@@ -144,16 +144,20 @@ export const CROPS = {
 };
 
 export const MACRO = {
-  usdRub: 94.6,
+  usdRub: 97.8,
   usdRubChange: 0,
-  kztRub: 0.194,
+  kztRub: 0.186573,
+  kztRubNominal: 100,
+  kztRubRawValue: 18.6573,
+  kztRubAsOf: '2026-11-13',
   truckRateMsk: 135000,
-  keyRate: 19.0,
+  keyRate: 14.0,
+  keyRateAsOf: '2026-11-13',
   diesel: 67.8,
   dieselChange: 0,
   harvestStock: 78,
   inflation: 8.6,
-  dataAsOf: '2026-10',
+  dataAsOf: '2026-11-13',
 };
 
 export const IMPORTERS = [

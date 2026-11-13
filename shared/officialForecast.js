@@ -113,37 +113,49 @@ export function evaluateMonthly(points, lead, drivers = null, retailWeekly = [])
   const n = points.length;
   const first = monthNumber(points[0].period);
   const finalStart = n - 12;
-  // Purge lead months so selection ends before the first calibration origin,
-  // and calibration targets mature before the first final-test origin.
+  // Purge lead months so selection and calibration targets mature strictly before the first final-test origin.
   const calibrationEnd = finalStart - lead - 1;
   const calibrationStart = calibrationEnd - 7;
   const tuningEnd = calibrationStart - lead - 1;
 
   const records = collectHorizonRecords(points, first, 11, n - 1, lead, ids, ctx);
 
-  // If long lead leaves <6 direct tuning targets before tuningEnd, pool medium-horizon
-  // predictions (leads >=3) whose targets still mature strictly <= tuningEnd (zero leakage).
-  let tuneRecords = records;
-  if (tuningEnd - 11 < lead + 5) {
-    const maxTuneLead = Math.max(1, Math.min(lead, tuningEnd - 11));
-    const minTuneLead = Math.min(3, maxTuneLead);
-    tuneRecords = Object.fromEntries(ids.map((id) => [id, []]));
-    for (let tl = minTuneLead; tl <= maxTuneLead; tl++) {
-      const sub = collectHorizonRecords(points, first, 11, tuningEnd, tl, ids, ctx);
-      for (const id of ids) {
-        for (const r of sub[id]) tuneRecords[id].push({ ...r, target: `${r.target}@L${tl}` });
-      }
-    }
-  }
+  // Walk-forward model selection across all pre-holdout target periods (targetIndex <= calibrationEnd).
+  // Require candidates to be evaluated on the identical common target set so models with shorter
+  // driver availability or earlier cutoff do not distort selection at lead = 5..7.
+  const preHoldoutById = Object.fromEntries(
+    ids.map((id) => [id, records[id].filter((r) => r.targetIndex <= calibrationEnd)])
+  );
+  const maxPreHoldoutN = Math.max(
+    0,
+    ...ids.filter((x) => x !== 'naive').map((id) => preHoldoutById[id].length)
+  );
+  const commonTargetSet = new Set(
+    (
+      ids
+        .filter((x) => x !== 'naive')
+        .map((id) => preHoldoutById[id])
+        .find((rows) => rows.length === maxPreHoldoutN) || []
+    ).map((r) => r.target)
+  );
 
   let selected = 'naive';
   const comparisons = [];
   for (const id of ids.filter((x) => x !== 'naive')) {
-    const rows = tuneRecords[id].filter((r) => r.targetIndex <= tuningEnd);
+    const rows = preHoldoutById[id].filter((r) => commonTargetSet.has(r.target));
     const targets = new Set(rows.map((r) => r.target));
-    const base = tuneRecords.naive.filter((r) => targets.has(r.target));
-    const ratio = rows.length >= 6 && summary(base).mae > 0 ? summary(rows).mae / summary(base).mae : null;
-    comparisons.push({ id, n: rows.length, mae: summary(rows).mae, naiveMAE: summary(base).mae, ratio });
+    const base = preHoldoutById.naive.filter((r) => targets.has(r.target));
+    const hasFullCommonPeriod = rows.length === commonTargetSet.size && rows.length >= 6;
+    const ratio =
+      hasFullCommonPeriod && summary(base).mae > 0 ? summary(rows).mae / summary(base).mae : null;
+    comparisons.push({
+      id,
+      n: rows.length,
+      commonPeriodN: commonTargetSet.size,
+      mae: rows.length ? summary(rows).mae : null,
+      naiveMAE: base.length ? summary(base).mae : null,
+      ratio,
+    });
   }
   const eligible = comparisons.filter((r) => r.ratio !== null && r.ratio < 0.95).sort((a, b) => a.ratio - b.ratio);
   if (eligible.length) selected = eligible[0].id;

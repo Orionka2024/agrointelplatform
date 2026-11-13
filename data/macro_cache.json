@@ -6,10 +6,22 @@
     "source": "cbr.ru"
   },
   "kztRub": {
-    "value": 0.198,
+    "value": 0.179797,
+    "rawValue": 17.9797,
+    "nominal": 100,
+    "valutaId": "R01335",
     "asOf": "2026-10-24",
+    "effectiveDate": "2026-10-24",
     "fetchedAt": "2026-10-24T12:00:00.000Z",
-    "source": "cbr.ru"
+    "source": "cbr.ru",
+    "version": "v2",
+    "previousVersion": {
+      "version": "v1",
+      "value": 0.198,
+      "asOf": "2026-10-24",
+      "errorPct": 10.124,
+      "note": "Replaced hardcoded/stale 0.198 with official CBR R01335 17.9797 / 100"
+    }
   },
   "keyRate": {
     "value": 21.0,

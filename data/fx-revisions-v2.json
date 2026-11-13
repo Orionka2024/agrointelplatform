@@ -1,0 +1,153 @@
+{
+  "version": "2.0.0",
+  "name": "cbr_kzt_rub_revisions_and_downstream_impact",
+  "generatedAt": "2026-11-13T13:30:00Z",
+  "description": "Официальная ревизия валютного ряда Банка России (код валюты R01335, Казахстанский тенге) и пересчёт зависимых показателей импортного паритета и логистики в соответствии с требованиями аудита P2.",
+  "officialCbrSource": {
+    "currencyCode": "R01335",
+    "char3": "KZT",
+    "nominal": 100,
+    "sourceUrl": "https://www.cbr.ru/scripts/XML_daily.asp",
+    "sourceXml": "P2-audit/cbr.xml",
+    "dailyJsonSeries": "data/cbr-kzt-daily.json",
+    "dailySeriesSha256": "fee0c769f3a6ce773bf803b51f5a20671daa8d0a086f1aba629161b9a34dd229",
+    "totalHistoricalObservations": 1693,
+    "startDate": "2020-01-01",
+    "endDate": "2026-11-13"
+  },
+  "keyRevisionPoints": [
+    {
+      "date": "2026-10-24",
+      "requestedDate": "2026-10-24",
+      "effectiveDate": "2026-10-24",
+      "nominal": 100,
+      "rawValue": 17.9797,
+      "correctedRate": 0.179797,
+      "previousIncorrectRate": 0.198,
+      "deltaRate": -0.018203,
+      "deltaPct": -9.19,
+      "causeOfDiscrepancy": "Ошибочное ручное допущение 0,198 ₽/₸ в кэше макропоказателей macro_cache.json вместо официального котировального курса ЦБ РФ 17,9797 ₽ за 100 тенге.",
+      "impactAnalysis": {
+        "kzPurchase55Kzt_RubKg": {
+          "before": 10.89,
+          "after": 9.89,
+          "deltaRubKg": -1.00
+        },
+        "kzLandedDapExVat_BaselineFreight116k": {
+          "before": 18.89,
+          "after": 17.89,
+          "deltaRubKg": -1.00
+        },
+        "kzLandedCashOutflowIncVat_BaselineFreight116k": {
+          "before": 20.78,
+          "after": 19.68,
+          "deltaRubKg": -1.10
+        },
+        "kzSpreadVsVolgograd15_5ExVat": {
+          "before": 3.39,
+          "after": 2.39,
+          "deltaRubKg": -1.00
+        },
+        "modelImpulses": {
+          "fxParityShiftPct": {
+            "before": 3.26,
+            "after": 0.78,
+            "note": "Устранено искусственное завышение импульса укрепления курса"
+          }
+        }
+      }
+    },
+    {
+      "date": "2026-10-31",
+      "requestedDate": "2026-10-31",
+      "effectiveDate": "2026-10-31",
+      "nominal": 100,
+      "rawValue": 17.7552,
+      "correctedRate": 0.177552,
+      "previousIncorrectRate": 0.198,
+      "deltaRate": -0.020448,
+      "deltaPct": -10.33,
+      "causeOfDiscrepancy": "Использование неактуального кэшированного значения; официальный субботний курс ЦБ РФ 17,7552 ₽ за 100 тенге действует на весь период выходных дней 31.10–02.11.",
+      "impactAnalysis": {
+        "kzPurchase55Kzt_RubKg": {
+          "before": 10.89,
+          "after": 9.77,
+          "deltaRubKg": -1.12
+        },
+        "kzLandedDapExVat_BaselineFreight116k": {
+          "before": 18.89,
+          "after": 17.77,
+          "deltaRubKg": -1.12
+        },
+        "kzLandedCashOutflowIncVat_BaselineFreight116k": {
+          "before": 20.78,
+          "after": 19.55,
+          "deltaRubKg": -1.23
+        }
+      }
+    },
+    {
+      "date": "2026-11-13",
+      "requestedDate": "2026-11-13",
+      "effectiveDate": "2026-11-13",
+      "nominal": 100,
+      "rawValue": 18.6573,
+      "correctedRate": 0.186573,
+      "previousIncorrectRate": 0.189,
+      "deltaRate": -0.002427,
+      "deltaPct": -1.28,
+      "causeOfDiscrepancy": "Округление до 0,189 ₽/₸ в коде; заменено на точный курс Банка России 18,6573 ₽ за 100 тенге (0,186573 ₽/₸).",
+      "impactAnalysis": {
+        "kzPurchase55Kzt_RubKg": {
+          "before": 10.40,
+          "after": 10.26,
+          "deltaRubKg": -0.14
+        },
+        "kzLandedDapExVat_BaselineFreight116k": {
+          "before": 18.39,
+          "after": 18.25,
+          "deltaRubKg": -0.14
+        },
+        "kzLandedCashOutflowIncVat_BaselineFreight116k": {
+          "before": 20.23,
+          "after": 20.08,
+          "deltaRubKg": -0.15
+        }
+      }
+    }
+  ],
+  "downstreamAffectedDependencies": [
+    {
+      "module": "data/cbr-kzt-daily.json",
+      "change": "Создан полный датированный ряд 1693 котировок ЦБ РФ с номиналом и датой действия без будущей утечки."
+    },
+    {
+      "module": "shared/cbrKztDailyData.js",
+      "change": "Реализован точный point-in-time поиск курса без заглядывания вперёд (lookupCbrKztRate)."
+    },
+    {
+      "module": "data/macro_cache.json",
+      "change": "Исправлена запись kztRub на 2026-10-24 с сохранением аудиторского следа previousVersion."
+    },
+    {
+      "module": "api/signals.js",
+      "change": "Обеспечена точность 6 знаков после запятой, метаданные номинала и ссылки на ЦБ РФ."
+    },
+    {
+      "module": "shared/marketSignals.js",
+      "change": "Обновлены CBR_RATES_BY_DATE (0.179797, 0.177552, 0.186573) и изолирована база импортного НДС ЕАЭС."
+    },
+    {
+      "module": "shared/onionValidatedIntel.js",
+      "change": "Реализована матрица паритета 3x3 (116к / 160к / 232.2к × 34 / 55 / 75 ₸) с раздельным расчётом базы НДС (EXW vs DAP)."
+    },
+    {
+      "module": "shared/weeklyDecisionPlan.js",
+      "change": "Устранены недатированные резервы (0.189); курс разрешается строго на дату среза через resolveDatedCbrMacro."
+    }
+  ],
+  "reproducibility": {
+    "command": "node scripts/test.mjs",
+    "verificationStatus": "verified"
+  }
+}
