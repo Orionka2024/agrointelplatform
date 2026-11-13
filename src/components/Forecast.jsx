@@ -7,6 +7,7 @@ import { buildUserPriceCsv } from '../../shared/localBasis.js';
 import { warehouseToMoscow, BRIDGE_LABELS } from '../../shared/bridge.js';
 import { buildWeeklyDecisionPlan, buildCatBoostShapCards } from '../../shared/weeklyDecisionPlan.js';
 import { STORAGE_TIERS } from '../../shared/storageEconomics.js';
+import { FACTOR_DEFS } from '../../shared/factorToggles.js';
 import { upsertStoredUserPrice } from '../utils/userPriceStore.js';
 import MonthlySalesPlanTable from './MonthlySalesPlanTable';
 
@@ -127,7 +128,7 @@ function OffSeasonPlanningView({ cropProfile }) {
 }
 
 export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) {
-  const { model, signals, demo, setDemo, importData, updateAssumptions } = useMarket();
+  const { model, signals, disabledFactors = [], toggleFactor, demo, setDemo, importData, updateAssumptions } = useMarket();
 
   const [activeCrop, setActiveCrop] = useState('onion');
   const [activeTab, setActiveTab] = useState('forecast'); // 'forecast' | 'official' | 'bridge' | 'validation'
@@ -561,6 +562,36 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                   </button>
                 </div>
               </div>
+
+              {activeCrop === 'onion' && (
+                <div className="import-sim-panel" style={{ marginTop: 10 }}>
+                  <div className="import-sim-header">
+                    <div className="import-sim-title">
+                      <span>Факторы прогноза (клик — отключить влияние на цену):</span>
+                      <span className="badge info">
+                        активно {FACTOR_DEFS.length - disabledFactors.length} из {FACTOR_DEFS.length}
+                      </span>
+                    </div>
+                    <div className="import-scenarios-row" style={{ flexWrap: 'wrap' }}>
+                      {FACTOR_DEFS.map((f) => {
+                        const off = disabledFactors.includes(f.id);
+                        return (
+                          <button
+                            key={f.id}
+                            type="button"
+                            className={`scenario-btn ${off ? '' : 'active up'}`}
+                            style={off ? { opacity: 0.55, textDecoration: 'line-through' } : undefined}
+                            onClick={() => toggleFactor?.(f.id)}
+                          >
+                            {off ? '✕ ' : '✓ '}
+                            {f.title}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* 4 KPI Summary Cards */}
               <div className="actual-vs-fc-grid">

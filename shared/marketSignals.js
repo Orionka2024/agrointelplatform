@@ -12,6 +12,9 @@
  */
 
 import { STORAGE_TIERS } from './storageEconomics.js';
+import { buildExportWatchlist } from './exportWatchlist.js';
+import { EXPORT_SIGNAL_RECORDS } from './exportSignalsData.js';
+import { sanitizeDisabledFactors, applyDisabledToImpulses } from './factorToggles.js';
 
 const RU_MONTH_MAP = {
   января: 1,
@@ -183,7 +186,9 @@ export function parseFoodStarOnionHtml(html) {
  * Computes landed import parity (RUB/kg) and multi-factor market pressure indices
  * from FX rates, 4-hub weather forecasts, and spot marketplace quotes.
  */
-export function computeMarketFactorAnalytics({ fx, weatherHubs, spotChannels, baseWarehouseExVat = 15.5, today = '2026-10-31' }) {
+export function computeMarketFactorAnalytics({ fx, weatherHubs, spotChannels, baseWarehouseExVat = 15.5, today = '2026-10-31', exportSignals = null, disabledFactors = [] }) {
+  const disabled = sanitizeDisabledFactors(disabledFactors);
+  const watchlist = buildExportWatchlist(exportSignals ?? EXPORT_SIGNAL_RECORDS, disabled);
   const usdRub = fx?.usdRub?.value ?? 92.5;
   const kztRub = fx?.kztRub?.value ?? 0.191;
   const uzsPer10k = fx?.uzsPer10k?.value ?? 74.5; // RUB per 10,000 UZS
@@ -276,6 +281,7 @@ export function computeMarketFactorAnalytics({ fx, weatherHubs, spotChannels, ba
     rawAskMedianExVat: rawAskMedian,
     tensionScore,
     signalRegime,
+    watchlist,
     parity: {
       kzLandedVolgogradExVat,
       kzSpreadVsLocal,
@@ -320,14 +326,18 @@ export function computeMarketFactorAnalytics({ fx, weatherHubs, spotChannels, ba
       monthlyFinancingCostRubKg,
     },
     storageTiers: STORAGE_TIERS,
-    impulses: {
-      vlgFrostDumpPct,
-      vlgWinterTighteningPct,
-      kzFrostShockPct,
-      kzAutumnCapPct,
-      fxParityShiftPct: +(((kztRub - 0.189) / 0.189) * 35 + ((usdRub - 91) / 91) * 15).toFixed(2),
-      uzWarmSpringShiftPct,
-    },
+    disabledFactors: disabled,
+    impulses: applyDisabledToImpulses(
+      {
+        vlgFrostDumpPct,
+        vlgWinterTighteningPct,
+        kzFrostShockPct,
+        kzAutumnCapPct,
+        fxParityShiftPct: +(((kztRub - 0.189) / 0.189) * 35 + ((usdRub - 91) / 91) * 15).toFixed(2),
+        uzWarmSpringShiftPct,
+      },
+      disabled
+    ),
   };
 }
 

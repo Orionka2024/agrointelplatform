@@ -1,6 +1,8 @@
 import { addWeeks, weekStart } from './dates.js';
 import { warehouseToMoscow } from './bridge.js';
 import { storageAtHorizon, evaluateStorage, STORAGE_TIERS } from './storageEconomics.js';
+import { watchlistLogOffset, WATCH_HORIZON_WEEKS } from './exportWatchlist.js';
+import { buildShortTermDrivers, formatShortTermDriversText } from './shortTermDrivers.js';
 
 const RU_MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 
@@ -45,7 +47,14 @@ function interpolateKnots(knots, targetMs) {
  *  4) Late Jan–Mar: Post-holiday DC restocking + KZ clamp depletion -> March cold-storage peak
  *  5) Apr: Early new-crop onion arrivals from Surkhandarya (Uzbekistan) & Egypt rolling old-crop prices down
  */
-function evaluateOnionWeeklyRegime(targetDate, liveSignals) {
+function evaluateOnionWeeklyRegime(targetDate, liveSignals, h = 0) {
+  const regime = evaluateOnionSeasonalRegime(targetDate, liveSignals);
+  const wlOffset = watchlistLogOffset(liveSignals?.analytics?.watchlist, h);
+  if (!wlOffset) return regime;
+  return { ...regime, logOffset: regime.logOffset + wlOffset, watchlistLogOffset: wlOffset };
+}
+
+function evaluateOnionSeasonalRegime(targetDate, liveSignals) {
   const [, month, day] = targetDate.split('-').map(Number);
   const imp = liveSignals?.analytics?.impulses || {};
   const kzCap = (imp.kzAutumnCapPct ?? -1.5) * 0.0035;
@@ -381,6 +390,51 @@ export function buildWeekDeltaExplanation({
     },
   ];
 
+  if (cropId === 'onion') {
+    const wl = liveSignals?.analytics?.watchlist;
+    const inWindow = h >= 1 && h <= WATCH_HORIZON_WEEKS;
+    const items = wl?.items || [];
+    const active = items.filter((i) => i.quantified);
+    const peak = wl?.totalPeakPct ?? 0;
+    const lines = items.map((i) => {
+      if (i.disabled) return `• ${i.title}: отключено пользователем — не влияет на прогноз.`;
+      if (i.state === 'unknown') {
+        return `• ${i.title}: нет подтверждённых данных${i.evidenceNote ? ` (${i.evidenceNote})` : ''}${i.context ? ` Контекст СМИ: ${i.context}` : ''}`;
+      }
+      const eff = i.quantified ? `${i.peakPct > 0 ? '+' : ''}${i.peakPct}% (источник: ${i.source})` : 'величина не указана в источниках, прогноз не изменён';
+      return `• ${i.title}: ${i.label} — ${i.meaning}; ${eff}.`;
+    });
+    drivers.push({
+      title: 'Экспортный коридор (Ирак · Иран · УЗ/КЗ) и ставки Волгограда',
+      icon: '🌐',
+      badge: !inWindow
+        ? 'вне окна 4–6 нед.'
+        : active.length
+          ? `${peak > 0 ? '+' : ''}${peak}% пик · ${active.length}/${items.length} сигн.`
+          : 'сигналы не подтверждены',
+      cls: !inWindow || !active.length ? 'info' : peak > 0 ? 'up' : 'warn',
+      text:
+        (inWindow
+          ? `Влияние сигналов действует ${WATCH_HORIZON_WEEKS} недель (неделя ${h}). `
+          : `Недельный горизонт сигналов (${WATCH_HORIZON_WEEKS} нед.) пройден; в прогнозе остаётся сезонная динамика. `) +
+        lines.join(' '),
+    });
+  }
+
+  if (cropId === 'onion') {
+    const panel = buildShortTermDrivers(liveSignals, h, onionRegime?.driverTag);
+    if (panel) {
+      const net = +panel.items.reduce((s, i) => s + i.appliedPct, 0).toFixed(2);
+      drivers.push({
+        title: 'Погода · USD/RUB · ставка ЦБ · импорт КЗ/УЗ (окно 6 недель)',
+        icon: '📡',
+        badge: `эффект в прогнозе ${net > 0 ? '+' : ''}${net}%`,
+        cls: net > 0 ? 'up' : net < 0 ? 'warn' : 'info',
+        text: formatShortTermDriversText(panel),
+      });
+    }
+  }
+
   if (scenarioId && scenarioId !== 'base' && Math.abs(scenarioDeltaRub) > 0.05) {
     const sSign = scenarioDeltaRub > 0 ? `+${scenarioDeltaRub.toFixed(2)}` : scenarioDeltaRub.toFixed(2);
     drivers.push({
@@ -489,7 +543,7 @@ export function buildWeeklyDecisionPlan({
 
     if (isOnionCatBoost) {
       const k = interpolateKnots(knots, targetMs);
-      onionRegime = evaluateOnionWeeklyRegime(targetDate, liveSignals);
+      onionRegime = evaluateOnionWeeklyRegime(targetDate, liveSignals, h);
       baseWh = Math.exp(k.logP + onionRegime.logOffset) * basisFactor;
       relBand80 = k.relBand80;
       relMae = k.relMae;

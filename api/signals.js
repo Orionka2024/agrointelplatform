@@ -6,6 +6,8 @@ import {
   parseAgroRuVolgogradHtml,
   parseFoodStarOnionHtml,
 } from '../shared/marketSignals.js';
+import { EXPORT_SIGNAL_RECORDS } from '../shared/exportSignalsData.js';
+import { NEWS_QUERIES, parseRssItems, classifyHeadlines, mergeDetectedSignals } from '../shared/newsSignals.js';
 
 let cachedPayload = null;
 let cachedAtMs = 0;
@@ -112,6 +114,7 @@ export default async function handler(req, res) {
         spotChannels: cachedPayload.spotChannels,
         baseWarehouseExVat: baseWh,
         today,
+        exportSignals: cachedPayload.exportSignals,
       }),
     };
     return res.status(200).json(recomputed);
@@ -156,7 +159,29 @@ export default async function handler(req, res) {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AgroIntelMarketRadar/1.0)', Accept: 'text/html' },
       signal: AbortSignal.timeout(3500),
     }).then((r) => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`)))),
+
+    // 5..: Google News RSS per watchlist query (headlines only; direction detection, never magnitudes)
+    ...NEWS_QUERIES.map((q) =>
+      fetch(`https://news.google.com/rss/search?q=${encodeURIComponent(`${q} when:30d`)}&hl=ru&gl=RU&ceid=RU:ru`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AgroIntelMarketRadar/1.0)', Accept: 'application/rss+xml' },
+        signal: AbortSignal.timeout(4500),
+      }).then((r) => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`))))
+    ),
   ]);
+
+  // Process 5..: automated watchlist state detection from fresh headlines
+  const newsItems = tasks
+    .slice(5)
+    .filter((t) => t.status === 'fulfilled')
+    .flatMap((t) => parseRssItems(t.value));
+  const detected = classifyHeadlines(newsItems, today);
+  const exportSignals = mergeDetectedSignals(EXPORT_SIGNAL_RECORDS, detected);
+  const newsMeta = {
+    scanned: newsItems.length,
+    feedsOk: tasks.slice(5).filter((t) => t.status === 'fulfilled').length,
+    feedsTotal: NEWS_QUERIES.length,
+    detected: Object.keys(detected),
+  };
 
   // Process 0: CBR FX
   if (tasks[0].status === 'fulfilled') {
@@ -262,6 +287,7 @@ export default async function handler(req, res) {
     spotChannels,
     baseWarehouseExVat: baseWh,
     today,
+    exportSignals,
   });
 
   const payload = {
@@ -272,6 +298,8 @@ export default async function handler(req, res) {
     fx,
     weatherHubs,
     spotChannels,
+    exportSignals,
+    newsMeta,
     analytics,
   };
 

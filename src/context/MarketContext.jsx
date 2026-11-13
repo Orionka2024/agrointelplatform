@@ -15,6 +15,7 @@ import {
   buildDefaultMarketSignals,
   computeMarketFactorAnalytics,
 } from '../../shared/marketSignals.js';
+import { sanitizeDisabledFactors } from '../../shared/factorToggles.js';
 
 function buildClientFallbackMacro(serverMacro, today) {
   const fromView = (k) => {
@@ -120,6 +121,25 @@ export function MarketProvider({ children }) {
   const [error, setError] = useState(null);
   const [rawSignals, setRawSignals] = useState(() => buildDefaultMarketSignals(todayISO(), 15.5));
   const [signalsBusy, setSignalsBusy] = useState(false);
+  const [disabledFactors, setDisabledFactors] = useState(() => {
+    try {
+      return sanitizeDisabledFactors(JSON.parse(localStorage.getItem('agro_disabled_factors') || '[]'));
+    } catch {
+      return [];
+    }
+  });
+
+  const toggleFactor = useCallback((id) => {
+    setDisabledFactors((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : sanitizeDisabledFactors([...prev, id]);
+      try {
+        localStorage.setItem('agro_disabled_factors', JSON.stringify(next));
+      } catch {
+        // silent
+      }
+      return next;
+    });
+  }, []);
 
   const effBaseWh = model?.prices?.warehouse?.exVat ?? 15.5;
 
@@ -173,6 +193,8 @@ export function MarketProvider({ children }) {
       spotChannels: rawSignals.spotChannels,
       baseWarehouseExVat: effBaseWh,
       today,
+      exportSignals: rawSignals.exportSignals,
+      disabledFactors,
     }),
   };
 
@@ -293,6 +315,8 @@ export function MarketProvider({ children }) {
     signals,
     signalsBusy,
     refreshSignals,
+    disabledFactors,
+    toggleFactor,
     demo,
     setDemo,
     basis,
