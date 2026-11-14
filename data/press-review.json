@@ -1,0 +1,31 @@
+{
+  "generatedAt": "2026-11-14T11:52:53.297Z",
+  "groups": [
+    {
+      "topic": {
+        "id": "cis_other",
+        "flag": "🌍",
+        "label": "Регион (Киргизия, Таджикистан, Турция, Египет)",
+        "queries": [
+          "onion prices Kyrgyzstan Tajikistan",
+          "Turkey Egypt onion export"
+        ],
+        "match": {}
+      },
+      "items": [
+        {
+          "title": "Цены на лук в Таджикистане за месяц выросли на 60% несмотря на увеличение урожая",
+          "link": "https://news.google.com/rss/articles/CBMiwAFBVV95cUxPLW1iN3h6OTRBRWloQ0dOUHpNWktveEVaakMwN25LTXAtYk04eXBST3YzRXhKdE95M1cweGlwQjNBVy0yQThMT3NhbUFueWR0MVlTOXJtNFRyTVdnT2R5b1c5XzJydUVqdnJQVXR3cElZc3ZRdGtSTG5IWVpickFpRkduXzVRdFRPSUMxLVlVelIyLTRsYlF4SGNKMExkQ21fZjNaanN0bUVXcjhVQTdRNEVLV2c3UllMVWxsRXdmUnI?oc=5",
+          "source": "UkrAgroConsult",
+          "sourceUrl": "https://ukragroconsult.com",
+          "publishedAt": "2026-11-12T14:00:58.000Z",
+          "topic": "cis_other",
+          "trusted": true
+        }
+      ]
+    }
+  ],
+  "count": 1,
+  "feedErrors": 0,
+  "feedsTotal": 14
+}
