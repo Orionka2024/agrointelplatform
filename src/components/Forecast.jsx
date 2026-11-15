@@ -1,6 +1,11 @@
 import { lazy, Suspense, useState, Fragment } from 'react';
 import { useMarket } from '../context/useMarket';
-import { officialForecast, officialSnapshot, officialDataIntegrity } from '../../shared/officialData.js';
+import {
+  officialForecast,
+  officialSnapshot,
+  officialDataIntegrity,
+  computeForecastFreshness,
+} from '../../shared/officialData.js';
 import { MONTHLY_MODELS, evaluateHorizonConfidence } from '../../shared/officialForecast.js';
 import { CROP_PROFILES, CROP_TYPES, getCropProfile } from '../../shared/cropProfiles.js';
 import { warehouseToMoscow, BRIDGE_LABELS } from '../../shared/bridge.js';
@@ -159,6 +164,7 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
   const cropProfile = getCropProfile(activeCrop);
   const isFieldSeasonal = cropProfile.type === CROP_TYPES.FIELD_SEASONAL;
   const snap = officialSnapshot(model.today);
+  const freshness = computeForecastFreshness(officialForecast, { today: model.today });
 
   const hasOnionDeal =
     activeCrop === 'onion' &&
@@ -275,6 +281,43 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {/* Compact Freshness Stamp & Stale Warning */}
+      <div
+        style={{
+          background: 'var(--bg2)',
+          border: '1px solid var(--border)',
+          borderRadius: 6,
+          padding: '6px 12px',
+          fontSize: 11,
+          fontFamily: 'var(--mono)',
+          color: 'var(--txt2)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 8,
+        }}
+      >
+        <span>{freshness.stampText}</span>
+        <span>Возраст данных Росстата: {freshness.ageDays} дн.</span>
+      </div>
+      {freshness.staleWarning && (
+        <div
+          className="signal-box warn"
+          role="alert"
+          style={{
+            padding: '10px 14px',
+            background: 'var(--amber-bg, #fffbeb)',
+            border: '1px solid var(--amber-border, #f59e0b)',
+            borderRadius: 6,
+            color: 'var(--amber, #92400e)',
+            fontSize: 12,
+          }}
+        >
+          <strong>⚠️ Устаревшие официальные данные ({freshness.ageDays} дн.):</strong> {freshness.staleWarning}
+        </div>
+      )}
+
       <div className="panel">
         {/* Crop Tabs */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', flexWrap: 'wrap', gap: 8, paddingRight: 12 }}>

@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend } from 'chart.js';
-import { officialHistory as history, officialForecast as fc, officialDrivers as drivers } from '../../shared/officialData.js';
+import {
+  officialHistory as history,
+  officialForecast as fc,
+  officialDrivers as drivers,
+  computeForecastFreshness,
+} from '../../shared/officialData.js';
 import { MONTHLY_MODELS, monthNumber, evaluateHorizonConfidence } from '../../shared/officialForecast.js';
 import { localBasis, applyBasis } from '../../shared/localBasis.js';
 import { resolveSelectedHorizonMetrics, INTERVAL_UNAVAILABLE_MESSAGE } from '../../shared/weeklyDecisionPlan.js';
@@ -43,7 +48,8 @@ export default function OfficialMarket() {
   const rows = fc.issueDate <= model.today ? fc.rows : [];
   const r = rows.find((x) => x.h === selected) || rows[0];
   const v = r?.validation;
-  const stale = monthNumber(model.today.slice(0, 7)) - monthNumber(fc.inputCutoff) > 2;
+  const freshness = computeForecastFreshness(fc, { today: model.today });
+  const stale = freshness.isStale || monthNumber(model.today.slice(0, 7)) - monthNumber(fc.inputCutoff) > 2;
 
   const monthly = available.slice(-36);
   const future = rows.map((x) => x.targetMonth);
@@ -123,6 +129,43 @@ export default function OfficialMarket() {
         <span className="badge info">{fc.modelVersion}</span>
       </div>
       <div className="panel-body">
+        <div
+          style={{
+            background: 'var(--bg2)',
+            border: '1px solid var(--border)',
+            borderRadius: 6,
+            padding: '6px 12px',
+            marginBottom: 8,
+            fontSize: 11,
+            fontFamily: 'var(--mono)',
+            color: 'var(--txt2)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 8,
+          }}
+        >
+          <span>{freshness.stampText}</span>
+          <span>Возраст данных Росстата: {freshness.ageDays} дн.</span>
+        </div>
+        {freshness.staleWarning && (
+          <div
+            className="signal-box warn"
+            role="alert"
+            style={{
+              marginBottom: 8,
+              padding: '10px 14px',
+              background: 'var(--amber-bg, #fffbeb)',
+              border: '1px solid var(--amber-border, #f59e0b)',
+              borderRadius: 6,
+              color: 'var(--amber, #92400e)',
+              fontSize: 12,
+            }}
+          >
+            <strong>⚠️ Устаревшие официальные данные ({freshness.ageDays} дн.):</strong> {freshness.staleWarning}
+          </div>
+        )}
         <OfficialSummary />
         <AddActualPrice defaultOpen={false} />
 
@@ -175,7 +218,7 @@ export default function OfficialMarket() {
                 коэффициент уровня <strong>×{fmt(cal.factor)}</strong> · учтено месяцев: <strong>{cal.n}</strong> ({STRENGTH[cal.strength]}).
               </div>
             )}
-            {stale && <p className="audit-warning">Данные устарели. Требуется обновление архива Росстата.</p>}
+            {stale && <p className="audit-warning">{freshness.staleWarning || 'Данные устарели. Требуется обновление архива Росстата.'}</p>}
 
             <div className="official-chart">
               <Line

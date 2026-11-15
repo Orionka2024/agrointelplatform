@@ -11,7 +11,12 @@ import {
   Legend,
 } from 'chart.js';
 import { useMarket } from '../context/useMarket';
-import { officialForecast, officialSnapshot, officialDataIntegrity } from '../../shared/officialData.js';
+import {
+  officialForecast,
+  officialSnapshot,
+  officialDataIntegrity,
+  computeForecastFreshness,
+} from '../../shared/officialData.js';
 import { CROP_PROFILES, CROP_TYPES, getCropProfile } from '../../shared/cropProfiles.js';
 import { warehouseToMoscow } from '../../shared/bridge.js';
 import {
@@ -52,6 +57,7 @@ export default function Dashboard() {
   const [selectedCrop, setSelectedCrop] = useState('onion');
 
   const snap = officialSnapshot(model.today);
+  const freshness = computeForecastFreshness(officialForecast, { today: model.today });
   const selectedCropProfile = getCropProfile(selectedCrop);
   const isSelectedOnion = selectedCrop === 'onion';
   const isFieldSeasonal = selectedCropProfile.type === CROP_TYPES.FIELD_SEASONAL;
@@ -235,9 +241,27 @@ export default function Dashboard() {
           )}
         </div>
         <span style={{ fontSize: 11, color: 'var(--txt2)', fontFamily: 'var(--mono)' }}>
-          Holdout MAE Сезонная модель (Weibull): <strong>2.51–3.54 ₽/кг</strong>
+          {freshness.stampText} · Holdout MAE Сезонная модель (Weibull): <strong>2.51–3.54 ₽/кг</strong>
         </span>
       </div>
+
+      {freshness.staleWarning && (
+        <div
+          className="signal-box warn"
+          role="alert"
+          style={{
+            marginTop: 8,
+            padding: '10px 14px',
+            background: 'var(--amber-bg, #fffbeb)',
+            border: '1px solid var(--amber-border, #f59e0b)',
+            borderRadius: 6,
+            color: 'var(--amber, #92400e)',
+            fontSize: 12,
+          }}
+        >
+          <strong>⚠️ Устаревшие официальные данные ({freshness.ageDays} дн.):</strong> {freshness.staleWarning}
+        </div>
+      )}
 
       {/* Inline Actual Deal Entry */}
       <AddActualPrice defaultOpen={false} />

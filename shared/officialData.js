@@ -181,6 +181,54 @@ export function verifyOfficialDataHashes({
 export const officialDataIntegrity = verifyOfficialDataHashes();
 const safeForecast = officialDataIntegrity.ok ? forecast : null;
 
+export function endOfMonthIso(periodOrDate) {
+  const s = String(periodOrDate || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{4})-(\d{2})$/);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const d = new Date(Date.UTC(year, month, 0));
+  return d.toISOString().slice(0, 10);
+}
+
+export function computeForecastFreshness(fc = safeForecast, { today = null, maxAgeDays = 90 } = {}) {
+  const inputCutoff =
+    fc?.inputCutoff || fc?.dataCutoff || history?.producer?.monthly?.at(-1)?.period || '2026-09';
+  const cutoffEndDate = endOfMonthIso(inputCutoff) || '2026-09-30';
+  const modelVersion = fc?.modelVersion || forecast?.modelVersion || 'rosstat-catboost-3.0.0';
+  const lastBacktestDate = fc?.lastBacktestDate || inputCutoff;
+  const generatedAt = fc?.issueDate || fc?.generatedAt || forecast?.issueDate || '2026-10-30';
+  const todayIso = (today ? String(today) : new Date().toISOString()).slice(0, 10);
+
+  const [cY, cM, cD] = cutoffEndDate.split('-').map(Number);
+  const [tY, tM, tD] = todayIso.split('-').map(Number);
+  const cutoffUtc = Date.UTC(cY, cM - 1, cD);
+  const todayUtc = Date.UTC(tY, tM - 1, tD);
+  const ageDays = Number.isFinite(cutoffUtc) && Number.isFinite(todayUtc)
+    ? Math.round((todayUtc - cutoffUtc) / 86400000)
+    : 0;
+  const isStale = ageDays > maxAgeDays;
+  const stampText = `Данные Росстата по: ${inputCutoff} · Модель: ${modelVersion} · Бэктест: ${lastBacktestDate} · Сформировано: ${generatedAt}`;
+  const staleWarning = isStale
+    ? `Внимание: прогноз основан на данных Росстата старше 3 месяцев (${ageDays} дн. с ${cutoffEndDate}, порог > ${maxAgeDays} дней). Обновите официальную статистику перед принятием решений.`
+    : null;
+
+  return {
+    inputCutoff,
+    cutoffEndDate,
+    modelVersion,
+    lastBacktestDate,
+    generatedAt,
+    today: todayIso,
+    ageDays,
+    maxAgeDays,
+    isStale,
+    stampText,
+    staleWarning,
+  };
+}
+
 export {
   history as officialHistory,
   safeForecast as officialForecast,
@@ -200,6 +248,7 @@ export function officialSnapshot(today, options = {}) {
       error: 'DATA_HASH_MISMATCH',
       errorMessage: integrity.message,
       integrity,
+      freshness: null,
       collectedAt: null,
       producer: null,
       producerSouth: null,
@@ -228,11 +277,13 @@ export function officialSnapshot(today, options = {}) {
   const keyRate = (drivers.keyRate || []).filter((r) => r.availableDate <= today);
   const vlgWeather = (drivers.weather?.volgograd || []).filter((r) => r.availableDate <= today);
   const zhmWeather = (drivers.weather?.zhambyl || []).filter((r) => r.availableDate <= today);
+  const freshness = computeForecastFreshness(forecast, { today });
 
   return {
     status: 'ok',
     error: null,
     integrity,
+    freshness,
     collectedAt: history.collectedAt,
     producer: producer.at(-1) ?? null,
     producerSouth: producerSouth.at(-1) ?? null,
@@ -258,9 +309,11 @@ export function officialSnapshot(today, options = {}) {
         ? {
             id: forecast.id,
             issueDate: forecast.issueDate,
+            inputCutoff: forecast.inputCutoff,
             status: forecast.status,
             modelVersion: forecast.modelVersion,
             target: forecast.target,
+            freshness,
             rows: forecast.rows.map((r) => ({
               targetMonth: r.targetMonth,
               point: r.point,
@@ -277,4 +330,5 @@ export function officialSnapshot(today, options = {}) {
     sources: history.sources,
   };
 }
+
 

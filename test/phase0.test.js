@@ -1,12 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verificationOf, validatePriceRow, importPriceCSV } from '../shared/observations.js';
 import * as localBasisMod from '../shared/localBasis.js';
 const { buildUserPriceCsv } = localBasisMod;
-import { store } from '../server/store.js';
+
+// Isolate test/phase0.test.js SQLite directory from parallel test workers
+const PHASE0_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'agro-phase0-suite-'));
+process.env.DATA_DIR = PHASE0_DATA_DIR;
+
+const { store } = await import('../server/store.js');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -1039,3 +1045,59 @@ test('P0-10 (F-15): Verify data hashes at runtime against data/official-hashes.j
   assert.equal(closedSnap.error, 'DATA_HASH_MISMATCH', 'officialSnapshot must surface DATA_HASH_MISMATCH error');
   assert.equal(closedSnap.integrity?.ok, false);
 });
+
+test('P0-11 (F-09): Freshness stamps and >90-day stale warning boundary test (89d, 90d, 91d)', async () => {
+  const officialDataMod = await import('../shared/officialData.js');
+  const { officialForecast } = officialDataMod;
+
+  assert.equal(
+    typeof officialDataMod.computeForecastFreshness,
+    'function',
+    'shared/officialData.js must export computeForecastFreshness'
+  );
+
+  // Bundled forecast has inputCutoff = '2026-09' (end of month 2026-09-30), issueDate = '2026-10-30', modelVersion = 'rosstat-catboost-3.0.0'
+  // 89 days after 2026-09-30 -> 2026-12-28
+  const f89 = officialDataMod.computeForecastFreshness(officialForecast, { today: '2026-12-28' });
+  assert.equal(f89.inputCutoff, '2026-09');
+  assert.equal(f89.cutoffEndDate, '2026-09-30');
+  assert.equal(f89.modelVersion, 'rosstat-catboost-3.0.0');
+  assert.equal(f89.lastBacktestDate, '2026-09');
+  assert.equal(f89.generatedAt, '2026-10-30');
+  assert.equal(f89.ageDays, 89, '2026-12-28 is 89 days after 2026-09-30');
+  assert.equal(f89.isStale, false, '89 days must not trigger stale warning (threshold is > 90 days)');
+  assert.equal(f89.staleWarning, null);
+  assert.match(f89.stampText, /2026-09/, 'stampText must include Rosstat data cutoff');
+  assert.match(f89.stampText, /rosstat-catboost-3\.0\.0/, 'stampText must include model version');
+  assert.match(f89.stampText, /2026-10-30/, 'stampText must include forecast generation date');
+
+  // 90 days after 2026-09-30 -> 2026-12-29
+  const f90 = officialDataMod.computeForecastFreshness(officialForecast, { today: '2026-12-29' });
+  assert.equal(f90.ageDays, 90, '2026-12-29 is 90 days after 2026-09-30');
+  assert.equal(f90.isStale, false, '90 days must not trigger stale warning (threshold is strictly > 90 days)');
+  assert.equal(f90.staleWarning, null);
+
+  // 91 days after 2026-09-30 -> 2026-12-30
+  const f91 = officialDataMod.computeForecastFreshness(officialForecast, { today: '2026-12-30' });
+  assert.equal(f91.ageDays, 91, '2026-12-30 is 91 days after 2026-09-30');
+  assert.equal(f91.isStale, true, '91 days (> 90 days) must trigger yellow stale warning banner');
+  assert.ok(
+    typeof f91.staleWarning === 'string' && f91.staleWarning.length > 0,
+    'staleWarning must be a non-empty warning message when ageDays > 90'
+  );
+  assert.match(f91.staleWarning, /3 месяц|90 дн/i, 'staleWarning must state data is older than 3 months / 90 days');
+
+  // Verify Dashboard.jsx, Forecast.jsx, and OfficialMarket.jsx render computeForecastFreshness and staleWarning
+  for (const relPath of ['src/components/Dashboard.jsx', 'src/components/Forecast.jsx', 'src/components/OfficialMarket.jsx']) {
+    const src = fs.readFileSync(path.join(ROOT, relPath), 'utf8');
+    assert.ok(
+      src.includes('computeForecastFreshness'),
+      `${relPath} must call computeForecastFreshness to display freshness stamp and stale warning`
+    );
+    assert.ok(
+      src.includes('staleWarning'),
+      `${relPath} must render the yellow warning banner when freshness.staleWarning is present`
+    );
+  }
+});
+

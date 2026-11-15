@@ -20,13 +20,13 @@ Tests use a disposable database. The development server serves the UI and API. A
 
 The first request initializes `data/agro.sqlite` (or `$DATA_DIR/agro.sqlite`; serverless environments fall back to `/tmp/agro.sqlite` unless a persistent volume is mounted). Existing seed observation, indicator and forecast JSON files are imported once and never rewritten. Old assumptions are not accepted as facts. SQLite transactions retain revision snapshots.
 
-Public Rosstat (`data/official-history.json`) and Bank of Russia + ERA5 (`data/macro-history.json`) histories are bundled with SHA-256 hashes of original source files so the app provides real historical data and a saved monthly forecast out of the box. You can also enter actual warehouse (EXW Volgograd) or delivered wholesale (Moscow) transaction prices directly in the UI: each attested entry is saved as a verified observation, immediately calibrates the forecast to your local price level (`shared/localBasis.js`), and builds your own weekly transaction series over time.
+Public Rosstat (`data/official-history.json`) and Bank of Russia + ERA5 (`data/official-drivers.json`) histories are bundled with SHA-256 hashes (`data/official-hashes.json`) verified at runtime (`shared/officialData.js`) so the app provides verified historical data and a saved monthly forecast out of the box. You can also enter actual warehouse (EXW Volgograd) or delivered wholesale (Moscow) transaction prices directly in the UI: each attested entry is saved as a verified observation, immediately calibrates the forecast to your local price level (`shared/localBasis.js`), and builds your own weekly transaction series over time.
 
 Old seed observations remain unverified and old-method forecasts are excluded. Use comparable grade, size, packaging, lot size and payment terms within each market. Separate transactions, bids and offers; listings are not completed transactions.
 
 ## Implemented behavior
 
-- Bundled Rosstat monthly/annual producer prices, weekly retail prices, Bank of Russia `USD/RUB` + `KZT/RUB` + key-rate series, and Open-Meteo ERA5 weather (`Volgograd` & `Zhambyl`) with SHA-256 source verification.
+- Bundled Rosstat monthly/annual producer prices, weekly retail prices, Bank of Russia `USD/RUB` + `KZT/RUB` + key-rate series, and Open-Meteo ERA5 weather (`Volgograd` & `Zhambyl`) with runtime SHA-256 verification (`DATA_HASH_MISMATCH` fail-closed protection).
 - Purged monthly evaluation (`rosstat-catboost-3.0.0`) comparing naive, seasonal, ratio, ridge, Weibull seasonal-equilibrium (`eq_carry` — «Сезонная модель (Weibull)»), and oblivious decision tree residual boosting (`catboost` — «Дерево решений (экспериментальная)») with exact interventional TreeSHAP attributions and zero future leakage.
 - 26-week warehouse/Moscow trajectory & 5-stage monthly warehouse sales plan (`shared/weeklyDecisionPlan.js`) integrating storage shrinkage, rot, energy, and CBR financing costs.
 - In-app actual transaction price entry with immediate local-basis level calibration and automatic browser backup for ephemeral serverless instances.
@@ -41,7 +41,8 @@ The monthly national benchmark is evaluated on a latest-revision Rosstat snapsho
 
 ## Hosting
 
-Write and privileged endpoints (`POST /api/import`, `POST`/`DELETE /api/assumptions`, `POST /api/forecast`, `POST /api/advisor`) require `Authorization: Bearer <AGRO_API_TOKEN>` by default (`server/access.js`). Read-only endpoints (`GET /api/market`, `GET /api/macro`, `GET /api/signals`) remain open unless `AGRO_REQUIRE_AUTH=true` is set. For local unauthenticated development only, set `AGRO_ALLOW_ANON_WRITES=true` (which emits a loud startup warning).
+Write and privileged endpoints (`POST /api/import`, `POST`/`DELETE /api/assumptions`, `POST /api/forecast`, `POST /api/advisor`) require `Authorization: Bearer <AGRO_API_TOKEN>` by default (`server/access.js`). Read-only endpoints (`GET /api/market`, `GET /api/macro`, `GET /api/signals`, `GET /api/refresh`) remain open unless `AGRO_REQUIRE_AUTH=true` is set. Automated refresh (`POST /api/refresh` or `GET /api/refresh?run=1`) requires `Authorization: Bearer <CRON_SECRET>`. For local unauthenticated development only, set `AGRO_ALLOW_ANON_WRITES=true` (which emits a loud startup warning).
 
 For multi-user durable storage, use a persistent Node host or mounted volume (`DATA_DIR` + `AGRO_PERSISTENT_VOLUME=true`) or Vercel KV (`KV_REST_API_URL` + `KV_REST_API_TOKEN`), backed-up SQLite storage, and a server-side `AGRO_API_TOKEN` + `CRON_SECRET`.
+
 
