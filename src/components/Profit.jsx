@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMarket } from '../context/useMarket';
-import { evaluateStorage, lossSensitivity, priceSensitivity } from '../../shared/storageEconomics.js';
+import { storageAtHorizon, evaluateStorageAtHorizon, lossSensitivity, priceSensitivity } from '../../shared/storageEconomics.js';
 import { officialForecast } from '../../shared/officialData.js';
 import { CROP_PROFILES, CROP_TYPES, getCropProfile } from '../../shared/cropProfiles.js';
 import { buildWeeklyDecisionPlan } from '../../shared/weeklyDecisionPlan.js';
@@ -92,8 +92,14 @@ export default function Profit() {
     setSalePrice(id === 'onion' ? onionWh : p.benchmarkWarehousePrice);
   }
 
-  const currentParams = {
-    months,
+  const referenceMonths =
+    getCropProfile(storageCrop)?.storageParams?.months ??
+    spInit.referenceMonths ??
+    CROP_PROFILES.onion.storageParams.months;
+
+  const baseStorageParams = {
+    months: referenceMonths,
+    referenceMonths,
     shrinkPct,
     rotPct,
     downgradeSharePct,
@@ -106,7 +112,8 @@ export default function Profit() {
     acquisitionCostRubKg,
   };
 
-  const storageResult = evaluateStorage(pNow, pFuture, currentParams);
+  const currentParams = storageAtHorizon(baseStorageParams, months);
+  const storageResult = evaluateStorageAtHorizon(pNow, pFuture, baseStorageParams, months);
   const lossSens = lossSensitivity(pNow, pFuture, currentParams);
   const priceSens = priceSensitivity(pNow, pFuture, currentParams);
 

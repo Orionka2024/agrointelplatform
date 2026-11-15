@@ -278,3 +278,50 @@ test('P0-2 (F-08): Cold start syncs from KV before write, rejects writes with 50
   }
 });
 
+test('P0-3 (F-11): Storage duration slider scales physical loss monotonically (2.5% at 1m, 16.4% at 7m) and reduces 7m net proceeds by ~1.60 RUB/kg', async () => {
+  const storageEcon = await import('../shared/storageEconomics.js');
+  const { CROP_PROFILES } = await import('../shared/cropProfiles.js');
+  const baseSp = CROP_PROFILES.onion.storageParams; // reference 4 months, shrink 6%, rot 4%
+  const pNow = 15.5;
+  const pFuture = 22.0;
+
+  // Verify Profit.jsx imports and uses storageAtHorizon / evaluateStorageAtHorizon so slider duration scales losses
+  const profitSrc = fs.readFileSync(path.join(ROOT, 'src/components/Profit.jsx'), 'utf8');
+  assert.match(
+    profitSrc,
+    /storageAtHorizon|evaluateStorageAtHorizon/,
+    'Profit.jsx must scale storage parameters by selected duration via storageAtHorizon / evaluateStorageAtHorizon'
+  );
+
+  assert.equal(
+    typeof storageEcon.evaluateStorageAtHorizon,
+    'function',
+    'shared/storageEconomics.js must export evaluateStorageAtHorizon as single source of truth for slider duration evaluation'
+  );
+
+  const res1m = storageEcon.evaluateStorageAtHorizon(pNow, pFuture, baseSp, 1);
+  const res7m = storageEcon.evaluateStorageAtHorizon(pNow, pFuture, baseSp, 7);
+  const buggy7m = storageEcon.evaluateStorage(pNow, pFuture, { ...baseSp, months: 7 });
+
+  assert.equal(res1m.totalPhysicalLossPct, 2.5, 'Physical loss at 1 month must be 2.5%');
+  assert.equal(res7m.totalPhysicalLossPct, 16.4, 'Physical loss at 7 months must be 16.4%');
+
+  // Monotonically non-decreasing across months 1..7
+  let prevLoss = 0;
+  for (let m = 1; m <= 7; m += 0.5) {
+    const r = storageEcon.evaluateStorageAtHorizon(pNow, pFuture, baseSp, m);
+    assert.ok(
+      r.totalPhysicalLossPct >= prevLoss,
+      `Physical loss must be monotonically non-decreasing: month ${m} (${r.totalPhysicalLossPct}%) < previous (${prevLoss}%)`
+    );
+    prevLoss = r.totalPhysicalLossPct;
+  }
+
+  // Net proceeds at 7 months decrease by ~1.60 RUB/kg vs buggy unscaled evaluation (14.62 -> 13.02 RUB/kg)
+  const diffRubKg = +(buggy7m.netLaterPerKgStored - res7m.netLaterPerKgStored).toFixed(2);
+  assert.equal(+buggy7m.netLaterPerKgStored.toFixed(2), 14.62);
+  assert.equal(+res7m.netLaterPerKgStored.toFixed(2), 13.02);
+  assert.equal(diffRubKg, 1.60, '7-month net proceeds must be 1.60 RUB/kg lower than the buggy flat-loss output');
+});
+
+

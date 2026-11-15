@@ -345,3 +345,15 @@ export function storageAtHorizon(params, months, tierId = null) {
 
   return { ...params, tierId: tId, months, shrinkPct: scale(params.shrinkPct), rotPct: scale(params.rotPct), downgradeSharePct: scale(params.downgradeSharePct) };
 }
+
+/**
+ * Single source of truth for evaluating storage economics at a user-selected duration (`targetMonths`),
+ * compounding physical shrinkage, rot, and downgrade relative to `baseParams.referenceMonths ?? baseParams.months`.
+ */
+export function evaluateStorageAtHorizon(pNow, pFuture, baseParams, targetMonths = baseParams?.months, tierId = null) {
+  if (!baseParams) return { status: 'incomplete', missing: STORAGE_REQUIRED, invalid: [] };
+  const refMonths = Number(baseParams.referenceMonths ?? baseParams.months ?? 4);
+  const scaled = storageAtHorizon({ ...baseParams, referenceMonths: refMonths }, Number(targetMonths), tierId);
+  return evaluateStorage(pNow, pFuture, scaled);
+}
+
