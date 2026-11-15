@@ -7,7 +7,7 @@ on:
   workflow_dispatch: # Allows manual trigger from GitHub UI anytime
 
 permissions:
-  contents: write # needed to persist spot-history.json and press-review.json
+  contents: read
 
 jobs:
   send-briefing:
@@ -25,11 +25,15 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DATA_DIR: ${{ runner.temp }}/agro-digest-output
         run: node scripts/send_telegram_digest.mjs
 
-      - name: Persist daily data (spot history, press review)
-        run: |
-          git config user.name "agro-bot"
-          git config user.email "agro-bot@users.noreply.github.com"
-          git add data/spot-history.json data/press-review.json || true
-          git diff --cached --quiet || (git commit -m "chore: daily market data [skip ci]" && git push)
+      - name: Upload daily market digest artifacts (spot history & press review)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-market-digest-output
+          path: ${{ runner.temp }}/agro-digest-output/
+          if-no-files-found: ignore
+          retention-days: 30
+

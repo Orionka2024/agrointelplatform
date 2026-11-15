@@ -228,11 +228,23 @@ export async function runRefreshJob({
 
   try {
     // Sync remote durable storage if available (e.g. Vercel KV)
-    if (store.syncFromDurable) {
-      await store.syncFromDurable().catch((err) => {
-        console.warn('[refresh] Durable sync failed:', err.message);
+    await store.ensureInitialized({ forWrite: true });
+
+    const obsBefore = store.getObservations();
+    const obsCountBefore = obsBefore.length;
+    const obsHashBefore = hash32(obsBefore.map((o) => o.id).join(','));
+    const macroBefore = store.getMacroCache() || null;
+    const macroDigest = (m) =>
+      JSON.stringify({
+        usd: m?.usdRub?.value ?? null,
+        usdAsOf: m?.usdRub?.asOf ?? null,
+        kzt: m?.kztRub?.value ?? null,
+        kztAsOf: m?.kztRub?.asOf ?? null,
+        uzs: m?.uzsPer10k?.value ?? null,
+        cny: m?.cnyRub?.value ?? null,
+        kr: m?.keyRate?.value ?? null,
       });
-    }
+    const macroDigestBefore = macroDigest(macroBefore);
 
     // Default network fetchers (can be overridden in tests via customFetchers)
     const fetchers = customFetchers || {
@@ -291,6 +303,8 @@ export async function runRefreshJob({
       fetchers.news(NEWS_QUERIES),
     ]);
 
+    let macroChanged = false;
+
     // 2. Process CBR FX
     if (cbrRes.status === 'fulfilled') {
       const xml = cbrRes.value;
@@ -302,7 +316,7 @@ export async function runRefreshJob({
       const effectiveDate = dm ? `${dm[3]}-${dm[2]}-${dm[1]}` : today;
 
       const currentMacro = store.getMacroCache() || {};
-      const updatedMacro = {
+      const candidateMacro = {
         ...currentMacro,
         usdRub: usd
           ? {
@@ -310,7 +324,7 @@ export async function runRefreshJob({
               nominal: usd.nominal,
               rawValue: usd.rawValue,
               asOf: effectiveDate,
-              fetchedAt: nowIso,
+              fetchedAt: currentMacro.usdRub?.fetchedAt || nowIso,
               source: 'cbr.ru (R01235)',
               origin: 'live_refresh',
             }
@@ -322,7 +336,7 @@ export async function runRefreshJob({
               rawValue: kzt.rawValue,
               asOf: effectiveDate,
               effectiveDate,
-              fetchedAt: nowIso,
+              fetchedAt: currentMacro.kztRub?.fetchedAt || nowIso,
               source: `cbr.ru R01335 (100 ₸ = ${kzt.rawValue} ₽)`,
               origin: 'live_refresh',
             }
@@ -331,7 +345,7 @@ export async function runRefreshJob({
           ? {
               value: +(uzs.perUnit * 10000).toFixed(2),
               asOf: effectiveDate,
-              fetchedAt: nowIso,
+              fetchedAt: currentMacro.uzsPer10k?.fetchedAt || nowIso,
               source: 'cbr.ru (R01717)',
               origin: 'live_refresh',
             }
@@ -340,7 +354,7 @@ export async function runRefreshJob({
           ? {
               value: +cny.perUnit.toFixed(2),
               asOf: effectiveDate,
-              fetchedAt: nowIso,
+              fetchedAt: currentMacro.cnyRub?.fetchedAt || nowIso,
               source: 'cbr.ru (R01375)',
               origin: 'live_refresh',
             }
@@ -353,7 +367,15 @@ export async function runRefreshJob({
         },
       };
 
-      store.saveMacroCache(updatedMacro);
+      if (macroDigest(candidateMacro) !== macroDigestBefore) {
+        if (candidateMacro.usdRub && usd) candidateMacro.usdRub.fetchedAt = nowIso;
+        if (candidateMacro.kztRub && kzt) candidateMacro.kztRub.fetchedAt = nowIso;
+        if (candidateMacro.uzsPer10k && uzs) candidateMacro.uzsPer10k.fetchedAt = nowIso;
+        if (candidateMacro.cnyRub && cny) candidateMacro.cnyRub.fetchedAt = nowIso;
+        store.saveMacroCache(candidateMacro);
+        macroChanged = true;
+      }
+
       sourceReports.cbr_fx = {
         sourceId: 'cbr_fx',
         name: 'Банк России (ЦБ РФ) — R01335 (KZT) и R01235 (USD)',
@@ -367,7 +389,7 @@ export async function runRefreshJob({
       };
     } else {
       const msg = `CBR FX fetch failed: ${cbrRes.reason?.message}`;
-      errors.push({ source: 'cbr_fx', error: msg });
+      errors.push({ step: 'cbr_fx', source: 'cbr_fx', error: msg });
       sourceReports.cbr_fx = {
         sourceId: 'cbr_fx',
         name: 'Банк России (ЦБ РФ)',
@@ -391,7 +413,7 @@ export async function runRefreshJob({
         hubsScanned: Array.isArray(weatherRes.value) ? weatherRes.value.length : 4,
       };
     } else {
-      errors.push({ source: 'open_meteo', error: weatherRes.reason?.message });
+      errors.push({ step: 'open_meteo', source: 'open_meteo', error: weatherRes.reason?.message });
       sourceReports.open_meteo = {
         sourceId: 'open_meteo',
         name: 'Open-Meteo Weather API',
@@ -464,7 +486,7 @@ export async function runRefreshJob({
         medianExVat: parsed.medianExVat,
       };
     } else {
-      errors.push({ source: 'agroru_vlg', error: agroRuRes.reason?.message });
+      errors.push({ step: 'agroru_vlg', source: 'agroru_vlg', error: agroRuRes.reason?.message });
       sourceReports.agroru_vlg = {
         sourceId: 'agroru_vlg',
         name: 'AgroRU.com · Доска объявлений',
@@ -489,6 +511,7 @@ export async function runRefreshJob({
         quotedPrice: fsParsed?.price,
       };
     } else {
+      errors.push({ step: 'foodstar_msk', source: 'foodstar_msk', error: foodStarRes.reason?.message });
       sourceReports.foodstar_msk = {
         sourceId: 'foodstar_msk',
         name: 'Food Star Москва',
@@ -513,6 +536,7 @@ export async function runRefreshJob({
         statusLabel: isCaptcha ? 'CAPTCHA БАРЬЕР' : 'АКТУАЛЕН',
       };
     } else {
+      errors.push({ step: 'agroserver_vlg', source: 'agroserver_vlg', error: agroServerRes.reason?.message });
       sourceReports.agroserver_vlg = {
         sourceId: 'agroserver_vlg',
         name: 'Агросервер · Волгоградская область',
@@ -524,8 +548,10 @@ export async function runRefreshJob({
     }
 
     // Append newly parsed marketplace indicative offers into store (preserves idempotency via ID deduplication)
+    let addedIndicativeCount = 0;
     if (newIndicativeObservations.length > 0) {
-      store.appendObservations(newIndicativeObservations);
+      const appendRes = store.appendObservations(newIndicativeObservations);
+      addedIndicativeCount = appendRes?.added ?? 0;
     }
 
     // 7. Process Google News
@@ -544,14 +570,18 @@ export async function runRefreshJob({
         statusLabel: `АКТУАЛЕН (${newsItems.length} СТАТЕЙ)`,
         detectedSignals: Object.keys(detected),
       };
+    } else if (newsRes.status === 'rejected') {
+      errors.push({ step: 'news_export', source: 'news_export', error: newsRes.reason?.message });
     }
 
-    // 8. Official Rosstat Monthly Producer Forecast check
+    // 8. Official Rosstat Monthly Producer Forecast check (persisted via store.saveOfficialForecast)
     const currentHistPoints = officialHistory.producer.monthly.filter(
       (r) => r.availableDate <= today && r.period <= today.slice(0, 7)
     );
     const latestOfficialPeriod = currentHistPoints.at(-1)?.period || '2026-09';
-    const currentFcCutoff = officialForecast?.inputCutoff;
+    const storedOfficialFc = store.getOfficialForecast() || officialForecast;
+    const currentFcCutoff = storedOfficialFc?.inputCutoff;
+    let officialForecastReissued = false;
 
     if (latestOfficialPeriod > currentFcCutoff) {
       try {
@@ -559,16 +589,19 @@ export async function runRefreshJob({
           issueDate: today,
           drivers: officialDrivers,
         });
+        store.saveOfficialForecast(newOfficialFc);
+        officialForecastReissued = true;
         forecastReports.official_monthly = {
           target: 'РФ · лук · цена сельхозпроизводителей',
           reissued: true,
+          persistedToStore: true,
           reason: 'NEW_OFFICIAL_MONTH_AVAILABLE',
-          message: `Опубликован новый отчёт Росстата за ${latestOfficialPeriod}. Официальный прогноз пересчитан.`,
+          message: `Опубликован новый отчёт Росстата за ${latestOfficialPeriod}. Официальный прогноз пересчитан и сохранён в хранилище.`,
           newForecastId: newOfficialFc.id,
           inputCutoff: latestOfficialPeriod,
         };
       } catch (err) {
-        errors.push({ source: 'official_monthly_forecast', error: err.message });
+        errors.push({ step: 'official_monthly_forecast', source: 'official_monthly_forecast', error: err.message });
         forecastReports.official_monthly = {
           target: 'РФ · лук · цена сельхозпроизводителей',
           reissued: false,
@@ -581,6 +614,7 @@ export async function runRefreshJob({
       forecastReports.official_monthly = {
         target: 'РФ · лук · цена сельхозпроизводителей',
         reissued: false,
+        persistedToStore: Boolean(store.getOfficialForecast()),
         reason: 'OFFICIAL_DATA_UNCHANGED',
         message: `Новых помесячных публикаций Росстата нет (текущий срез: ${latestOfficialPeriod}). Официальный прогноз сохранён.`,
         inputCutoff: currentFcCutoff,
@@ -594,11 +628,14 @@ export async function runRefreshJob({
       fetchedAt: nowIso,
       status: 'ok',
       statusLabel: 'АКТУАЛЕН (ГОССТАТИСТИКА)',
+      offlinePipelineNote:
+        'Загрузка XLSX Росстата и пересборка модели выполняются оффлайн-скриптами (scripts/fetch_rosstat.mjs + scripts/build_official_forecast.mjs) через ежемесячный GitHub Action PR, а не внутри 10-сек. serverless-функции.',
     };
 
     // 9. Local Weekly Forecasts Evaluation (Warehouse & Moscow)
     const existingForecasts = store.getForecasts();
     const currentObs = store.getObservations();
+    let localForecastReissued = false;
 
     for (const basis of ['warehouse', 'moscow']) {
       const evalResult = evaluateWeeklyForecastReissue(basis, {
@@ -616,6 +653,7 @@ export async function runRefreshJob({
             now: nowIso,
           });
           store.saveForecast(newFc);
+          localForecastReissued = true;
           forecastReports[basis] = {
             basis,
             reissued: true,
@@ -625,7 +663,7 @@ export async function runRefreshJob({
             inputCutoff: newFc.inputCutoff,
           };
         } catch (err) {
-          errors.push({ source: `forecast_${basis}`, error: err.message });
+          errors.push({ step: `forecast_${basis}`, source: `forecast_${basis}`, error: err.message });
           forecastReports[basis] = {
             basis,
             reissued: false,
@@ -646,17 +684,64 @@ export async function runRefreshJob({
       }
     }
 
+    const obsAfter = store.getObservations();
+    const forecastsAfter = store.getForecasts();
+    const officialFcAfter = store.getOfficialForecast() || officialForecast;
+    const macroAfter = store.getMacroCache() || null;
+
+    const changed =
+      addedIndicativeCount > 0 ||
+      obsAfter.length !== obsCountBefore ||
+      macroChanged ||
+      officialForecastReissued ||
+      localForecastReissued;
+
     const durationMs = Date.now() - startTimeMs;
+    const summary = {
+      changed,
+      addedObservations: addedIndicativeCount,
+      macroChanged,
+      officialForecastReissued,
+      localForecastReissued,
+      rowCounts: {
+        observations: obsAfter.length,
+        verifiedTransactions: obsAfter.filter((o) => o.kind === 'transaction' && isVerified(o)).length,
+        indicativeOffers: obsAfter.filter((o) => o.kind === 'indicative_offer').length,
+        localForecasts: forecastsAfter.length,
+        officialMonthlyHorizons: officialFcAfter?.rows?.length ?? 0,
+      },
+      hashes: {
+        observationsBefore: obsHashBefore,
+        observationsAfter: hash32(obsAfter.map((o) => o.id).join(',')),
+        macroAfter: hash32(macroDigest(macroAfter)),
+        forecastsAfter: hash32(forecastsAfter.map((f) => f.id).join(',')),
+        officialForecastAfter: hash32(`${officialFcAfter?.id || ''}:${officialFcAfter?.inputCutoff || ''}`),
+      },
+      durationMs,
+      errors,
+    };
+
+    const rosstatOfflinePipeline = {
+      mode: 'offline_script_and_monthly_pr',
+      scripts: ['scripts/fetch_rosstat.mjs', 'scripts/build_official_forecast.mjs'],
+      workflow: '.github/workflows/update_official_data.yml',
+      reason:
+        'Rosstat XLS/XLSX downloads and full walk-forward backtest rebuild run in an offline monthly GitHub Action that opens a pull request, never inside a 10 s serverless invocation.',
+    };
+
     const finalReport = {
-      lastSuccessfulRefresh: new Date().toISOString(),
+      lastSuccessfulRefresh: errors.length === 0 ? new Date().toISOString() : null,
       startedAt,
       durationMs,
-      status: errors.length === 0 ? 'success' : 'partial',
+      status: errors.length === 0 ? 'success' : 'failed',
+      failedStep: errors.length > 0 ? errors[0].step || errors[0].source : null,
       trigger,
       storage: {
         durable: store.isDurable(),
         backend: store.getBackendType(),
       },
+      rosstatOfflinePipeline,
+      summary,
       sources: sourceReports,
       forecasts: forecastReports,
       errors,
@@ -666,16 +751,25 @@ export async function runRefreshJob({
     return finalReport;
   } catch (fatalErr) {
     console.error('[refresh] Fatal error during refresh job:', fatalErr);
-    errors.push({ source: 'global', error: fatalErr.message });
+    errors.push({ step: 'global', source: 'global', error: fatalErr.message });
+    const durationMs = Date.now() - startTimeMs;
     const failedReport = {
       lastSuccessfulRefresh: null,
       startedAt,
-      durationMs: Date.now() - startTimeMs,
+      durationMs,
       status: 'failed',
+      failedStep: errors[0]?.step || 'global',
       trigger,
       storage: {
         durable: store.isDurable(),
         backend: store.getBackendType(),
+      },
+      summary: {
+        changed: false,
+        rowCounts: {},
+        hashes: {},
+        durationMs,
+        errors,
       },
       sources: sourceReports,
       forecasts: forecastReports,
@@ -683,9 +777,12 @@ export async function runRefreshJob({
     };
     try {
       store.saveRefreshStatus(failedReport);
-    } catch {}
+    } catch {
+      /* ignore */
+    }
     return failedReport;
   } finally {
     store.releaseRefreshLock();
   }
 }
+

@@ -1,0 +1,54 @@
+name: Monthly Official Rosstat & CBR Data Update
+
+on:
+  schedule:
+    # Run on the 15th of each month at 06:00 UTC after Rosstat monthly producer price publication
+    - cron: '0 6 15 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-official-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch latest Rosstat, CBR, and ERA5 data and rebuild official forecast
+        run: |
+          node scripts/fetch_rosstat.mjs
+          node scripts/fetch_macro_weather.mjs
+          node scripts/build_official_forecast.mjs
+          npm test
+
+      - name: Open Pull Request with updated official data (never push directly to main)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git diff --quiet data/; then
+            echo "No new official Rosstat/CBR data changes detected."
+            exit 0
+          fi
+          BRANCH="chore/official-data-$(date -u +%Y-%m-%d)"
+          git config user.name "agro-data-bot"
+          git config user.email "agro-data-bot@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add data/
+          git commit -m "data: monthly Rosstat/CBR/ERA5 refresh and official forecast rebuild"
+          git push -u origin "$BRANCH" --force
+          gh pr create \
+            --title "data: monthly Rosstat/CBR/ERA5 refresh ($(date -u +%Y-%m))" \
+            --body "Automated monthly offline run of \`scripts/fetch_rosstat.mjs\`, \`scripts/fetch_macro_weather.mjs\`, and \`scripts/build_official_forecast.mjs\` with verified SHA-256 hashes and passing test suite." \
+            --base main \
+            --head "$BRANCH" || true

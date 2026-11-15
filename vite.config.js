@@ -7,6 +7,7 @@ import importHandler from './api/import.js';
 import forecastHandler from './api/forecast.js';
 import assumptionsHandler from './api/assumptions.js';
 import signalsHandler from './api/signals.js';
+import refreshHandler from './api/refresh.js';
 
 function apiDevServerPlugin() {
   const routes = {
@@ -17,6 +18,7 @@ function apiDevServerPlugin() {
     '/api/forecast': forecastHandler,
     '/api/assumptions': assumptionsHandler,
     '/api/signals': signalsHandler,
+    '/api/refresh': refreshHandler,
   };
 
   return {

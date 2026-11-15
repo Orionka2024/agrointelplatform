@@ -4,36 +4,34 @@ import { runRefreshJob, buildInitialRefreshStatus } from '../server/refreshJob.j
 import { todayISO } from '../shared/dates.js';
 
 function isAuthorized(req) {
-  // Test bypass in local unit tests
+  if (process.env.AGRO_ALLOW_ANON_WRITES === 'true') {
+    return true;
+  }
   if (process.env.AGRO_TEST === '1' && req.headers?.['x-bypass-auth'] === '1') {
     return true;
   }
 
-  const cronSecret = process.env.CRON_SECRET || process.env.AGRO_REFRESH_TOKEN || process.env.AGRO_API_TOKEN;
+  const cronSecret = (process.env.CRON_SECRET || process.env.AGRO_REFRESH_TOKEN || '').trim();
   if (!cronSecret) {
-    // If running in production on Vercel without secret configured, reject
-    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-      return false;
-    }
-    // Allow local dev if no secret configured
-    return true;
+    return false;
   }
 
-  const authHeader = req.headers?.authorization || '';
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-  if (token && token.length === cronSecret.length) {
+  const authHeader = req.headers?.authorization || req.headers?.Authorization || '';
+  const token = String(authHeader).replace(/^Bearer\s+/i, '').trim();
+  if (!token) {
+    return false;
+  }
+
+  const a = Buffer.from(token, 'utf8');
+  const b = Buffer.from(cronSecret, 'utf8');
+  if (a.length === b.length) {
     try {
-      if (timingSafeEqual(Buffer.from(token), Buffer.from(cronSecret))) {
+      if (timingSafeEqual(a, b)) {
         return true;
       }
     } catch {
-      // ignore
+      return false;
     }
-  }
-
-  // Vercel Cron header check when CRON_SECRET is configured
-  if (req.headers?.['x-vercel-cron'] && token && token === cronSecret) {
-    return true;
   }
 
   return false;
@@ -74,13 +72,23 @@ export default async function handler(req, res) {
   }
 
   try {
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch {
+        body = {};
+      }
+    }
+    const customFetchers =
+      body?.customFetchers && typeof body.customFetchers === 'object' ? body.customFetchers : null;
     const trigger = isCronInvocation ? 'vercel_cron' : 'api_request';
-    const report = await runRefreshJob({ today, trigger, force });
+    const report = await runRefreshJob({ today, trigger, force, customFetchers });
 
     if (report.status === 'conflict') {
       return res.status(409).json(report);
     }
-    if (report.status === 'failed') {
+    if (report.status === 'failed' || (Array.isArray(report.errors) && report.errors.length > 0)) {
       return res.status(500).json(report);
     }
 
@@ -88,7 +96,9 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('[api/refresh] Execution error:', err);
     return res.status(500).json({
+      status: 'failed',
       error: 'REFRESH_JOB_FAILED',
+      failedStep: err.step || 'execution',
       message: err.message,
     });
   }

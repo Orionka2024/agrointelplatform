@@ -9,6 +9,7 @@
  */
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -22,6 +23,14 @@ import { fetchPressReview } from '../shared/pressReview.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
+const trackedDataDir = path.join(rootDir, 'data');
+const runtimeDataDir =
+  process.env.DATA_DIR && path.resolve(process.env.DATA_DIR) !== trackedDataDir
+    ? path.resolve(process.env.DATA_DIR)
+    : path.join(os.tmpdir(), 'agro-telegram-digest');
+fs.mkdirSync(runtimeDataDir, { recursive: true });
+
+const IS_DRY_RUN = process.argv.includes('--dry-run') || process.env.AGRO_DIGEST_DRY_RUN === '1';
 
 // Load .env.local if present
 const envLocalPath = path.join(rootDir, '.env.local');
@@ -44,7 +53,7 @@ if (fs.existsSync(envLocalPath)) {
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-if (!BOT_TOKEN || !CHAT_ID) {
+if (!IS_DRY_RUN && (!BOT_TOKEN || !CHAT_ID)) {
   console.error('❌ ERROR: Missing Telegram credentials!');
   if (!BOT_TOKEN) console.error('  -> TELEGRAM_BOT_TOKEN is missing or empty.');
   if (!CHAT_ID) console.error('  -> TELEGRAM_CHAT_ID is missing or empty.');
@@ -112,31 +121,38 @@ async function collectLiveFactors() {
   const lats = WEATHER_HUBS_META.map((h) => h.lat).join(',');
   const lngs = WEATHER_HUBS_META.map((h) => h.lng).join(',');
 
-  const tasks = await Promise.allSettled([
-    // 0: CBR daily FX
-    fetch('https://www.cbr.ru/scripts/XML_daily.asp', {
-      headers: { Accept: 'application/xml' },
-      signal: AbortSignal.timeout(5000),
-    }).then((r) => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`)))),
+  const tasks = IS_DRY_RUN
+    ? [
+        { status: 'fulfilled', value: '<ValCurs Date="13.11.2026"><Valute ID="R01335"><Nominal>100</Nominal><Value>18,6573</Value></Valute><Valute ID="R01235"><Nominal>1</Nominal><Value>97,8000</Value></Valute></ValCurs>' },
+        { status: 'fulfilled', value: [] },
+        { status: 'fulfilled', value: '<div class="tovar-list__card"><a class="tovar-list__card-link" href="/doska/1">Лук репчатый желтый 1 сорт 5+</a><div class="tovar-list__card-price">16.0 ₽ / кг</div><div class="tovar-list__card-desc">Сухой склад, сетка 25 кг, без НДС, Городище</div><a class="tovar-list__seller-name">КФХ</a><div class="tovar-list__card-meta">Волгоград · 13 ноября 2026</div></div>' },
+        { status: 'fulfilled', value: 'Лук репчатый цена 28.5 ₽ актуальна на 13.11.2026' },
+      ]
+    : await Promise.allSettled([
+        // 0: CBR daily FX
+        fetch('https://www.cbr.ru/scripts/XML_daily.asp', {
+          headers: { Accept: 'application/xml' },
+          signal: AbortSignal.timeout(5000),
+        }).then((r) => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`)))),
 
-    // 1: Open-Meteo weather
-    fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lngs}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=Europe/Moscow&forecast_days=10`,
-      { signal: AbortSignal.timeout(5000) }
-    ).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))),
+        // 1: Open-Meteo weather
+        fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lngs}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=Europe/Moscow&forecast_days=10`,
+          { signal: AbortSignal.timeout(5000) }
+        ).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))),
 
-    // 2: AgroRU Volgograd live
-    fetch('https://agroru.com/doska/luk/rg-243620-p1.htm', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AgroIntel/1.0)', Accept: 'text/html' },
-      signal: AbortSignal.timeout(4500),
-    }).then((r) => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`)))),
+        // 2: AgroRU Volgograd live
+        fetch('https://agroru.com/doska/luk/rg-243620-p1.htm', {
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AgroIntel/1.0)', Accept: 'text/html' },
+          signal: AbortSignal.timeout(4500),
+        }).then((r) => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`)))),
 
-    // 3: Food Star Moscow live
-    fetch('https://www.food-star.ru/tovar/luk-repchatyy/', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AgroIntel/1.0)', Accept: 'text/html' },
-      signal: AbortSignal.timeout(4500),
-    }).then((r) => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`)))),
-  ]);
+        // 3: Food Star Moscow live
+        fetch('https://www.food-star.ru/tovar/luk-repchatyy/', {
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AgroIntel/1.0)', Accept: 'text/html' },
+          signal: AbortSignal.timeout(4500),
+        }).then((r) => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`)))),
+      ]);
 
   // Process CBR FX
   if (tasks[0].status === 'fulfilled') {
@@ -223,16 +239,19 @@ async function collectLiveFactors() {
   }
   const external = evaluateExternalFactors(events, todayIso);
 
-  // Volgograd spot history: record today's live value (only if live data was parsed) and compute trend
+  // Volgograd spot history: read seed from tracked data/spot-history.json if runtime file absent,
+  // but write ONLY to runtimeDataDir/spot-history.json so tracked git files are never mutated.
   let spotTrend = null;
   try {
     const liveVlg = spotChannels.find((c) => c.id === 'agroru_vlg');
-    const histPath = path.join(rootDir, 'data/spot-history.json');
-    const history = fs.existsSync(histPath) ? JSON.parse(fs.readFileSync(histPath, 'utf8')) : [];
+    const seedHistPath = path.join(rootDir, 'data/spot-history.json');
+    const outHistPath = path.join(runtimeDataDir, 'spot-history.json');
+    const sourceHistPath = fs.existsSync(outHistPath) ? outHistPath : seedHistPath;
+    const history = fs.existsSync(sourceHistPath) ? JSON.parse(fs.readFileSync(sourceHistPath, 'utf8')) : [];
     const liveParsed = tasks[2].status === 'fulfilled' && Number.isFinite(liveVlg?.priceExVat);
     if (liveParsed && !history.some((h) => h.date === todayIso)) {
       history.push({ date: todayIso, value: liveVlg.priceExVat });
-      fs.writeFileSync(histPath, JSON.stringify(history.slice(-120), null, 2));
+      fs.writeFileSync(outHistPath, JSON.stringify(history.slice(-120), null, 2));
     }
     spotTrend = computeSpotTrend(history);
   } catch (err) {
@@ -474,8 +493,10 @@ async function main() {
   console.log('2. Collecting press review...');
   let review = null;
   try {
-    review = await fetchPressReview();
-    fs.writeFileSync(path.join(rootDir, 'data/press-review.json'), JSON.stringify(review, null, 2));
+    review = IS_DRY_RUN
+      ? { asOf: data.today, count: 0, feedErrors: 0, feedsTotal: 0, groups: [] }
+      : await fetchPressReview();
+    fs.writeFileSync(path.join(runtimeDataDir, 'press-review.json'), JSON.stringify(review, null, 2));
     console.log(`   press review: ${review.count} items, feed errors ${review.feedErrors}/${review.feedsTotal}`);
   } catch (err) {
     console.warn('Press review failed:', err.message);
@@ -483,6 +504,11 @@ async function main() {
 
   console.log('3. Formatting Telegram briefing...');
   const messageHtml = buildTelegramHtml(data);
+
+  if (IS_DRY_RUN) {
+    console.log('4. Dry-run mode enabled: skipping Telegram API call. Output written to:', runtimeDataDir);
+    return;
+  }
 
   console.log('4. Sending to Telegram chat:', CHAT_ID);
   for (const part of splitForTelegram(messageHtml)) {

@@ -669,6 +669,7 @@ test('P0-7 (F-04): Intervals with null bounds are never invented or plotted and 
 });
 
 test('P0-8 (F-10): Write endpoints require auth by default (401 without token, 401 with wrong token, 200 with valid token, 200 without token only when AGRO_ALLOW_ANON_WRITES=true)', async () => {
+  const os = await import('node:os');
   const importHandler = (await import('../api/import.js')).default;
   const assumptionsHandler = (await import('../api/assumptions.js')).default;
   const forecastHandler = (await import('../api/forecast.js')).default;
@@ -679,8 +680,12 @@ test('P0-8 (F-10): Write endpoints require auth by default (401 without token, 4
   const origAllowAnon = process.env.AGRO_ALLOW_ANON_WRITES;
   const origRequireAuth = process.env.AGRO_REQUIRE_AUTH;
   const origApiToken = process.env.AGRO_API_TOKEN;
+  const origDataDir = process.env.DATA_DIR;
+  const tmpDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agro-p08-'));
 
   try {
+    process.env.DATA_DIR = tmpDataDir;
+    store.resetForTests();
     delete process.env.AGRO_ALLOW_ANON_WRITES;
     delete process.env.AGRO_REQUIRE_AUTH;
     process.env.AGRO_API_TOKEN = 'secret-farmer-write-token-2026';
@@ -786,6 +791,176 @@ test('P0-8 (F-10): Write endpoints require auth by default (401 without token, 4
     else process.env.AGRO_REQUIRE_AUTH = origRequireAuth;
     if (origApiToken === undefined) delete process.env.AGRO_API_TOKEN;
     else process.env.AGRO_API_TOKEN = origApiToken;
+    if (origDataDir === undefined) delete process.env.DATA_DIR;
+    else process.env.DATA_DIR = origDataDir;
+    store.resetForTests();
+    fs.rmSync(tmpDataDir, { recursive: true, force: true });
   }
 });
 
+test('P0-9 (F-07, F-09, F-15): Cron and refresh job registration, strict CRON_SECRET auth, idempotency, step failure 500, and clean git status in send_telegram_digest.mjs', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const os = await import('node:os');
+  const refreshHandler = (await import('../api/refresh.js')).default;
+  const { runRefreshJob } = await import('../server/refreshJob.js');
+
+  // a) /api/refresh must be registered in vite.config.js
+  const viteConfigSrc = fs.readFileSync(path.join(ROOT, 'vite.config.js'), 'utf8');
+  assert.match(viteConfigSrc, /['"]\/api\/refresh['"]\s*:/, 'vite.config.js must register /api/refresh');
+
+  // b) /api/refresh returns 401 without CRON_SECRET (even when CRON_SECRET env is unset outside Vercel), and 200 with it
+  const origCronSecret = process.env.CRON_SECRET;
+  const origRefreshToken = process.env.AGRO_REFRESH_TOKEN;
+  const origApiToken = process.env.AGRO_API_TOKEN;
+  const origAllowAnon = process.env.AGRO_ALLOW_ANON_WRITES;
+  const origDataDir = process.env.DATA_DIR;
+  const tmpDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agro-p09-'));
+
+  try {
+    process.env.DATA_DIR = tmpDataDir;
+    store.resetForTests();
+    delete process.env.CRON_SECRET;
+    delete process.env.AGRO_REFRESH_TOKEN;
+    delete process.env.AGRO_API_TOKEN;
+    delete process.env.AGRO_ALLOW_ANON_WRITES;
+
+    const noSecretReq = mockReqRes({ method: 'POST', url: '/api/refresh?today=2026-11-13', headers: {} });
+    await refreshHandler(noSecretReq.req, noSecretReq.res);
+    assert.equal(
+      noSecretReq.res.statusCode,
+      401,
+      'POST /api/refresh must return 401 when CRON_SECRET is unset and AGRO_ALLOW_ANON_WRITES is not true'
+    );
+
+    process.env.CRON_SECRET = 'cron-secret-phase0-9';
+    const missingHeaderReq = mockReqRes({ method: 'POST', url: '/api/refresh?today=2026-11-13', headers: {} });
+    await refreshHandler(missingHeaderReq.req, missingHeaderReq.res);
+    assert.equal(missingHeaderReq.res.statusCode, 401, 'POST /api/refresh must return 401 without Authorization header');
+
+    const customFetchers = {
+      cbr: async () =>
+        `<ValCurs Date="13.11.2026"><Valute ID="R01335"><Nominal>100</Nominal><Value>18,6573</Value></Valute><Valute ID="R01235"><Nominal>1</Nominal><Value>97,8000</Value></Valute></ValCurs>`,
+      weather: async () => [{ daily: { temperature_2m_max: [10], temperature_2m_min: [2], precipitation_sum: [0] } }],
+      agroRu: async () => `
+        <div class="tovar-list__card">
+          <a class="tovar-list__card-link" href="/doska/901">Лук репчатый желтый 1 сорт 5+</a>
+          <div class="tovar-list__card-price">16.2 ₽ / кг</div>
+          <div class="tovar-list__card-desc">Сухой склад, сетка 25 кг, без НДС, Городище</div>
+          <a class="tovar-list__seller-name">КФХ Волга</a>
+          <div class="tovar-list__card-meta">Волгоград · 13 ноября 2026</div>
+        </div>
+      `,
+      foodStar: async () => `<html>Лук репчатый цена 28.5 ₽ актуальна на 13.11.2026</html>`,
+      agroServer: async () => `<html>Объявления лук Волгоград 16.0 руб/кг</html>`,
+      news: async () => [],
+    };
+
+    const authedReq = mockReqRes({
+      method: 'POST',
+      url: '/api/refresh?today=2026-11-13&force=1',
+      headers: { authorization: 'Bearer cron-secret-phase0-9' },
+      body: { customFetchers },
+    });
+    await refreshHandler(authedReq.req, authedReq.res);
+    assert.equal(authedReq.res.statusCode, 200, 'POST /api/refresh must return 200 with valid Bearer $CRON_SECRET');
+    assert.ok(authedReq.res.data.summary, 'Refresh response must include structured summary');
+    assert.equal(typeof authedReq.res.data.summary.changed, 'boolean');
+    assert.ok(authedReq.res.data.summary.rowCounts, 'Structured summary must include rowCounts');
+    assert.ok(authedReq.res.data.summary.hashes, 'Structured summary must include hashes');
+    assert.equal(typeof authedReq.res.data.durationMs, 'number');
+    assert.ok(
+      authedReq.res.data.rosstatOfflinePipeline &&
+        authedReq.res.data.rosstatOfflinePipeline.mode === 'offline_script_and_monthly_pr',
+      'Refresh response must document that Rosstat XLS download is an offline script step (scripts/fetch_rosstat.mjs + scripts/build_official_forecast.mjs)'
+    );
+
+    // c & d) Running twice with the same inputs is idempotent: identical stored state and changed: false on second run
+    const stateAfterFirst = {
+      obs: store.getObservations(),
+      macro: store.getMacroCache(),
+      forecasts: store.getForecasts(),
+      officialFc: store.getOfficialForecast(),
+    };
+
+    const secondRun = await runRefreshJob({
+      today: '2026-11-13',
+      trigger: 'idempotency_test',
+      force: true,
+      customFetchers,
+    });
+    assert.equal(secondRun.summary.changed, false, 'Running refresh twice with identical inputs must report changed: false');
+    assert.deepEqual(store.getObservations(), stateAfterFirst.obs, 'Observations state must be identical after second run');
+    assert.deepEqual(store.getMacroCache(), stateAfterFirst.macro, 'Macro cache must be identical after second run');
+    assert.deepEqual(store.getForecasts(), stateAfterFirst.forecasts, 'Forecasts must be identical after second run');
+
+    // e) Forced error in a step returns HTTP 500 (non-200) and logs the failing step in the body
+    const failingFetchers = {
+      ...customFetchers,
+      cbr: async () => {
+        throw new Error('Simulated CBR XML timeout');
+      },
+    };
+    const failReq = mockReqRes({
+      method: 'POST',
+      url: '/api/refresh?today=2026-11-13&force=1',
+      headers: { authorization: 'Bearer cron-secret-phase0-9' },
+      body: { customFetchers: failingFetchers },
+    });
+    await refreshHandler(failReq.req, failReq.res);
+    assert.equal(failReq.res.statusCode, 500, 'Step failure in /api/refresh must return HTTP 500');
+    assert.equal(failReq.res.data.status, 'failed');
+    assert.ok(
+      failReq.res.data.failedStep === 'cbr_fx' ||
+        failReq.res.data.errors?.some((e) => e.source === 'cbr_fx' || e.step === 'cbr_fx'),
+      'Error body must identify the failing step (cbr_fx)'
+    );
+
+    // f) Verify workflows and that send_telegram_digest.mjs does not dirty tracked files in git status
+    const dailyWf = fs.readFileSync(path.join(ROOT, '.github/workflows/daily_briefing.yml'), 'utf8');
+    assert.ok(
+      !/git commit|git push/i.test(dailyWf),
+      'daily_briefing.yml must not commit or push to main from CI'
+    );
+    assert.ok(
+      fs.existsSync(path.join(ROOT, '.github/workflows/update_official_data.yml')),
+      '.github/workflows/update_official_data.yml must exist to run Rosstat update scripts on a monthly schedule and open a PR'
+    );
+
+    const tmpDigestDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agro-digest-test-'));
+    try {
+      const spotHistBefore = fs.readFileSync(path.join(ROOT, 'data/spot-history.json'), 'utf8');
+      const pressRevBefore = fs.readFileSync(path.join(ROOT, 'data/press-review.json'), 'utf8');
+      const runDigest = spawnSync(process.execPath, ['scripts/send_telegram_digest.mjs', '--dry-run'], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          DATA_DIR: tmpDigestDir,
+          AGRO_DIGEST_DRY_RUN: '1',
+          TELEGRAM_BOT_TOKEN: 'dry-run-token',
+          TELEGRAM_CHAT_ID: 'dry-run-chat',
+        },
+      });
+      assert.equal(runDigest.status, 0, `send_telegram_digest.mjs --dry-run must exit 0: ${runDigest.stderr}`);
+      const spotHistAfter = fs.readFileSync(path.join(ROOT, 'data/spot-history.json'), 'utf8');
+      const pressRevAfter = fs.readFileSync(path.join(ROOT, 'data/press-review.json'), 'utf8');
+      assert.equal(spotHistAfter, spotHistBefore, 'send_telegram_digest.mjs must not mutate tracked data/spot-history.json');
+      assert.equal(pressRevAfter, pressRevBefore, 'send_telegram_digest.mjs must not mutate tracked data/press-review.json');
+    } finally {
+      fs.rmSync(tmpDigestDir, { recursive: true, force: true });
+    }
+  } finally {
+    if (origCronSecret === undefined) delete process.env.CRON_SECRET;
+    else process.env.CRON_SECRET = origCronSecret;
+    if (origRefreshToken === undefined) delete process.env.AGRO_REFRESH_TOKEN;
+    else process.env.AGRO_REFRESH_TOKEN = origRefreshToken;
+    if (origApiToken === undefined) delete process.env.AGRO_API_TOKEN;
+    else process.env.AGRO_API_TOKEN = origApiToken;
+    if (origAllowAnon === undefined) delete process.env.AGRO_ALLOW_ANON_WRITES;
+    else process.env.AGRO_ALLOW_ANON_WRITES = origAllowAnon;
+    if (origDataDir === undefined) delete process.env.DATA_DIR;
+    else process.env.DATA_DIR = origDataDir;
+    store.resetForTests();
+    fs.rmSync(tmpDataDir, { recursive: true, force: true });
+  }
+});
