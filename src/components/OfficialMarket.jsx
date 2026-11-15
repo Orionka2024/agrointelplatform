@@ -7,7 +7,12 @@ import {
   officialDrivers as drivers,
   computeForecastFreshness,
 } from '../../shared/officialData.js';
-import { MONTHLY_MODELS, monthNumber, evaluateHorizonConfidence } from '../../shared/officialForecast.js';
+import {
+  MONTHLY_MODELS,
+  monthNumber,
+  evaluateHorizonConfidence,
+  resolveProductForecastRow,
+} from '../../shared/officialForecast.js';
 import { localBasis, applyBasis } from '../../shared/localBasis.js';
 import { resolveSelectedHorizonMetrics, INTERVAL_UNAVAILABLE_MESSAGE } from '../../shared/weeklyDecisionPlan.js';
 import { useMarket } from '../context/useMarket';
@@ -33,6 +38,7 @@ export default function OfficialMarket() {
   const hasMsk = (model.series?.moscow?.points?.length ?? 0) > 0;
   const [view, setView] = useState('producer');
   const [selected, setSelected] = useState(3);
+  const [experimentalTree, setExperimentalTree] = useState(false);
   const [calBasis, setCalBasis] = useState(!hasWh && hasMsk ? 'moscow' : 'warehouse');
   const activeBasis =
     calBasis === 'moscow' && !hasMsk && hasWh
@@ -63,8 +69,8 @@ export default function OfficialMarket() {
   ].sort();
 
   const monthlyMap = new Map(monthly.map((x) => [x.period, x.value]));
-  const selMap = new Map(rows.map((x) => [x.targetMonth, resolveSelectedHorizonMetrics(x).point]));
-  const treeMap = new Map(rows.map((x) => [x.targetMonth, x.catboostPoint ?? x.point]));
+  const selMap = new Map(rows.map((x) => [x.targetMonth, resolveProductForecastRow(x, { experimentalTree: false }).point]));
+  const treeMap = new Map(rows.map((x) => [x.targetMonth, resolveProductForecastRow(x, { experimentalTree: true }).point]));
   const userObsMap = new Map((cal?.months || []).map((x) => [x.month, x.user]));
   const localSelMap = new Map(
     cal
@@ -87,20 +93,23 @@ export default function OfficialMarket() {
       pointRadius: 2,
     },
     {
-      label: 'Выбор селектора (РФ)',
+      label: 'Сезонная модель (Weibull, РФ — основная)',
       data: labels.map((m) => selMap.get(m) ?? null),
       borderColor: '#0D7C4A',
       borderDash: [5, 4],
       pointRadius: 3,
     },
-    {
+  ];
+
+  if (experimentalTree) {
+    datasets.push({
       label: 'Дерево решений (экспериментальная)',
       data: labels.map((m) => treeMap.get(m) ?? null),
       borderColor: '#ad7024',
       borderDash: [3, 4],
       pointRadius: 2,
-    },
-  ];
+    });
+  }
 
   if (cal) {
     datasets.push({
@@ -184,6 +193,16 @@ export default function OfficialMarket() {
                 <option value="warehouse">Склад Волгоград (без НДС)</option>
                 <option value="moscow">Опт Москва (без НДС)</option>
               </select>
+            </label>
+          )}
+          {view === 'producer' && (
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12 }}>
+              <input
+                type="checkbox"
+                checked={experimentalTree}
+                onChange={(e) => setExperimentalTree(e.target.checked)}
+              />
+              Экспериментальное Дерево решений (градиентный бустинг + драйверы)
             </label>
           )}
         </div>

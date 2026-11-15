@@ -623,3 +623,223 @@ export function evaluateHorizonConfidence(row, lastValue = null) {
   };
 }
 
+export const DEFAULT_PRODUCT_MODEL = 'eq_carry';
+
+/**
+ * Resolves the active product forecast for a horizon row.
+ * By default (experimentalTree: false), uses the seasonal Weibull model (eq_carry)
+ * without macro/weather tree adjustments. When experimentalTree is true, exposes
+ * the experimental decision-tree (CatBoost) forecast.
+ */
+export function resolveProductForecastRow(row, { experimentalTree = false } = {}) {
+  if (!row) return null;
+  if (experimentalTree) {
+    const point = row.catboostPoint ?? row.point ?? null;
+    const interval80 = row.catboostInterval80 ?? row.interval80 ?? null;
+    const mae =
+      row.catboostHoldoutMae ??
+      row.validation?.finalAll?.find((x) => x.id === 'catboost')?.mae ??
+      row.validation?.final?.mae ??
+      null;
+    return {
+      modelId: 'catboost',
+      modelLabel: MONTHLY_MODELS.catboost,
+      experimentalActive: true,
+      usesMacroWeatherDrivers: true,
+      point,
+      interval80,
+      mae,
+    };
+  }
+
+  const eqCarryPoint = row.eqCarryPoint ?? row.point ?? null;
+  const eqCarryMae =
+    row.validation?.finalAll?.find((x) => x.id === 'eq_carry')?.mae ??
+    row.validation?.final?.mae ??
+    null;
+  return {
+    modelId: DEFAULT_PRODUCT_MODEL,
+    modelLabel: MONTHLY_MODELS[DEFAULT_PRODUCT_MODEL],
+    experimentalActive: false,
+    usesMacroWeatherDrivers: false,
+    point: eqCarryPoint,
+    interval80: row.interval80 ?? null,
+    mae: eqCarryMae,
+  };
+}
+
+/**
+ * Runs a deterministic permutation test on macro (USD/RUB, KZT/RUB, key rate) and ERA5 weather
+ * drivers to test whether the experimental tree model achieves statistically significant skill
+ * over permuted driver inputs on the held-out final 12-month window.
+ */
+export function runDriverPermutationTest(
+  points,
+  drivers,
+  retailWeekly = [],
+  { lead = 6, permutations = 15, seed = 42 } = {}
+) {
+  if (!Array.isArray(points) || points.length < 36 || !drivers) {
+    return {
+      lead,
+      permutations: 0,
+      unpermutedMae: null,
+      permutedMeanMae: null,
+      pValue: 1,
+      driversSignificant: false,
+    };
+  }
+
+  const first = monthNumber(points[0].period);
+  const n = points.length;
+  const finalStart = n - 12;
+
+  const evalTreeMae = (drv) => {
+    const ctx = { maps: driverMaps(drv), cb: buildCatBoostContext(drv, retailWeekly) };
+    const errs = [];
+    for (let originIdx = finalStart - lead; originIdx + lead < n; originIdx++) {
+      if (originIdx < 11) continue;
+      const origin = first + originIdx;
+      const pred = monthlyPredict(points, origin, lead, 'catboost', ctx);
+      if (pred !== null && Number.isFinite(pred)) {
+        errs.push(Math.abs(pred - points[originIdx + lead].value));
+      }
+    }
+    return mean(errs);
+  };
+
+  const unpermutedMae = evalTreeMae(drivers);
+
+  let rngState = (seed ^ lead ^ permutations) >>> 0;
+  const nextRand = () => {
+    rngState = (rngState + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(rngState ^ (rngState >>> 15), 1 | rngState);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  const shuffleValues = (series) => {
+    if (!Array.isArray(series) || series.length <= 1) return series || [];
+    const values = series.map((x) => x.value);
+    for (let i = values.length - 1; i > 0; i--) {
+      const j = Math.floor(nextRand() * (i + 1));
+      const tmp = values[i];
+      values[i] = values[j];
+      values[j] = tmp;
+    }
+    return series.map((item, idx) => ({ ...item, value: values[idx] }));
+  };
+
+  const shuffleWeather = (series) => {
+    if (!Array.isArray(series) || series.length <= 1) return series || [];
+    const shuffledIdx = series.map((_, i) => i);
+    for (let i = shuffledIdx.length - 1; i > 0; i--) {
+      const j = Math.floor(nextRand() * (i + 1));
+      const tmp = shuffledIdx[i];
+      shuffledIdx[i] = shuffledIdx[j];
+      shuffledIdx[j] = tmp;
+    }
+    return series.map((item, idx) => {
+      const donor = series[shuffledIdx[idx]];
+      return {
+        ...item,
+        tMinC: donor.tMinC,
+        precipMm: donor.precipMm,
+        frostDays: donor.frostDays,
+      };
+    });
+  };
+
+  const permMaes = [];
+  let betterOrEqualCount = 0;
+  for (let p = 0; p < permutations; p++) {
+    const permutedDrivers = {
+      ...drivers,
+      usdRub: shuffleValues(drivers.usdRub),
+      kztRub: shuffleValues(drivers.kztRub),
+      keyRate: shuffleValues(drivers.keyRate),
+      weather: drivers.weather
+        ? {
+            volgograd: shuffleWeather(drivers.weather.volgograd),
+            zhambyl: shuffleWeather(drivers.weather.zhambyl),
+          }
+        : undefined,
+    };
+    const pMae = evalTreeMae(permutedDrivers);
+    if (Number.isFinite(pMae)) {
+      permMaes.push(pMae);
+      if (Number.isFinite(unpermutedMae) && pMae <= unpermutedMae) {
+        betterOrEqualCount++;
+      }
+    }
+  }
+
+  const permutedMeanMae = mean(permMaes);
+  const pValue = permMaes.length > 0 ? (betterOrEqualCount + 1) / (permMaes.length + 1) : 1;
+
+  return {
+    lead,
+    permutations: permMaes.length,
+    unpermutedMae: Number.isFinite(unpermutedMae) ? +unpermutedMae.toFixed(4) : null,
+    permutedMeanMae: Number.isFinite(permutedMeanMae) ? +permutedMeanMae.toFixed(4) : null,
+    pValue: +pValue.toFixed(4),
+    driversSignificant: pValue < 0.05,
+  };
+}
+
+/**
+ * Verifies the CI skill gate: any horizon where a model does not beat naive or seasonal-naive
+ * on held-out MAE must be explicitly labelled with the corresponding honest badge.
+ */
+export function verifySkillGate(forecastOrRows, { lastValue = null } = {}) {
+  const rows = Array.isArray(forecastOrRows)
+    ? forecastOrRows
+    : Array.isArray(forecastOrRows?.rows)
+      ? forecastOrRows.rows
+      : [];
+  const baseLastValue = lastValue ?? forecastOrRows?.lastValue ?? null;
+  const violations = [];
+
+  for (const row of rows) {
+    const conf = evaluateHorizonConfidence(row, baseLastValue);
+    const displayedBadge = String(row.badgeOverride || conf.badge || '').toLowerCase();
+    const v = row.validation || {};
+    const finalMae = Number(v.final?.mae);
+    const naiveMae = Number(v.naiveFinal?.mae ?? v.finalAll?.find((x) => x.id === 'naive')?.mae);
+    const seasonalMae = Number(v.seasonalFinal?.mae ?? v.finalAll?.find((x) => x.id === 'seasonal')?.mae);
+
+    if (Number.isFinite(finalMae) && Number.isFinite(naiveMae) && finalMae >= naiveMae) {
+      if (!displayedBadge.includes('no better than last price')) {
+        violations.push({
+          h: row.h,
+          lead: row.lead,
+          targetMonth: row.targetMonth,
+          reason: `Model MAE (${finalMae.toFixed(2)}) >= naive MAE (${naiveMae.toFixed(2)}), but badge is "${row.badgeOverride || conf.badge}" instead of "no better than last price"`,
+        });
+      }
+    } else if (
+      Number.isFinite(finalMae) &&
+      Number.isFinite(seasonalMae) &&
+      seasonalMae - finalMae < 1.5
+    ) {
+      if (
+        displayedBadge.includes('beats seasonal-naive') ||
+        !displayedBadge.includes('no better than seasonal')
+      ) {
+        violations.push({
+          h: row.h,
+          lead: row.lead,
+          targetMonth: row.targetMonth,
+          reason: `Model MAE (${finalMae.toFixed(2)}) does not beat seasonal-naive MAE (${seasonalMae.toFixed(2)}) by >= 1.5 RUB/kg, but badge is "${row.badgeOverride || conf.badge}"`,
+        });
+      }
+    }
+  }
+
+  return {
+    ok: violations.length === 0,
+    checkedHorizons: rows.length,
+    violations,
+  };
+}
+

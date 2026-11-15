@@ -648,6 +648,81 @@ test('P1-2 (F-04): Pooled log-relative residuals (n >= 24) with block resampling
   assert.equal(badRel.gatedRiseProb, null, 'Rise probability must be hidden (null) when reliability diagram test fails');
 });
 
+test('P1-3 (F-01, F-02): Seasonal Weibull (eq_carry) is default product forecast, tree model is behind experimental toggle (off by default), permutation test wired in CI, and skill gate script enforces honest horizon badges', async () => {
+  const officialForecastMod = await import('../shared/officialForecast.js');
+  const { officialHistory, officialDrivers, officialForecast } = await import('../shared/officialData.js');
+
+  // 1. DEFAULT_PRODUCT_MODEL must be 'eq_carry' and resolveProductForecastRow must default to experimentalTree: false
+  assert.equal(officialForecastMod.DEFAULT_PRODUCT_MODEL, 'eq_carry');
+  assert.equal(typeof officialForecastMod.resolveProductForecastRow, 'function');
+  assert.equal(typeof officialForecastMod.runDriverPermutationTest, 'function');
+  assert.equal(typeof officialForecastMod.verifySkillGate, 'function');
+
+  const sampleRow = officialForecast.rows.find((r) => r.lead === 6);
+  const defaultResolved = officialForecastMod.resolveProductForecastRow(sampleRow);
+  assert.equal(defaultResolved.modelId, 'eq_carry', 'Default product forecast must use seasonal Weibull (eq_carry)');
+  assert.equal(defaultResolved.experimentalActive, false, 'Experimental tree toggle must be off by default');
+  assert.equal(defaultResolved.usesMacroWeatherDrivers, false, 'Default path must not use macro/weather drivers');
+
+  const expResolved = officialForecastMod.resolveProductForecastRow(sampleRow, { experimentalTree: true });
+  assert.equal(expResolved.modelId, 'catboost');
+  assert.equal(expResolved.experimentalActive, true);
+  assert.equal(expResolved.point, sampleRow.catboostPoint);
+
+  // 2. UI component OfficialMarket.jsx must have experimental toggle off by default (useState(false))
+  const officialMarketSrc = fs.readFileSync(path.join(ROOT, 'src/components/OfficialMarket.jsx'), 'utf8');
+  assert.ok(
+    officialMarketSrc.includes('experimentalTree') && officialMarketSrc.includes('useState(false)'),
+    'OfficialMarket.jsx must gate tree model behind experimentalTree toggle defaulting to false'
+  );
+
+  // 3. Permutation test on macro/weather drivers must be wired and report empirical p-value
+  const permResult = officialForecastMod.runDriverPermutationTest(
+    officialHistory.producer.monthly,
+    officialDrivers,
+    officialHistory.retail.weekly,
+    { lead: 6, permutations: 15, seed: 42 }
+  );
+  assert.ok(Number.isFinite(permResult.unpermutedMae), 'Permutation test must report unpermuted MAE');
+  assert.ok(Number.isFinite(permResult.permutedMeanMae), 'Permutation test must report mean permuted MAE');
+  assert.ok(Number.isFinite(permResult.pValue), 'Permutation test must report empirical p-value');
+
+  // 4. CI skill gate script (scripts/check_skill_gate.mjs) must exist, pass on honest badges, and fail when a badge hides worse-than-naive or worse-than-seasonal MAE
+  const skillGateScript = path.join(ROOT, 'scripts/check_skill_gate.mjs');
+  assert.ok(fs.existsSync(skillGateScript), 'scripts/check_skill_gate.mjs must exist');
+
+  const gatePass = officialForecastMod.verifySkillGate(officialForecast);
+  assert.equal(gatePass.ok, true, `Skill gate must pass on honest badges, got violations: ${JSON.stringify(gatePass.violations)}`);
+
+  // Dishonest badge simulation: model MAE (4.5) is worse than naive (3.1), yet badge claims 'beats seasonal-naive'
+  const dishonestForecast = {
+    lastValue: 18.12,
+    rows: [
+      {
+        h: 1,
+        lead: 2,
+        targetMonth: '2026-11',
+        point: 19.0,
+        badgeOverride: 'beats seasonal-naive',
+        validation: {
+          selected: 'eq_carry',
+          final: { mae: 4.5, n: 12 },
+          naiveFinal: { mae: 3.1, n: 12 },
+          finalAll: [
+            { id: 'eq_carry', mae: 4.5 },
+            { id: 'naive', mae: 3.1 },
+            { id: 'seasonal', mae: 3.8 },
+          ],
+        },
+      },
+    ],
+  };
+  const gateFail = officialForecastMod.verifySkillGate(dishonestForecast);
+  assert.equal(gateFail.ok, false, 'Skill gate must fail when a horizon loses to naive or seasonal-naive without the badge saying so');
+  assert.ok(gateFail.violations.length === 1);
+});
+
+
 
 
 
