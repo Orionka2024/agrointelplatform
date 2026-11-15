@@ -11,7 +11,7 @@ import {
   Legend,
 } from 'chart.js';
 import { useMarket } from '../context/useMarket';
-import { officialForecast, officialSnapshot } from '../../shared/officialData.js';
+import { officialForecast, officialSnapshot, officialDataIntegrity } from '../../shared/officialData.js';
 import { CROP_PROFILES, CROP_TYPES, getCropProfile } from '../../shared/cropProfiles.js';
 import { warehouseToMoscow } from '../../shared/bridge.js';
 import {
@@ -183,6 +183,17 @@ export default function Dashboard() {
       ...buildForecastChartBandDatasets(decisionPlan.weeks, { level: 80 }),
     ],
   };
+
+  if (!officialDataIntegrity.ok || model.official?.error === 'DATA_HASH_MISMATCH') {
+    return (
+      <div className="signal-box sell" role="alert" style={{ padding: 14 }}>
+        <div className="signal-text sell">
+          <strong>Ошибка целостности данных (DATA_HASH_MISMATCH):</strong>{' '}
+          {officialDataIntegrity.message || model.official?.errorMessage}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

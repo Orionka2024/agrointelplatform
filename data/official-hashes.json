@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "files": {
+    "official-history.json": {
+      "sha256": "4ac9eb3cccf01526a88a1091e3898d8ccfb3caa5d7f0271cec8056da72eab17a",
+      "canonicalSha256": "0350a6934dee3a1f26b505f41da41c133232623978db40fe0215eafbb33ac0d3",
+      "bytes": 122714
+    },
+    "official-drivers.json": {
+      "sha256": "d24e9cf60c20e352afb9b21e6c3151a6a41742a09148d3f280b1130ca3dd7c24",
+      "canonicalSha256": "833c11bb7a0e76ed0abaa645e7708b923be500b44ea344aa075db7cf069ec7bd",
+      "bytes": 64937
+    }
+  }
+}

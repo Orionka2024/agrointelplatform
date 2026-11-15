@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState, Fragment } from 'react';
 import { useMarket } from '../context/useMarket';
-import { officialForecast, officialSnapshot } from '../../shared/officialData.js';
+import { officialForecast, officialSnapshot, officialDataIntegrity } from '../../shared/officialData.js';
 import { MONTHLY_MODELS, evaluateHorizonConfidence } from '../../shared/officialForecast.js';
 import { CROP_PROFILES, CROP_TYPES, getCropProfile } from '../../shared/cropProfiles.js';
 import { warehouseToMoscow, BRIDGE_LABELS } from '../../shared/bridge.js';
@@ -260,6 +260,17 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
   async function handleSaveBridge() {
     const ok = await updateAssumptions({ bridge: bridgeDraft });
     setBridgeSaved(ok ? 'Мост издержек сохранён' : 'Ошибка сохранения');
+  }
+
+  if (!officialDataIntegrity.ok || model.official?.error === 'DATA_HASH_MISMATCH') {
+    return (
+      <div className="signal-box sell" role="alert" style={{ padding: 14 }}>
+        <div className="signal-text sell">
+          <strong>Ошибка целостности данных (DATA_HASH_MISMATCH):</strong>{' '}
+          {officialDataIntegrity.message || model.official?.errorMessage}
+        </div>
+      </div>
+    );
   }
 
   return (

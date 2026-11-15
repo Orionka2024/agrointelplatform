@@ -964,3 +964,78 @@ test('P0-9 (F-07, F-09, F-15): Cron and refresh job registration, strict CRON_SE
     fs.rmSync(tmpDataDir, { recursive: true, force: true });
   }
 });
+
+test('P0-10 (F-15): Verify data hashes at runtime against data/official-hashes.json and fail closed with DATA_HASH_MISMATCH on 1-byte tampered fixture', async () => {
+  const crypto = await import('node:crypto');
+  const officialDataMod = await import('../shared/officialData.js');
+
+  assert.equal(
+    typeof officialDataMod.verifyOfficialDataHashes,
+    'function',
+    'shared/officialData.js must export verifyOfficialDataHashes'
+  );
+
+  // 1. data/official-hashes.json must exist and match real SHA-256 of bundled JSON files
+  const hashesPath = path.join(ROOT, 'data/official-hashes.json');
+  assert.ok(fs.existsSync(hashesPath), 'data/official-hashes.json must exist');
+  const expectedHashes = JSON.parse(fs.readFileSync(hashesPath, 'utf8'));
+
+  for (const filename of ['official-history.json', 'official-drivers.json']) {
+    const rawBuf = fs.readFileSync(path.join(ROOT, 'data', filename));
+    const actualSha = crypto.createHash('sha256').update(rawBuf).digest('hex');
+    assert.equal(
+      expectedHashes.files?.[filename]?.sha256,
+      actualSha,
+      `data/official-hashes.json must record exact SHA-256 for ${filename}`
+    );
+  }
+
+  // 2. Runtime verification passes on untampered bundled files
+  const validCheck = officialDataMod.verifyOfficialDataHashes({
+    rawFiles: {
+      'official-history.json': fs.readFileSync(path.join(ROOT, 'data/official-history.json')),
+      'official-drivers.json': fs.readFileSync(path.join(ROOT, 'data/official-drivers.json')),
+    },
+  });
+  assert.equal(validCheck.ok, true, 'Untampered bundled files must pass runtime hash check');
+  assert.equal(validCheck.code, 'OK');
+
+  // 3. 1-byte tampered fixture fails closed with DATA_HASH_MISMATCH
+  const origHistBytes = Buffer.from(fs.readFileSync(path.join(ROOT, 'data/official-history.json')));
+  const tamperedBytes = Buffer.from(origHistBytes);
+  // Flip 1 byte in the JSON content
+  const flipIdx = Math.min(20, tamperedBytes.length - 1);
+  tamperedBytes[flipIdx] = tamperedBytes[flipIdx] === 0x20 ? 0x21 : 0x20;
+
+  const tamperedCheck = officialDataMod.verifyOfficialDataHashes({
+    rawFiles: {
+      'official-history.json': tamperedBytes,
+      'official-drivers.json': fs.readFileSync(path.join(ROOT, 'data/official-drivers.json')),
+    },
+  });
+  assert.equal(tamperedCheck.ok, false, '1-byte tampered fixture must fail hash verification');
+  assert.equal(tamperedCheck.code, 'DATA_HASH_MISMATCH', 'Tampered fixture must return code DATA_HASH_MISMATCH');
+
+  assert.throws(
+    () => {
+      officialDataMod.verifyOfficialDataHashes({
+        rawFiles: {
+          'official-history.json': tamperedBytes,
+        },
+        throwOnMismatch: true,
+      });
+    },
+    (err) => err.code === 'DATA_HASH_MISMATCH' && /DATA_HASH_MISMATCH/.test(err.message),
+    'verifyOfficialDataHashes({ throwOnMismatch: true }) must throw DATA_HASH_MISMATCH on 1-byte tamper'
+  );
+
+  // 4. officialSnapshot fails closed (forecast: null, error: 'DATA_HASH_MISMATCH') when tampered
+  const closedSnap = officialDataMod.officialSnapshot('2026-11-13', {
+    rawFiles: {
+      'official-history.json': tamperedBytes,
+    },
+  });
+  assert.equal(closedSnap.forecast, null, 'officialSnapshot must refuse to serve a forecast when hash check fails');
+  assert.equal(closedSnap.error, 'DATA_HASH_MISMATCH', 'officialSnapshot must surface DATA_HASH_MISMATCH error');
+  assert.equal(closedSnap.integrity?.ok, false);
+});

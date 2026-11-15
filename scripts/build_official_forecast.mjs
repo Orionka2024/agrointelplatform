@@ -14,7 +14,22 @@ const path=new URL(fc.id+'.json',archive);
 if(fs.existsSync(path)&&fs.readFileSync(path,'utf8')!==text)throw new Error('Immutable forecast collision');
 fs.writeFileSync(path,text);
 fs.writeFileSync(new URL('data/official-forecast.json',root),text);
+const hashFiles={};
+for(const name of ['official-history.json','official-drivers.json']){
+  const u=new URL('data/'+name,root);
+  if(fs.existsSync(u)){
+    const buf=fs.readFileSync(u);
+    const parsed=JSON.parse(buf.toString('utf8'));
+    hashFiles[name]={
+      sha256:createHash('sha256').update(buf).digest('hex'),
+      canonicalSha256:createHash('sha256').update(JSON.stringify(parsed)).digest('hex'),
+      bytes:buf.length,
+    };
+  }
+}
+fs.writeFileSync(new URL('data/official-hashes.json',root),JSON.stringify({version:1,files:hashFiles},null,2)+'\n');
 const short=r=>r===null||r===undefined?null:Math.round(r*100)/100;
 console.log(JSON.stringify({id:fc.id,status:fc.status,cutoff:fc.inputCutoff,usesDrivers:!!fc.drivers,
   rows:fc.rows.map(r=>({target:r.targetMonth,point:short(r.point),model:r.validation.selected,mae:short(r.validation.final.mae),naive:short(r.validation.naiveFinal.mae),n:r.validation.final.n,
    finalAll:Object.fromEntries(r.validation.finalAll.map(x=>[x.id,short(x.mae)]))}))},null,2));
+
