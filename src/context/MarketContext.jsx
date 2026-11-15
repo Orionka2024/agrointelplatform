@@ -3,7 +3,7 @@ import { MarketContext } from './marketContextDef.js';
 import { todayISO } from '../../shared/dates.js';
 import { computeMarketModel } from '../../shared/marketModel.js';
 import { importPriceCSV } from '../../shared/observations.js';
-import { buildUserPriceCsv } from '../../shared/localBasis.js';
+import { buildUserPriceCsv, applySpotAskPreview } from '../../shared/localBasis.js';
 import { officialDrivers, officialSnapshot } from '../../shared/officialData.js';
 import {
   loadStoredUserPrices,
@@ -305,8 +305,19 @@ export function MarketProvider({ children }) {
     }
   }, [demo, fetchModel, today]);
 
+  const [spotPreview, setSpotPreview] = useState(null);
+
+  const applySpotPreview = useCallback((priceExVat) => {
+    setSpotPreview(applySpotAskPreview(priceExVat, { today, basis: 'warehouse' }));
+  }, [today]);
+
+  const clearSpotPreview = useCallback(() => {
+    setSpotPreview(null);
+  }, []);
+
   const clearLocalEntries = useCallback(async () => {
     clearStoredUserPrices();
+    setSpotPreview(null);
     await fetchModel(demo);
   }, [demo, fetchModel]);
 
@@ -326,6 +337,9 @@ export function MarketProvider({ children }) {
     today,
     loading,
     error,
+    spotPreview,
+    applySpotPreview,
+    clearSpotPreview,
     refresh: async () => {
       await Promise.all([fetchModel(demo), refreshSignals(true)]);
     },

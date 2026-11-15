@@ -327,12 +327,22 @@ export const PRICE_CSV_TEMPLATE = [
 ].join('\n');
 export { parseISODate };
 
+const LISTING_SOURCE_RE = /(agroru|agro\.ru|agroserver|агросервер|avito|авито|food\s*star|доск[аи]|оферт|объявлен|listing|classified|spot[-_]?ask|unverified[-_]?ask)/i;
+
 /** User attestation: not independent source verification. Existing seed records remain unverified. */
 export function verificationOf(raw) {
   const status = raw.verification_status === 'verified' ? 'verified' : 'unverified';
   const reference = clean(raw.source_ref, 200);
   const reviewer = clean(raw.verified_by, 120);
   const date = clean(raw.verified_at, 10);
+  const kind = clean(raw.kind, 30).toLowerCase();
+  const sourceText = `${clean(raw.source, 200)} ${reference} ${clean(raw.notes, 200)}`;
+  if (kind && kind !== 'transaction' && kind !== 'bid') {
+    return { status: 'unverified', by: null, at: null, evidence: reference || null, reason: 'Оферта (ask / indicative_offer) не может иметь статус verified' };
+  }
+  if (LISTING_SOURCE_RE.test(sourceText)) {
+    return { status: 'unverified', by: null, at: null, evidence: reference || null, reason: 'Источник-доска объявлений (listing/ask) не может иметь статус verified' };
+  }
   if (status === 'verified' && (!reference || !reviewer || !isISODate(date))) {
     return { status: 'unverified', reason: 'Для подтверждения нужны source_ref, verified_by, verified_at' };
   }

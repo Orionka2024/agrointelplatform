@@ -15,8 +15,6 @@ import { officialForecast, officialSnapshot } from '../../shared/officialData.js
 import { CROP_PROFILES, CROP_TYPES, getCropProfile } from '../../shared/cropProfiles.js';
 import { warehouseToMoscow } from '../../shared/bridge.js';
 import { buildWeeklyDecisionPlan } from '../../shared/weeklyDecisionPlan.js';
-import { buildUserPriceCsv } from '../../shared/localBasis.js';
-import { upsertStoredUserPrice } from '../utils/userPriceStore.js';
 import AddActualPrice from './AddActualPrice';
 import MonthlySalesPlanTable from './MonthlySalesPlanTable';
 import WeatherWidget from './WeatherWidget';
@@ -39,15 +37,14 @@ export default function Dashboard() {
     signalsBusy,
     refreshSignals,
     refresh,
-    importData,
-    demo,
-    setDemo,
     clearLocalEntries,
     error,
+    spotPreview,
+    applySpotPreview,
+    clearSpotPreview,
   } = useMarket();
   const [macroBusy, setMacroBusy] = useState(false);
   const [macroMsg, setMacroMsg] = useState('');
-  const [spotBusy, setSpotBusy] = useState(false);
   const [selectedCrop, setSelectedCrop] = useState('onion');
 
   const snap = officialSnapshot(model.today);
@@ -61,7 +58,9 @@ export default function Dashboard() {
     : (userCropPrice > 0);
 
   const effWhPrice = isSelectedOnion
-    ? (hasUserWh ? model.prices.warehouse.exVat : selectedCropProfile.benchmarkWarehousePrice)
+    ? (spotPreview?.priceExVat > 0
+        ? spotPreview.priceExVat
+        : (hasUserWh ? model.prices.warehouse.exVat : selectedCropProfile.benchmarkWarehousePrice))
     : (hasUserWh ? userCropPrice : selectedCropProfile.benchmarkWarehousePrice);
 
   const bridgeCalc = warehouseToMoscow(effWhPrice, model.bridge);
@@ -114,19 +113,14 @@ export default function Dashboard() {
     }
   }
 
-  async function handleApplySpotConsensus() {
+  function handleToggleSpotPreview() {
+    if (spotPreview) {
+      clearSpotPreview();
+      return;
+    }
     const val = signals?.analytics?.impliedDealSpotExVat;
     if (!(val > 0)) return;
-    setSpotBusy(true);
-    try {
-      if (demo) setDemo(false);
-      const entry = { basis: 'warehouse', date: model.today, price: val, vat: 'excl' };
-      upsertStoredUserPrice(entry);
-      const csv = buildUserPriceCsv([entry], model.today);
-      await importData('prices', csv);
-    } finally {
-      setSpotBusy(false);
-    }
+    applySpotPreview(val);
   }
 
   const cropRows = Object.values(CROP_PROFILES).map((c) => {
@@ -556,18 +550,22 @@ export default function Dashboard() {
                 </button>
                 <button
                   type="button"
-                  className="basis-btn active"
-                  onClick={handleApplySpotConsensus}
-                  disabled={spotBusy}
+                  className={`basis-btn ${spotPreview ? '' : 'active'}`}
+                  onClick={handleToggleSpotPreview}
                   style={{ fontSize: 10, padding: '3px 9px' }}
-                  title="Явно зафиксировать расчётный спот площадок Волгограда (за вычетом торга 0.25 ₽/кг) как стартовую цену склада"
+                  title="Временный предпросмотр оферты досок объявлений (unverified ask, не сделка, только текущая сессия — не сохраняется в SQLite)"
                 >
-                  {spotBusy
-                    ? 'Калибровка…'
-                    : `⚡ Калибровать от спота (${signals.analytics.impliedDealSpotExVat.toFixed(1)} ₽)`}
+                  {spotPreview
+                    ? `✕ Сбросить предпросмотр оферты ask (${spotPreview.priceExVat.toFixed(1)} ₽)`
+                    : `👁 Предпросмотр оферты ask (${signals.analytics.impliedDealSpotExVat.toFixed(1)} ₽ · не сделка, только сессия)`}
                 </button>
               </div>
             </div>
+            {spotPreview && (
+              <div className="audit-warning" style={{ marginBottom: 8, fontSize: 11 }}>
+                <strong>Предпросмотр оферты (unverified ask, только сессия):</strong> цена предложения продавцов ({spotPreview.priceExVat.toFixed(1)} ₽/кг без НДС — это оферта ask, а не сделка). В базу SQLite не записано и в подтверждённых наблюдениях не учитывается. Для реальной калибровки введите собственную закрытую сделку через форму аттестации.
+              </div>
+            )}
 
             <div
               className="table-wrapper"

@@ -14,12 +14,38 @@ export const USER_PRICE_MARKETS = {
   warehouse: {market: 'warehouse_volgograd', geo: 'Волгоградская обл.', delivery: 'EXW', vat: 'excl', label: 'Склад, Волгоград (EXW)'},
   moscow: {market: 'moscow_wholesale', geo: 'Москва', delivery: 'DAP', vat: 'incl', label: 'Опт, Москва (с доставкой)'},
 };
+const LISTING_GUARD_RE = /(agroru|agro\.ru|agroserver|агросервер|avito|авито|food\s*star|доск[аи]|оферт|объявлен|listing|classified|spot[-_]?ask|unverified[-_]?ask)/i;
+
 export function buildUserPriceCsv(entries, verifiedAt) {
   const rows = entries.map(e => {
+    if (
+      e?.isListing ||
+      e?.sessionOnly ||
+      (e?.kind && e.kind !== 'transaction') ||
+      LISTING_GUARD_RE.test(`${e?.source || ''} ${e?.source_ref || ''} ${e?.notes || ''}`)
+    ) {
+      throw new Error('Оферта с доски объявлений (unverified ask / listing) не может быть записана как подтверждённая сделка');
+    }
     const m = USER_PRICE_MARKETS[e.basis];
     return [e.date, e.date, 'transaction', m.market, `"${m.geo}"`, Number(e.price), 'RUB/kg', e.vat, '0.10', m.delivery, '', '', '', '', '', '', 'Собственная сделка (ввод в приложении)', `entry-${e.date}-${e.basis}-${Number(e.price)}`, e.date, '', 'verified', 'Пользователь (ввод в приложении)', verifiedAt].join(',');
   });
   return [HEADER, ...rows].join('\n');
+}
+
+export function applySpotAskPreview(priceExVat, { today = null, basis = 'warehouse' } = {}) {
+  const num = Number(priceExVat);
+  if (!(num > 0)) return null;
+  return {
+    basis,
+    date: today,
+    priceExVat: num,
+    vat: 'excl',
+    kind: 'unverified_ask',
+    verification_status: 'unverified',
+    sessionOnly: true,
+    persisted: false,
+    label: `Предпросмотр оферты ask (${num.toFixed(1)} ₽/кг без НДС · unverified ask, не сделка, только сессия)`,
+  };
 }
 
 const monthNum = p => Number(p.slice(0, 4)) * 12 + Number(p.slice(5, 7)) - 1;

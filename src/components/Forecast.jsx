@@ -3,12 +3,10 @@ import { useMarket } from '../context/useMarket';
 import { officialForecast, officialSnapshot } from '../../shared/officialData.js';
 import { MONTHLY_MODELS } from '../../shared/officialForecast.js';
 import { CROP_PROFILES, CROP_TYPES, getCropProfile } from '../../shared/cropProfiles.js';
-import { buildUserPriceCsv } from '../../shared/localBasis.js';
 import { warehouseToMoscow, BRIDGE_LABELS } from '../../shared/bridge.js';
 import { buildWeeklyDecisionPlan, buildCatBoostShapCards } from '../../shared/weeklyDecisionPlan.js';
 import { STORAGE_TIERS } from '../../shared/storageEconomics.js';
 import { FACTOR_DEFS } from '../../shared/factorToggles.js';
-import { upsertStoredUserPrice } from '../utils/userPriceStore.js';
 import MonthlySalesPlanTable from './MonthlySalesPlanTable';
 
 const OfficialMarket = lazy(() => import('./OfficialMarket'));
@@ -128,7 +126,18 @@ function OffSeasonPlanningView({ cropProfile }) {
 }
 
 export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) {
-  const { model, signals, disabledFactors = [], toggleFactor, demo, setDemo, importData, updateAssumptions } = useMarket();
+  const {
+    model,
+    signals,
+    disabledFactors = [],
+    toggleFactor,
+    demo,
+    setDemo,
+    updateAssumptions,
+    spotPreview,
+    applySpotPreview,
+    clearSpotPreview,
+  } = useMarket();
 
   const [activeCrop, setActiveCrop] = useState('onion');
   const [activeTab, setActiveTab] = useState('forecast'); // 'forecast' | 'official' | 'bridge' | 'validation'
@@ -153,7 +162,9 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
   const savedCropManual = model.assumptions?.manualPrices?.[activeCrop]?.value;
   const defaultStartPrice =
     activeCrop === 'onion'
-      ? (hasOnionDeal ? model.prices.warehouse.exVat : (savedCropManual || cropProfile.benchmarkWarehousePrice))
+      ? (spotPreview?.priceExVat > 0
+          ? spotPreview.priceExVat
+          : (hasOnionDeal ? model.prices.warehouse.exVat : (savedCropManual || cropProfile.benchmarkWarehousePrice)))
       : (savedCropManual || cropProfile.benchmarkWarehousePrice);
 
   const liveInputPrice =
@@ -269,11 +280,10 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
         setDemo(false);
       }
       if (activeCrop === 'onion') {
-        const entry = { basis: 'warehouse', date: model.today, price: val, vat: 'excl' };
-        upsertStoredUserPrice(entry);
-        const csv = buildUserPriceCsv([entry], model.today);
-        await importData('prices', csv);
-        setPriceStatus(`Сохранено как подтверждённая сделка склада (${val.toFixed(2)} ₽/кг без НДС) — все панели пересчитаны.`);
+        applySpotPreview(val);
+        setPriceStatus(
+          `Предпросмотр оферты ask (${val.toFixed(2)} ₽/кг без НДС · unverified ask, не сделка, только сессия). В SQLite не записано — для реальной калибровки введите собственную сделку в форме аттестации.`
+        );
       } else {
         await updateAssumptions({
           manualPrices: {
@@ -395,25 +405,40 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                       disabled={savingPrice}
                       style={{ padding: '4px 10px', fontSize: 11 }}
                     >
-                      {savingPrice ? 'Сохранение…' : '💾 Зафиксировать цену'}
+                      {savingPrice
+                        ? 'Применение…'
+                        : activeCrop === 'onion'
+                          ? '👁 Предпросмотр (только сессия, не сделка)'
+                          : '💾 Зафиксировать цену'}
                     </button>
                     {activeCrop === 'onion' && signals?.analytics?.impliedDealSpotExVat && (
                       <button
                         type="button"
                         className="cash-reset-btn"
-                        onClick={() => setPriceDraft(String(signals.analytics.impliedDealSpotExVat))}
-                        title="Подставить расчётный спот площадок Волгограда (AgroRU / Авито / AgroServer за вычетом торга) для просмотра траектории"
+                        onClick={() => {
+                          const v = signals.analytics.impliedDealSpotExVat;
+                          setPriceDraft(String(v));
+                          applySpotPreview(v);
+                          setPriceStatus(
+                            `Предпросмотр оферты ask (${v.toFixed(1)} ₽/кг · unverified ask, не сделка, только сессия). В SQLite не записано.`
+                          );
+                        }}
+                        title="Временный предпросмотр оферты досок объявлений (AgroRU / Авито / AgroServer · unverified ask, не сделка, только текущая сессия)"
                       >
-                        📡 Спот досок ({signals.analytics.impliedDealSpotExVat.toFixed(1)} ₽)
+                        📡 Предпросмотр оферты ask ({signals.analytics.impliedDealSpotExVat.toFixed(1)} ₽ · не сделка, только сессия)
                       </button>
                     )}
-                    {priceDraft !== '' && (
+                    {(priceDraft !== '' || (activeCrop === 'onion' && spotPreview)) && (
                       <button
                         type="button"
                         className="cash-reset-btn"
-                        onClick={() => setPriceDraft('')}
+                        onClick={() => {
+                          setPriceDraft('');
+                          clearSpotPreview();
+                          setPriceStatus('');
+                        }}
                       >
-                        ↺ Сброс ({defaultStartPrice.toFixed(1)} ₽)
+                        ↺ Сброс предпросмотра
                       </button>
                     )}
                   </div>
