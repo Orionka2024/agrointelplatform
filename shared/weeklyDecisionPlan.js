@@ -931,6 +931,16 @@ export function buildWeeklyDecisionPlan({
     if (w.netPerKg > bestNetWeek.netPerKg) bestNetWeek = w;
   }
 
+  const attribution =
+    cropId === 'onion' && officialForecast
+      ? buildCatBoostShapCards({
+          officialForecast,
+          officialSnapshotData: null,
+          macro: null,
+          signals: liveSignals,
+        })
+      : null;
+
   return {
     isOnionCatBoost,
     isConditionalForecast,
@@ -948,27 +958,35 @@ export function buildWeeklyDecisionPlan({
     bestNetWeek,
     storageTierId: activeTierId,
     storageTier: activeTierId ? STORAGE_TIERS[activeTierId] : null,
+    attribution,
   };
 }
 
 /**
- * Formats exact TreeSHAP + seasonal-equilibrium attributions from saved officialForecast
- * into rich factor cards for the UI.
+ * Formats exact TreeSHAP attributions from saved officialForecast
+ * into factor cards for the UI. Returns null when no real model attribution is available.
+ * Attribution explains the model, not the market.
  */
-export function buildCatBoostShapCards({ officialForecast, officialSnapshotData, macro, signals = null }) {
+export function buildCatBoostShapCards({ officialForecast, officialSnapshotData, macro, signals = null, targetMonth = '2027-03' }) {
+  if (!officialForecast || !Array.isArray(officialForecast.rows) || officialForecast.rows.length === 0) {
+    return null;
+  }
   const springRow =
-    officialForecast?.rows?.find((r) => r.targetMonth === '2027-03') ||
-    officialForecast?.rows?.[4] ||
-    officialForecast?.rows?.[0];
+    officialForecast.rows.find((r) => r.targetMonth === targetMonth) ||
+    officialForecast.rows.find((r) => r.targetMonth === '2027-03') ||
+    officialForecast.rows[4] ||
+    officialForecast.rows[0];
 
-  const fl = springRow?.catboostShap?.factorLogs || {
-    seasonality: 0.21,
-    equilibrium: 0.08,
-    import_fx: 0.035,
-    financing: 0.025,
-    retail_demand: 0.02,
-    weather: 0.015,
-  };
+  const fl = springRow?.catboostShap?.factorLogs;
+  if (!fl || typeof fl !== 'object') {
+    return null;
+  }
+
+  const requiredKeys = ['seasonality', 'equilibrium', 'import_fx', 'financing', 'retail_demand', 'weather'];
+  const hasFiniteFactors = requiredKeys.some((k) => Number.isFinite(fl[k]));
+  if (!hasFiniteFactors) {
+    return null;
+  }
 
   const spotConsensus = signals?.analytics?.impliedDealSpotExVat;
   const kzParity = signals?.analytics?.parity?.kzLandedVolgogradExVat;
@@ -981,13 +999,12 @@ export function buildCatBoostShapCards({ officialForecast, officialSnapshotData,
   const vlgMin = signals?.weatherHubs?.volgograd?.minTemp10d ?? officialSnapshotData?.drivers?.weather?.volgograd?.tempMinC ?? 2.1;
   const foodStarCh = signals?.spotChannels?.find((c) => c.id === 'foodstar_msk');
 
-  // Combine empirical historical feature importance across ensemble + local exact Shapley impact
   const raw = [
     {
       key: 'seasonality',
       label: 'Сезонное истощение складов РФ и спот ЮФО',
-      absWeight: Math.max(0.06, Math.abs(fl.seasonality)),
-      signedLog: fl.seasonality,
+      absWeight: Math.abs(Number(fl.seasonality) || 0),
+      signedLog: Number(fl.seasonality) || 0,
       color: '#1A56A8',
       currentVal: spotConsensus
         ? `Спот Волгоград: ~${spotConsensus.toFixed(1)} ₽ · СХО ЮФО: ${officialSnapshotData?.producerSouth?.value?.toFixed(2) ?? '17.53'} ₽`
@@ -1000,8 +1017,8 @@ export function buildCatBoostShapCards({ officialForecast, officialSnapshotData,
     {
       key: 'import_fx',
       label: 'Импортный паритет КЗ (Тараз) и УЗ (Термез)',
-      absWeight: Math.max(0.045, Math.abs(fl.import_fx) + 0.04),
-      signedLog: fl.import_fx,
+      absWeight: Math.abs(Number(fl.import_fx) || 0),
+      signedLog: Number(fl.import_fx) || 0,
       color: '#2563EB',
       currentVal: kzParity
         ? `КЗ в Волг.: ${kzParity.toFixed(1)} ₽ · УЗ (апр.): ${uzParity.toFixed(1)} ₽ · KZT ${kztVal.toFixed(3)}${uzsVal ? ` · 10k UZS ${uzsVal.toFixed(1)} ₽` : ''}`
@@ -1014,11 +1031,11 @@ export function buildCatBoostShapCards({ officialForecast, officialSnapshotData,
     {
       key: 'equilibrium',
       label: 'Возврат к 24-месячному равновесию и смена урожая',
-      absWeight: Math.max(0.035, Math.abs(fl.equilibrium)),
-      signedLog: fl.equilibrium,
+      absWeight: Math.abs(Number(fl.equilibrium) || 0),
+      signedLog: Number(fl.equilibrium) || 0,
       color: '#0D7C4A',
       currentVal: `База отсечки: ${officialForecast?.inputCutoff ?? '2026-09'} (РФ ${officialSnapshotData?.producer?.value?.toFixed(2) ?? '18.12'} ₽)`,
-      asOf: `Weibull + GBDT`,
+      asOf: `Weibull + дерево решений`,
       source: 'Десезонализированный уровень цен (24 мес.)',
       trend: 'Зимой действует премия за хранение, с конца марта — плавный разворот под новый урожай',
       highlight: false,
@@ -1026,8 +1043,8 @@ export function buildCatBoostShapCards({ officialForecast, officialSnapshotData,
     {
       key: 'financing',
       label: 'Ключевая ставка ЦБ РФ (стоимость денег)',
-      absWeight: Math.max(0.025, Math.abs(fl.financing) + 0.02),
-      signedLog: fl.financing,
+      absWeight: Math.abs(Number(fl.financing) || 0),
+      signedLog: Number(fl.financing) || 0,
       color: '#C0303A',
       currentVal: `${(macro?.keyRate?.value ?? signals?.fx?.keyRate?.value ?? officialSnapshotData?.drivers?.keyRate?.value ?? 18.0).toFixed(1)}% годовых`,
       asOf: `ЦБ РФ · ${officialSnapshotData?.drivers?.keyRate?.period ?? '2026-10'}`,
@@ -1036,22 +1053,10 @@ export function buildCatBoostShapCards({ officialForecast, officialSnapshotData,
       highlight: false,
     },
     {
-      key: 'storage_tier',
-      label: 'Сегментация складов (3 эшелона рынка)',
-      absWeight: 0.032,
-      signedLog: -0.012,
-      color: '#059669',
-      currentVal: '1) Ангары (до 1 дек.) · 2) Вентиляция (дек–фев) · 3) Холод (0..+1°C)',
-      asOf: 'Отраслевой регламент',
-      source: 'Агрономическая модель лежкости',
-      trend: 'Временные ангары сбрасывают до 1 дек.; склады с вентиляцией торгуют дек–февр.; камеры 0..+1°C снимают весеннюю премию',
-      highlight: false,
-    },
-    {
       key: 'retail_demand',
       label: 'Спрос сетей, HoReCa Москвы и календарь РЦ',
-      absWeight: Math.max(0.022, Math.abs(fl.retail_demand) + 0.018),
-      signedLog: fl.retail_demand,
+      absWeight: Math.abs(Number(fl.retail_demand) || 0),
+      signedLog: Number(fl.retail_demand) || 0,
       color: '#8C5E00',
       currentVal: `Розница РФ: ${officialSnapshotData?.retail?.value?.toFixed(2) ?? '49.19'} ₽${foodStarCh?.quotedPrice ? ` · HoReCa МСК: ${foodStarCh.quotedPrice.toFixed(0)} ₽` : ''}`,
       asOf: `Росстат · ${officialSnapshotData?.retail?.date ?? '2026-10-26'}`,
@@ -1062,8 +1067,8 @@ export function buildCatBoostShapCards({ officialForecast, officialSnapshotData,
     {
       key: 'weather',
       label: 'Погодный радар 4 хабов (ЮФО / КЗ / УЗ / Москва)',
-      absWeight: Math.max(0.018, Math.abs(fl.weather) + 0.014),
-      signedLog: fl.weather,
+      absWeight: Math.abs(Number(fl.weather) || 0),
+      signedLog: Number(fl.weather) || 0,
       color: '#6366F1',
       currentVal: `Волг. min: ${Number(vlgMin).toFixed(1)}°C · Тараз КЗ: ${Number(zhmMin).toFixed(1)}°C · МСК min: ${Number(signals?.weatherHubs?.moscow?.minTemp10d ?? -2.0).toFixed(1)}°C`,
       asOf: signals?.weatherHubs?.volgograd?.status === 'live' ? 'Open-Meteo LIVE (10 дн.)' : `ERA5 / Open-Meteo`,
@@ -1073,16 +1078,17 @@ export function buildCatBoostShapCards({ officialForecast, officialSnapshotData,
     },
   ];
 
-  const sumW = raw.reduce((s, r) => s + r.absWeight, 0) || 1;
-  const rawPcts = raw.map((r) => Math.max(5, Math.round((r.absWeight / sumW) * 100)));
-  const diff = 100 - rawPcts.reduce((a, b) => a + b, 0);
-  rawPcts[0] += diff;
+  const sumW = raw.reduce((s, r) => s + r.absWeight, 0);
+  if (!(sumW > 0)) {
+    return null;
+  }
 
   return raw
-    .map((r, i) => ({
+    .map((r) => ({
       ...r,
-      pct: rawPcts[i],
+      pct: r.absWeight === 0 ? 0 : +((r.absWeight / sumW) * 100).toFixed(1),
       signedPct: +((Math.exp(r.signedLog) - 1) * 100).toFixed(1),
+      note: 'Attribution explains the model, not the market.',
     }))
     .sort((a, b) => b.pct - a.pct);
 }

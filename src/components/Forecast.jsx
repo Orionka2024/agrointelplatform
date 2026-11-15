@@ -208,61 +208,12 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
   const shapCards =
     activeCrop === 'onion'
       ? buildCatBoostShapCards({
-          officialForecast,
+          officialForecast: officialForecast.issueDate <= model.today ? officialForecast : null,
           officialSnapshotData: snap,
           macro: model.macro,
           signals,
         })
-      : [
-          {
-            key: 'season',
-            label: `Сезонный профиль хранения (${cropProfile.label})`,
-            pct: 42,
-            signedPct: +((Math.max(...(cropProfile.seasonalMultipliers || [1])) - 1) * 100).toFixed(0),
-            color: '#1A56A8',
-            currentVal: `Режим камеры: ${cropProfile.storageParams?.optimalTemp || '0..+2°C'}, ${cropProfile.storageParams?.optimalHumidity || '90%'}`,
-            asOf: 'Агронорматив РФ',
-            source: 'Отраслевой регламент хранения',
-            trend: 'Вымывание партий из необорудованных ангаров к январю–февралю',
-            highlight: true,
-          },
-          {
-            key: 'losses',
-            label: 'Технологическая усушка и отход при хранении',
-            pct: 28,
-            signedPct: -((cropProfile.storageParams?.shrinkPct ?? 5) + (cropProfile.storageParams?.rotPct ?? 4)),
-            color: '#0D7C4A',
-            currentVal: `Усушка ${cropProfile.storageParams?.shrinkPct}% + отход ${cropProfile.storageParams?.rotPct}%`,
-            asOf: 'Модель потерь',
-            source: 'shared/storageEconomics.js',
-            trend: 'Определяет порог безубыточности длительного хранения',
-            highlight: false,
-          },
-          {
-            key: 'rate',
-            label: 'Ключевая ставка ЦБ РФ и электроэнергия',
-            pct: 18,
-            signedPct: 4.5,
-            color: '#C0303A',
-            currentVal: `Ставка ЦБ: ${(model.macro.keyRate?.value ?? snap.drivers?.keyRate?.value ?? 14).toFixed(1)}% · Энергия: ${cropProfile.storageParams?.energyRubKgMonth ?? 0.35} ₽/кг/мес`,
-            asOf: 'ЦБ РФ',
-            source: 'Банк России',
-            trend: 'Альтернативная стоимость оборотного капитала на сроке 4–5 мес.',
-            highlight: false,
-          },
-          {
-            key: 'import',
-            label: 'Весенний ранний импорт (Египет, Узбекистан, АЗ)',
-            pct: 12,
-            signedPct: -3.2,
-            color: '#8C5E00',
-            currentVal: `Импорт в балансе: ${cropProfile.balance?.I ?? 0.25} млн т`,
-            asOf: 'Баланс РФ',
-            source: 'Таможенный паритет',
-            trend: 'Формирует ценовой потолок в апреле–мае',
-            highlight: false,
-          },
-        ];
+      : null;
 
   const minWh = Math.min(...decisionPlan.weeks.map((w) => w.whPrice));
   const maxWh = Math.max(...decisionPlan.weeks.map((w) => w.whPrice));
@@ -900,32 +851,62 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                   </div>
 
                   <div style={{ padding: '12px 14px' }}>
-                    {shapCards.map((f) => (
-                      <div key={f.key} className={`shap-item ${f.highlight ? 'highlight' : ''}`}>
-                        <div className="shap-item-head">
-                          <span style={{ fontWeight: 600, color: 'var(--txt)' }}>{f.label}</span>
-                          <span className="mono" style={{ fontWeight: 600, color: f.highlight ? 'var(--blue)' : 'var(--txt)' }}>
-                            {f.pct}%
-                          </span>
+                    {shapCards ? (
+                      <>
+                        <div
+                          style={{
+                            fontSize: 10.5,
+                            color: 'var(--txt2)',
+                            background: 'var(--bg-alt)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 6,
+                            padding: '6px 10px',
+                            marginBottom: 10,
+                          }}
+                        >
+                          Атрибуция объясняет модель, а не рынок. (Attribution explains the model, not the market.)
                         </div>
-                        <div className="progress" style={{ height: 4, marginBottom: 6 }}>
-                          <div
-                            className="progress-fill"
-                            style={{ width: `${f.pct}%`, background: f.color }}
-                          />
-                        </div>
-                        <div className="shap-meta-row">
-                          <div>
-                            <span style={{ color: 'var(--txt3)' }}>Факт: </span>
-                            <strong className="mono" style={{ color: 'var(--txt)' }}>{f.currentVal}</strong>
+                        {shapCards.map((f) => (
+                          <div key={f.key} className={`shap-item ${f.highlight ? 'highlight' : ''}`}>
+                            <div className="shap-item-head">
+                              <span style={{ fontWeight: 600, color: 'var(--txt)' }}>{f.label}</span>
+                              <span className="mono" style={{ fontWeight: 600, color: f.highlight ? 'var(--blue)' : 'var(--txt)' }}>
+                                {f.pct}%
+                              </span>
+                            </div>
+                            <div className="progress" style={{ height: 4, marginBottom: 6 }}>
+                              <div
+                                className="progress-fill"
+                                style={{ width: `${f.pct}%`, background: f.color }}
+                              />
+                            </div>
+                            <div className="shap-meta-row">
+                              <div>
+                                <span style={{ color: 'var(--txt3)' }}>Факт: </span>
+                                <strong className="mono" style={{ color: 'var(--txt)' }}>{f.currentVal}</strong>
+                              </div>
+                              <span className="shap-source-badge" title={f.source}>
+                                {f.asOf}
+                              </span>
+                            </div>
+                            <div className="shap-trend-desc">{f.trend}</div>
                           </div>
-                          <span className="shap-source-badge" title={f.source}>
-                            {f.asOf}
-                          </span>
-                        </div>
-                        <div className="shap-trend-desc">{f.trend}</div>
+                        ))}
+                      </>
+                    ) : (
+                      <div
+                        style={{
+                          fontSize: 11.5,
+                          color: 'var(--txt2)',
+                          background: 'var(--bg-alt)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 6,
+                          padding: '10px 12px',
+                        }}
+                      >
+                        Атрибуция факторов недоступна (Factor attribution unavailable)
                       </div>
-                    ))}
+                    )}
 
                     <div className="divider" />
 

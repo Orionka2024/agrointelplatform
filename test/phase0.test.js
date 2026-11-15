@@ -324,4 +324,69 @@ test('P0-3 (F-11): Storage duration slider scales physical loss monotonically (2
   assert.equal(diffRubKg, 1.60, '7-month net proceeds must be 1.60 RUB/kg lower than the buggy flat-loss output');
 });
 
+test('P0-4 (F-03): No hardcoded SHAP padding constants or synthetic storage_tier remain; attribution is derived strictly from model output or is null', async () => {
+  const weeklyPlanSrc = fs.readFileSync(path.join(ROOT, 'shared/weeklyDecisionPlan.js'), 'utf8');
+  const forecastUiSrc = fs.readFileSync(path.join(ROOT, 'src/components/Forecast.jsx'), 'utf8');
+  const { buildCatBoostShapCards, buildWeeklyDecisionPlan } = await import('../shared/weeklyDecisionPlan.js');
+  const { officialForecast } = await import('../shared/officialData.js');
+  const { CROP_PROFILES } = await import('../shared/cropProfiles.js');
+
+  // 1. Grep test: no hardcoded SHAP padding constants (+ 0.04, + 0.02, + 0.018, + 0.014) or synthetic storage_tier (0.032, -0.012)
+  const shapSection = weeklyPlanSrc.slice(weeklyPlanSrc.indexOf('export function buildCatBoostShapCards'));
+  assert.doesNotMatch(
+    shapSection,
+    /\+\s*0\.04|\+\s*0\.02|\+\s*0\.018|\+\s*0\.014|0\.032|-0\.012|key:\s*['"]storage_tier['"]/,
+    'buildCatBoostShapCards must not contain hardcoded SHAP padding constants or synthetic storage_tier factor'
+  );
+
+  // 2. Unit test: when officialForecast has no catboostShap / factorLogs, attribution is null
+  const nullAttr = buildCatBoostShapCards({
+    officialForecast: { rows: [{ targetMonth: '2027-03', catboostShap: null }] },
+    officialSnapshotData: {},
+    macro: {},
+  });
+  assert.equal(nullAttr, null, 'buildCatBoostShapCards must return null when model output has no catboostShap');
+
+  const noFcPlan = buildWeeklyDecisionPlan({
+    cropId: 'onion',
+    cropProfile: CROP_PROFILES.onion,
+    officialForecast: null,
+    today: '2026-10-30',
+    baseWarehousePrice: 15.5,
+    bridge: { truckCostRub: 135000, truckPayloadKg: 20000, packagingRubKg: 1.2, handlingRubKg: 0.5, transitLossPct: 1.5, marginRubKg: 2.0, moscowVatRate: 0.1 },
+    storageParams: CROP_PROFILES.onion.storageParams,
+  });
+  assert.equal(noFcPlan.attribution, null, 'Decision plan without officialForecast must have attribution: null');
+
+  // 3. Unit test: when real model attribution is present, zero-impact factors (financing=0, retail_demand=0 on 2027-03) have 0% weight and no synthetic storage_tier
+  const realAttr = buildCatBoostShapCards({
+    officialForecast,
+    officialSnapshotData: {},
+    macro: {},
+  });
+  assert.ok(Array.isArray(realAttr) && realAttr.length > 0, 'Real model output should produce attribution array');
+  assert.equal(
+    realAttr.some((f) => f.key === 'storage_tier'),
+    false,
+    'Synthetic storage_tier factor must not be injected into model attribution'
+  );
+  const financingCard = realAttr.find((f) => f.key === 'financing');
+  assert.ok(financingCard, 'financing factor from model should be present');
+  assert.equal(financingCard.absWeight, 0, 'financing absWeight on 2027-03 must be 0 (not padded with +0.02)');
+  assert.equal(financingCard.pct, 0, 'Zero-weight factor must have 0% attribution');
+
+  // 4. UI check: Forecast.jsx displays "Factor attribution unavailable" when attribution is null and "Attribution explains the model, not the market." when shown
+  assert.match(
+    forecastUiSrc,
+    /Factor attribution unavailable|Атрибуция факторов недоступна/i,
+    'Forecast.jsx must display Factor attribution unavailable when attribution is null'
+  );
+  assert.match(
+    forecastUiSrc,
+    /Attribution explains the model, not the market/i,
+    'Forecast.jsx must include note "Attribution explains the model, not the market."'
+  );
+});
+
+
 
