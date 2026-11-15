@@ -483,4 +483,72 @@ test('P1-0c (F-08): Relational schema migrations, audit_revisions log, one-time 
   }
 });
 
+test('P1-1 (F-05): Month-of-year seasonal local basis curve B(m) with hierarchical shrinkage, lot-size/recency weights, interval widening, and synthetic backtest', async () => {
+  const localBasisMod = await import('../shared/localBasis.js');
+  const { localBasis, applyBasis, runSeasonalBasisBacktest } = localBasisMod;
+
+  assert.equal(typeof runSeasonalBasisBacktest, 'function', 'runSeasonalBasisBacktest must be exported from shared/localBasis.js');
+
+  const national = [
+    { period: '2026-08', value: 17.05 },
+    { period: '2026-09', value: 18.12 },
+    { period: '2026-10', value: 18.40 },
+  ];
+
+  // 1. Hierarchical shrinkage with user transactions weighted by lot size and recency
+  const userPoints = [
+    { week: '2026-09-14', value: 12.56, lotSizeT: 20 },
+    { week: '2026-09-21', value: 12.90, lotSizeT: 60 }, // larger 60t lot has higher weight than 20t lot
+    { week: '2026-10-12', value: 13.05, lotSizeT: 40 },
+  ];
+
+  const cal = localBasis(userPoints, national);
+  assert.ok(cal, 'localBasis must return a calibration object');
+  assert.ok(cal.curve && typeof cal.curve === 'object', 'localBasis must return month-of-year curve B(m)');
+  assert.equal(Object.keys(cal.curve).length, 12, 'B(m) curve must cover all 12 calendar months');
+
+  // Autumn months (9, 10) reflect autumn harvest discount (~0.70-0.73), while March (3) shrinks toward spring prior (~0.92-0.95)
+  assert.ok(cal.curve[9] >= 0.68 && cal.curve[9] <= 0.76, `September basis ${cal.curve[9]} should be near ~0.71`);
+  assert.ok(cal.curve[10] >= 0.68 && cal.curve[10] <= 0.76, `October basis ${cal.curve[10]} should be near ~0.71`);
+  assert.ok(cal.curve[3] >= 0.88 && cal.curve[3] <= 0.98, `March basis ${cal.curve[3]} should shrink toward spring prior (~0.94)`);
+
+  // When no regional series is passed explicitly, priorStatus / label notes prior provenance
+  const calNoRegional = localBasis(userPoints, national, { regionalSeries: [] });
+  assert.equal(calNoRegional.priorStatus, 'no regional prior');
+  assert.ok(calNoRegional.uncertaintyCurve[3] > calNoRegional.uncertaintyCurve[10], 'Unobserved March must have wider basis uncertainty than observed October');
+
+  // 2. UI label requirement: "calibrated on N transactions in months X, Y; other months use the prior"
+  assert.ok(
+    cal.label.includes('calibrated on 3 transactions in months 2026-09, 2026-10; other months use the prior'),
+    `Expected label to contain required text, got: ${cal.label}`
+  );
+
+  // 3. Propagate basis uncertainty into localized intervals (widen them by the basis variance term)
+  const marchRow = {
+    targetMonth: '2027-03',
+    point: 24.05,
+    interval80: { lo: 21.0, hi: 27.1 },
+  };
+  const localizedMarch = applyBasis(marchRow, cal);
+  const fMarch = cal.curve[3];
+  assert.ok(Math.abs(localizedMarch.point - 24.05 * fMarch) < 1e-6, 'Localized March point must use B(3)');
+  const naiveScaledWidth = (27.1 - 21.0) * fMarch;
+  const widenedWidth = localizedMarch.interval80.hi - localizedMarch.interval80.lo;
+  assert.ok(
+    widenedWidth > naiveScaledWidth,
+    `Localized interval width (${widenedWidth.toFixed(3)}) must be widened beyond naive scaled width (${naiveScaledWidth.toFixed(3)}) by basis variance`
+  );
+
+  // 4. Synthetic seasonal backtest: true basis 0.71 in autumn and 0.94 in spring (RF March = 24.05, true local March = 22.61)
+  const bt = runSeasonalBasisBacktest();
+  assert.ok(Math.abs(bt.oldStaticErrorPct - -24.8) < 1.0, `Old static March error should be ~ -24.8%, got ${bt.oldStaticErrorPct}%`);
+  assert.ok(Math.abs(bt.newSeasonalErrorPct) < 7.0, `New seasonal March error must be < 7%, got ${bt.newSeasonalErrorPct}%`);
+  assert.ok(Math.abs(bt.newSeasonalErrorRub) <= 1.5, `New seasonal March error must be <= 1.50 RUB/kg, got ${bt.newSeasonalErrorRub}`);
+  assert.ok(
+    Math.abs(bt.noisySingleEntryShiftPct) <= 10.0,
+    `Single noisy/distressed entry (9.50 RUB/kg, n=1) must not shift 6-month forecast by > 10%, got ${bt.noisySingleEntryShiftPct}%`
+  );
+});
+
+
 

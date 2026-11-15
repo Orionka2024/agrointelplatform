@@ -72,7 +72,7 @@ export default function OfficialMarket() {
           const m = resolveSelectedHorizonMetrics(x);
           return [
             x.targetMonth,
-            applyBasis({ point: m.point, interval80: m.interval80 }, cal)?.point,
+            applyBasis({ point: m.point, interval80: m.interval80, targetMonth: x.targetMonth }, cal)?.point,
           ];
         })
       : []
@@ -215,7 +215,7 @@ export default function OfficialMarket() {
             {cal && (
               <div className="basis-banner">
                 <strong>Калибровка под ваши сделки активна ({activeBasis === 'warehouse' ? 'склад EXW без НДС' : 'Москва без НДС'}):</strong>{' '}
-                коэффициент уровня <strong>×{fmt(cal.factor)}</strong> · учтено месяцев: <strong>{cal.n}</strong> ({STRENGTH[cal.strength]}).
+                сезонная кривая <code>B(m)</code> · {cal.label} ({STRENGTH[cal.strength]}).
               </div>
             )}
             {stale && <p className="audit-warning">{freshness.staleWarning || 'Данные устарели. Требуется обновление архива Росстата.'}</p>}
@@ -250,7 +250,7 @@ export default function OfficialMarket() {
                     const selMetrics = resolveSelectedHorizonMetrics(row);
                     const conf = evaluateHorizonConfidence(row, fc.lastValue);
                     const treePt = row.catboostPoint ?? row.point;
-                    const loc = applyBasis({ point: selMetrics.point, interval80: selMetrics.interval80 }, cal);
+                    const loc = applyBasis({ point: selMetrics.point, interval80: selMetrics.interval80, targetMonth: row.targetMonth }, cal);
                     const cbFinal = row.validation.finalAll?.find((x) => x.id === 'catboost');
                     const selFinal = row.validation.finalAll?.find((x) => x.id === selMetrics.selected) ?? row.validation.final;
                     return (
