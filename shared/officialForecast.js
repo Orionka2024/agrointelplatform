@@ -17,9 +17,9 @@ export const MONTHLY_MODELS = {
   seasonal: 'Цена того же месяца прошлого года',
   ratio: 'Среднее сезонное отношение (до 3 лет)',
   season_ridge: 'Обученная сезонность (ridge, месяц года)',
-  eq_carry: 'Сезонное равновесие Weibull (медиана 24 мес. + затухание шока)',
+  eq_carry: 'Сезонная модель (Weibull)',
   drivers: 'Обученная модель: сезонность + USD/RUB + ставка ЦБ (ridge)',
-  catboost: 'CatBoost GBDT: сезонность + KZT/USD + ставка ЦБ + розница + погода ERA5',
+  catboost: 'Дерево решений (экспериментальная)',
 };
 
 export function monthNumber(s) {

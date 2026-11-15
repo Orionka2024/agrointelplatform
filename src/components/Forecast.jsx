@@ -4,7 +4,7 @@ import { officialForecast, officialSnapshot } from '../../shared/officialData.js
 import { MONTHLY_MODELS } from '../../shared/officialForecast.js';
 import { CROP_PROFILES, CROP_TYPES, getCropProfile } from '../../shared/cropProfiles.js';
 import { warehouseToMoscow, BRIDGE_LABELS } from '../../shared/bridge.js';
-import { buildWeeklyDecisionPlan, buildCatBoostShapCards } from '../../shared/weeklyDecisionPlan.js';
+import { buildWeeklyDecisionPlan, buildCatBoostShapCards, resolveSelectedHorizonMetrics } from '../../shared/weeklyDecisionPlan.js';
 import { STORAGE_TIERS } from '../../shared/storageEconomics.js';
 import { FACTOR_DEFS } from '../../shared/factorToggles.js';
 import MonthlySalesPlanTable from './MonthlySalesPlanTable';
@@ -418,7 +418,7 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span className={`badge ${activeCrop === 'onion' ? 'up' : 'info'}`}>
                     {activeCrop === 'onion'
-                      ? `CatBoost GBDT (${officialForecast.modelVersion})`
+                      ? `Сезонная модель (Weibull) · ${officialForecast.modelVersion}`
                       : 'Сезонный профиль хранения'}
                   </span>
                   {activeCrop === 'onion' && (
@@ -599,7 +599,7 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                   <span className="compare-sub">
                     {scenarioPeakDiff !== 0
                       ? `Эффект сценария: ${scenarioPeakDiff > 0 ? `+${scenarioPeakDiff}` : scenarioPeakDiff} ₽/кг`
-                      : 'Совпадает с базовой траекторией CatBoost'}
+                      : 'Совпадает с базовой траекторией модели'}
                   </span>
                 </div>
 
@@ -843,7 +843,7 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                 <div>
                   <div className="fc-section-hd">
                     <span className="panel-title">
-                      Факторы модели · {activeCrop === 'onion' ? 'Exact TreeSHAP (CatBoost)' : 'Драйверы хранения'}
+                      Факторы модели · {activeCrop === 'onion' ? 'Exact TreeSHAP · Дерево решений (экспериментальная)' : 'Драйверы хранения'}
                     </span>
                     <span className={`pill ${decisionPlan.bestNetWeek.gainVsNow > 0.5 ? 'up' : 'warn'}`}>
                       {decisionPlan.bestNetWeek.gainVsNow > 0.5 ? 'ХРАНЕНИЕ ОКУПАЕТСЯ' : 'КОНТРОЛЬ ПОТЕРЬ'}
@@ -1040,39 +1040,41 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                   <tr>
                     <th className="pl sticky-col">Целевой месяц</th>
                     <th>Лаг (мес.)</th>
-                    <th>Прогноз CatBoost РФ</th>
-                    <th>MAE CatBoost (holdout)</th>
-                    <th>MAE Сезонное равновесие</th>
+                    <th>Прогноз выбранной модели РФ</th>
+                    <th>Выбранная модель</th>
+                    <th>MAE выбранной модели (holdout)</th>
+                    <th>MAE Дерево решений (эксп.)</th>
                     <th>MAE Наивная (посл. цена)</th>
-                    <th>Выигрыш CatBoost к наивной</th>
+                    <th>Выигрыш к наивной</th>
                     <th>80% эмпир. коридор</th>
                   </tr>
                 </thead>
                 <tbody>
                   {officialForecast.rows.map((r) => {
+                    const selMetrics = resolveSelectedHorizonMetrics(r);
                     const cbFinal = r.validation.finalAll?.find((x) => x.id === 'catboost');
-                    const eqFinal = r.validation.finalAll?.find((x) => x.id === 'eq_carry');
                     const naiveMae = r.validation.naiveFinal?.mae ?? 0;
-                    const cbMae = cbFinal?.mae ?? r.validation.final?.mae ?? 0;
-                    const skill = naiveMae > 0 ? Math.round((1 - cbMae / naiveMae) * 100) : 0;
+                    const selMae = selMetrics.mae ?? r.validation.final?.mae ?? 0;
+                    const skill = naiveMae > 0 ? Math.round((1 - selMae / naiveMae) * 100) : 0;
                     return (
                       <tr key={r.h}>
                         <td className="pl fw mono sticky-col">{r.targetMonth}</td>
                         <td className="mono">+{r.lead} мес.</td>
                         <td className="mono" style={{ fontWeight: 600, color: 'var(--blue)' }}>
-                          {(r.catboostPoint ?? r.point)?.toFixed(2)} ₽
+                          {selMetrics.point?.toFixed(2)} ₽
                         </td>
+                        <td style={{ fontSize: 11 }}>{MONTHLY_MODELS[selMetrics.selected] || selMetrics.selected}</td>
                         <td className="mono up" style={{ fontWeight: 600 }}>
-                          {cbMae.toFixed(2)} ₽
+                          {selMae.toFixed(2)} ₽
                         </td>
-                        <td className="mono">{eqFinal?.mae?.toFixed(2) ?? '—'} ₽</td>
+                        <td className="mono">{cbFinal?.mae?.toFixed(2) ?? '—'} ₽</td>
                         <td className="mono">{naiveMae.toFixed(2)} ₽</td>
                         <td className={`mono ${skill > 0 ? 'up' : 'dn'}`}>
                           {skill > 0 ? `+${skill}% точнее` : `${skill}%`}
                         </td>
                         <td className="mono">
-                          {r.catboostInterval80
-                            ? `${r.catboostInterval80.lo.toFixed(1)}–${r.catboostInterval80.hi.toFixed(1)} ₽`
+                          {selMetrics.interval80
+                            ? `${selMetrics.interval80.lo.toFixed(1)}–${selMetrics.interval80.hi.toFixed(1)} ₽`
                             : '—'}
                         </td>
                       </tr>
@@ -1083,7 +1085,7 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
             </div>
 
             <div style={{ marginTop: 10, fontSize: 11, color: 'var(--txt3)' }}>
-              * На сверхкоротких горизонтах (1–2 мес.) инерция текущей цены высока у всех моделей; начиная с горизонта 4–15 месяцев CatBoost GBDT и сезонное равновесие Weibull снижают ошибку прогноза с 5.0–8.3 ₽/кг до 2.5–3.5 ₽/кг (+30%..+67% точнее наивной базовой модели). Помесячный выбор строгого селектора: {MONTHLY_MODELS[officialForecast.rows[2]?.validation?.selected]}.
+              * На сверхкоротких горизонтах (1–2 мес.) инерция текущей цены высока у всех моделей; на средних горизонтах (4–12 мес.) Сезонная модель (Weibull) и Дерево решений (экспериментальная) снижают ошибку прогноза относительно сезонного наивного ориентира. Помесячный выбор строгого селектора: {MONTHLY_MODELS[officialForecast.rows[2]?.validation?.selected]}.
             </div>
           </div>
         )}

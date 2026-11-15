@@ -388,5 +388,105 @@ test('P0-4 (F-03): No hardcoded SHAP padding constants or synthetic storage_tier
   );
 });
 
+test('P0-5 (F-01, F-02): Stop overriding the model selector across h=1..14, follow flipped validation.selected in stubbed forecast, and remove user-facing "CatBoost" labels', async () => {
+  const { officialForecast } = await import('../shared/officialData.js');
+  const { MONTHLY_MODELS } = await import('../shared/officialForecast.js');
+  const { buildCatboostKnots, buildWeeklyDecisionPlan, resolveSelectedHorizonPoint } = await import('../shared/weeklyDecisionPlan.js');
+  const { CROP_PROFILES } = await import('../shared/cropProfiles.js');
+
+  assert.equal(typeof resolveSelectedHorizonPoint, 'function', 'shared/weeklyDecisionPlan.js must export resolveSelectedHorizonPoint');
+
+  // 1. For each horizon h=1..14, the knot point must equal the selector's chosen model (not a wCb * cbPt + (1-wCb) * eqPt blend)
+  const knotBundle = buildCatboostKnots(officialForecast, '2026-10-30', 15.5);
+  assert.ok(knotBundle && knotBundle.knots.length === 15, 'Expected 1 cutoff knot + 14 horizon knots');
+  for (let i = 0; i < officialForecast.rows.length; i++) {
+    const r = officialForecast.rows[i];
+    const knot = knotBundle.knots[i + 1];
+    const expectedPt = r.validation.selected === 'catboost' ? r.catboostPoint : r.point;
+    assert.ok(
+      Math.abs( Math.exp(knot.logP) - expectedPt ) < 1e-9,
+      `Horizon h=${r.h} (${r.targetMonth}, selected=${r.validation.selected}) knot value ${Math.exp(knot.logP)} must equal selector model value ${expectedPt}, not blended value`
+    );
+  }
+
+  // 2. Stubbed forecast that flips validation.selected between eq_carry and catboost changes the knot & weekly plan values
+  const stubbedEqCarry = {
+    ...officialForecast,
+    rows: officialForecast.rows.map((r) => ({
+      ...r,
+      point: 20.0,
+      eqCarryPoint: 20.0,
+      catboostPoint: 26.0,
+      validation: { ...r.validation, selected: 'eq_carry' },
+    })),
+  };
+  const stubbedTree = {
+    ...officialForecast,
+    rows: officialForecast.rows.map((r) => ({
+      ...r,
+      point: 20.0,
+      eqCarryPoint: 20.0,
+      catboostPoint: 26.0,
+      validation: { ...r.validation, selected: 'catboost' },
+    })),
+  };
+
+  const knotsEq = buildCatboostKnots(stubbedEqCarry, '2026-10-30', 15.5);
+  const knotsTree = buildCatboostKnots(stubbedTree, '2026-10-30', 15.5);
+  assert.ok(Math.abs(Math.exp(knotsEq.knots[5].logP) - 20.0) < 1e-9, 'When validation.selected=eq_carry, knot uses eq_carry (20.0)');
+  assert.ok(Math.abs(Math.exp(knotsTree.knots[5].logP) - 26.0) < 1e-9, 'When validation.selected=catboost, knot uses tree model (26.0)');
+
+  const planEq = buildWeeklyDecisionPlan({
+    cropId: 'onion',
+    cropProfile: CROP_PROFILES.onion,
+    officialForecast: stubbedEqCarry,
+    today: '2026-10-30',
+    baseWarehousePrice: 15.5,
+    bridge: { truckCostRub: 135000, truckPayloadKg: 20000, packagingRubKg: 1.2, handlingRubKg: 0.5, transitLossPct: 1.5, marginRubKg: 2.0, moscowVatRate: 0.1 },
+    storageParams: CROP_PROFILES.onion.storageParams,
+  });
+  const planTree = buildWeeklyDecisionPlan({
+    cropId: 'onion',
+    cropProfile: CROP_PROFILES.onion,
+    officialForecast: stubbedTree,
+    today: '2026-10-30',
+    baseWarehousePrice: 15.5,
+    bridge: { truckCostRub: 135000, truckPayloadKg: 20000, packagingRubKg: 1.2, handlingRubKg: 0.5, transitLossPct: 1.5, marginRubKg: 2.0, moscowVatRate: 0.1 },
+    storageParams: CROP_PROFILES.onion.storageParams,
+  });
+  assert.notEqual(
+    planEq.peakWeek.whPrice,
+    planTree.peakWeek.whPrice,
+    'Flipping validation.selected in stubbed forecast must change the resulting weekly plan trajectory'
+  );
+
+  // 3. MONTHLY_MODELS user-facing labels match specification
+  assert.equal(MONTHLY_MODELS.eq_carry, 'Сезонная модель (Weibull)');
+  assert.equal(MONTHLY_MODELS.catboost, 'Дерево решений (экспериментальная)');
+
+  // 4. Grep test: no user-facing label in src/components/*.jsx or README.md says "CatBoost"
+  const componentFiles = fs.readdirSync(path.join(ROOT, 'src/components')).filter((f) => f.endsWith('.jsx'));
+  for (const file of componentFiles) {
+    const src = fs.readFileSync(path.join(ROOT, 'src/components', file), 'utf8');
+    // Strip JS import lines and identifier references (buildCatBoostShapCards, isOnionCatBoost, catboostPoint, catboostQ80, catboostInterval80, catboostHoldoutMae, catboostShap)
+    const stripped = src
+      .replace(/import\s+.*from\s+['"][^'"]+['"];?/g, '')
+      .replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '')
+      .replace(/\b(buildCatBoostShapCards|isOnionCatBoost|catboostPoint|catboostQ80|catboostInterval80|catboostHoldoutMae|catboostShap)\b/g, '')
+      .replace(/['"]catboost['"]/g, '');
+    assert.doesNotMatch(
+      stripped,
+      /CatBoost/i,
+      `User-facing component ${file} must not display "CatBoost"`
+    );
+  }
+
+  const readmeSrc = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8')
+    .replace(/rosstat-catboost-3\.0\.0/g, '')
+    .replace(/`catboost`/g, '');
+  assert.doesNotMatch(readmeSrc, /CatBoost/i, 'README.md must not call the custom tree model "CatBoost"');
+});
+
+
 
 

@@ -489,40 +489,71 @@ export function buildWeekDeltaExplanation({
 
 export const CONDITIONAL_FORECAST_BANNER =
   'Текущая цена сделки по луку EXW Волгоград не подтверждена. Прогноз является условным.';
+
+export function resolveSelectedHorizonPoint(r) {
+  if (!r) return null;
+  const sel = r.validation?.selected;
+  if (sel === 'catboost' && Number.isFinite(r.catboostPoint)) {
+    return r.catboostPoint;
+  }
+  if (sel === 'eq_carry' && Number.isFinite(r.eqCarryPoint)) {
+    return r.eqCarryPoint;
+  }
+  return Number.isFinite(r.point) ? r.point : (r.catboostPoint ?? null);
+}
+
+export function resolveSelectedHorizonMetrics(r) {
+  if (!r) return { selected: null, point: null, q80: null, interval80: null, mae: null };
+  const selected = r.validation?.selected ?? 'eq_carry';
+  const point = resolveSelectedHorizonPoint(r);
+  const q80 =
+    selected === 'catboost'
+      ? (r.catboostQ80 ?? r.validation?.q80 ?? null)
+      : (r.validation?.q80 ?? r.catboostQ80 ?? null);
+  const interval80 =
+    selected === 'catboost'
+      ? (r.catboostInterval80 ?? r.interval80 ?? null)
+      : (r.interval80 ?? r.catboostInterval80 ?? null);
+  const finalEntry = r.validation?.finalAll?.find((x) => x.id === selected);
+  const mae = finalEntry?.mae ?? r.validation?.final?.mae ?? r.catboostHoldoutMae ?? null;
+  return { selected, point, q80, interval80, mae };
+}
+
 export function buildCatboostKnots(officialForecast, issueDate, pStart) {
   if (!officialForecast?.rows?.length) return null;
   const startMs = parseUtcMs(issueDate);
   const cutoffIso = `${officialForecast.inputCutoff}-15`;
   const lastVal = officialForecast.lastValue || 18.11816;
   const firstRow = officialForecast.rows[0];
-  const firstPt = firstRow.catboostPoint ?? firstRow.point ?? lastVal;
-  const firstQ80 = firstRow.catboostQ80 ?? firstRow.validation?.q80 ?? 2.6;
-  const firstMae = firstRow.catboostHoldoutMae ?? firstRow.validation?.final?.mae ?? 2.6;
+  const firstMetrics = resolveSelectedHorizonMetrics(firstRow);
+  const firstPt = firstMetrics.point ?? lastVal;
+  const firstBandDenom = firstRow.catboostPoint ?? firstPt;
+  const firstQ80 = firstRow.catboostQ80 ?? firstMetrics.q80 ?? 2.6;
+  const firstMae = firstMetrics.mae ?? 2.6;
   const firstNaive = firstRow.validation?.naiveFinal?.mae ?? 3.2;
 
   const knots = [];
   knots.push({
     ms: parseUtcMs(cutoffIso),
     logP: Math.log(lastVal),
-    relBand80: firstQ80 / firstPt,
+    relBand80: firstQ80 / firstBandDenom,
     relMae: firstMae / firstPt,
     skillPct: firstNaive > 0 ? Math.max(0, (1 - firstMae / firstNaive) * 100) : 0,
   });
 
   for (const r of officialForecast.rows) {
-    const cbPt = r.catboostPoint ?? r.point;
-    const eqPt = r.point ?? r.catboostPoint;
-    const lead = r.lead ?? 3;
-    const wCb = lead <= 3 ? 1 : Math.exp(-Math.max(0, (lead - 3.5) * 0.52));
-    const pt = cbPt > 0 && eqPt > 0 ? wCb * cbPt + (1 - wCb) * eqPt : (cbPt ?? eqPt);
+    const { selected, point: pt, mae: rowMae } = resolveSelectedHorizonMetrics(r);
     if (!(pt > 0)) continue;
     const q80 = r.catboostQ80 ?? r.validation?.q80 ?? firstQ80;
-    const mae = r.catboostHoldoutMae ?? r.validation?.final?.mae ?? firstMae;
+    const bandDenom = r.catboostPoint ?? pt;
+    const mae = rowMae ?? firstMae;
     const naiveMae = r.validation?.naiveFinal?.mae ?? mae;
     knots.push({
       ms: parseUtcMs(`${r.targetMonth}-15`),
       logP: Math.log(pt),
-      relBand80: q80 > 0 ? q80 / pt : 0.14,
+      selectedModel: selected,
+      point: pt,
+      relBand80: q80 > 0 ? q80 / bandDenom : 0.14,
       relMae: mae > 0 ? mae / pt : 0.12,
       skillPct: naiveMae > 0 ? ((1 - mae / naiveMae) * 100) : 0,
     });

@@ -8,7 +8,7 @@ export default function MonthlySalesPlanTable({ plan, cropLabel = 'лук' }) {
           <span className="panel-title">
             Рекомендуемый помесячный план продаж (100% урожая на складе · {cropLabel})
           </span>
-          <span className="badge up">CatBoost + Экономика хранения</span>
+          <span className="badge up">Сезонная модель (Weibull) + Экономика хранения</span>
         </div>
         <div style={{ fontSize: 11, color: 'var(--txt2)', fontFamily: 'var(--mono)' }}>
           Средняя чистыми: <strong style={{ color: 'var(--green)' }}>{plan.weightedNetRubKg.toFixed(1)} ₽/кг</strong>

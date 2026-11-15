@@ -4,6 +4,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 import { officialHistory as history, officialForecast as fc, officialDrivers as drivers } from '../../shared/officialData.js';
 import { MONTHLY_MODELS, monthNumber } from '../../shared/officialForecast.js';
 import { localBasis, applyBasis } from '../../shared/localBasis.js';
+import { resolveSelectedHorizonMetrics } from '../../shared/weeklyDecisionPlan.js';
 import { useMarket } from '../context/useMarket';
 import OfficialSummary from './OfficialSummary';
 import AddActualPrice from './AddActualPrice';
@@ -53,15 +54,18 @@ export default function OfficialMarket() {
   ].sort();
 
   const monthlyMap = new Map(monthly.map((x) => [x.period, x.value]));
-  const cbMap = new Map(rows.map((x) => [x.targetMonth, x.catboostPoint ?? x.point]));
-  const selMap = new Map(rows.map((x) => [x.targetMonth, x.point]));
+  const selMap = new Map(rows.map((x) => [x.targetMonth, resolveSelectedHorizonMetrics(x).point]));
+  const treeMap = new Map(rows.map((x) => [x.targetMonth, x.catboostPoint ?? x.point]));
   const userObsMap = new Map((cal?.months || []).map((x) => [x.month, x.user]));
-  const localCbMap = new Map(
+  const localSelMap = new Map(
     cal
-      ? rows.map((x) => [
-          x.targetMonth,
-          applyBasis({ point: x.catboostPoint ?? x.point, interval80: x.catboostInterval80 }, cal)?.point,
-        ])
+      ? rows.map((x) => {
+          const m = resolveSelectedHorizonMetrics(x);
+          return [
+            x.targetMonth,
+            applyBasis({ point: m.point, interval80: m.interval80 }, cal)?.point,
+          ];
+        })
       : []
   );
 
@@ -74,15 +78,15 @@ export default function OfficialMarket() {
       pointRadius: 2,
     },
     {
-      label: 'CatBoost GBDT (РФ, все факторы)',
-      data: labels.map((m) => cbMap.get(m) ?? null),
+      label: 'Выбор селектора (РФ)',
+      data: labels.map((m) => selMap.get(m) ?? null),
       borderColor: '#0D7C4A',
       borderDash: [5, 4],
       pointRadius: 3,
     },
     {
-      label: 'Строгий выбор на настройке',
-      data: labels.map((m) => selMap.get(m) ?? null),
+      label: 'Дерево решений (экспериментальная)',
+      data: labels.map((m) => treeMap.get(m) ?? null),
       borderColor: '#ad7024',
       borderDash: [3, 4],
       pointRadius: 2,
@@ -98,8 +102,8 @@ export default function OfficialMarket() {
       pointRadius: 4,
     });
     datasets.push({
-      label: 'CatBoost под ваш уровень цен',
-      data: labels.map((m) => localCbMap.get(m) ?? null),
+      label: 'Выбор селектора под ваш уровень цен',
+      data: labels.map((m) => localSelMap.get(m) ?? null),
       borderColor: '#7C3AED',
       borderDash: [4, 4],
       pointRadius: 3,
@@ -123,7 +127,7 @@ export default function OfficialMarket() {
           <label>
             Ряд{' '}
             <select value={view} onChange={(e) => setView(e.target.value)}>
-              <option value="producer">Производители РФ · месяцы · без НДС + CatBoost GBDT</option>
+              <option value="producer">Производители РФ · месяцы · без НДС + выбор селектора</option>
               <option value="retail">Розница РФ · недели · наблюдения (246 нед.)</option>
             </select>
           </label>
@@ -141,7 +145,7 @@ export default function OfficialMarket() {
         {view === 'retail' ? (
           <>
             <p>
-              Розничные цены Росстата используются в CatBoost как опережающий сигнал рознично-оптового спреда, но никогда не пересчитываются в складскую цену фиксированным делителем.
+              Розничные цены Росстата используются в Дереве решений (экспериментальная) как опережающий сигнал рознично-оптового спреда, но никогда не пересчитываются в складскую цену фиксированным делителем.
             </p>
             <div className="official-chart">
               <Line
@@ -160,7 +164,7 @@ export default function OfficialMarket() {
         ) : (
           <>
             <p>
-              Сохранённый выпуск: <strong>{fc.issueDate}</strong> · Последнее наблюдение Росстата: <strong>{fc.inputCutoff}</strong> ({fmt(fc.lastValue)} ₽/кг) · Модель: <code>{fc.modelVersion}</code>. Ансамбль CatBoost обучается на отклонениях от сезонного равновесия Weibull с учётом <strong>KZT/RUB</strong> ({fc.drivers?.kztRubLast ? `${fmt(fc.drivers.kztRubLast.value, 4)} ₽` : '—'}), <strong>USD/RUB</strong> ({fc.drivers?.usdRubLast ? `${fmt(fc.drivers.usdRubLast.value)} ₽` : '—'}), <strong>ключевой ставки ЦБ</strong> ({fc.drivers?.keyRateLast ? `${fmt(fc.drivers.keyRateLast.value)}%` : '—'}), рознично-оптового спреда и морозных шоков ERA5 в Жамбылской обл. и Волгограде.
+              Сохранённый выпуск: <strong>{fc.issueDate}</strong> · Последнее наблюдение Росстата: <strong>{fc.inputCutoff}</strong> ({fmt(fc.lastValue)} ₽/кг) · Модель: <code>{fc.modelVersion}</code>. На каждом горизонте применяется модель, выбранная строгим walk-forward селектором (преимущественно Сезонная модель (Weibull)); экспериментальное Дерево решений обучается на отклонениях от сезонного равновесия с учётом <strong>KZT/RUB</strong> ({fc.drivers?.kztRubLast ? `${fmt(fc.drivers.kztRubLast.value, 4)} ₽` : '—'}), <strong>USD/RUB</strong> ({fc.drivers?.usdRubLast ? `${fmt(fc.drivers.usdRubLast.value)} ₽` : '—'}), <strong>ключевой ставки ЦБ</strong> ({fc.drivers?.keyRateLast ? `${fmt(fc.drivers.keyRateLast.value)}%` : '—'}), рознично-оптового спреда и морозных шоков ERA5 в Жамбылской обл. и Волгограде.
             </p>
             {cal && (
               <div className="basis-banner">
@@ -181,34 +185,35 @@ export default function OfficialMarket() {
               />
             </div>
 
-            <div className="table-wrapper" role="region" tabIndex={0} aria-label="Помесячный прогноз CatBoost и сравнение моделей">
+            <div className="table-wrapper" role="region" tabIndex={0} aria-label="Помесячный прогноз и сравнение моделей">
               <table className="tbl sticky-hd">
                 <thead>
                   <tr>
                     <th className="sticky-col">Месяц</th>
-                    <th>CatBoost РФ</th>
-                    {cal && <th>Ваш CatBoost</th>}
-                    <th>Выбор селектора</th>
-                    <th>80% диапазон CatBoost</th>
-                    <th>MAE holdout: CatBoost / Равновесие / Naive</th>
+                    <th>Выбор селектора РФ</th>
+                    {cal && <th>Ваш прогноз</th>}
+                    <th>Дерево решений (эксп.)</th>
+                    <th>80% диапазон</th>
+                    <th>MAE holdout: Селектор / Дерево / Naive</th>
                     <th>Выбранная на настройке модель</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((row) => {
-                    const cbPt = row.catboostPoint ?? row.point;
-                    const loc = applyBasis({ point: cbPt, interval80: row.catboostInterval80 }, cal);
+                    const selMetrics = resolveSelectedHorizonMetrics(row);
+                    const treePt = row.catboostPoint ?? row.point;
+                    const loc = applyBasis({ point: selMetrics.point, interval80: selMetrics.interval80 }, cal);
                     const cbFinal = row.validation.finalAll?.find((x) => x.id === 'catboost');
-                    const eqFinal = row.validation.finalAll?.find((x) => x.id === 'eq_carry');
+                    const selFinal = row.validation.finalAll?.find((x) => x.id === selMetrics.selected) ?? row.validation.final;
                     return (
                       <tr key={row.h}>
                         <td className="mono fw sticky-col">{row.targetMonth}</td>
-                        <td className="mono fw" style={{ color: 'var(--green)' }}>{fmt(cbPt)} ₽</td>
+                        <td className="mono fw" style={{ color: 'var(--green)' }}>{fmt(selMetrics.point)} ₽</td>
                         {cal && <td className="mono fw" style={{ color: '#7C3AED' }}>{fmt(loc?.point)} ₽</td>}
-                        <td className="mono">{fmt(row.point)} ₽</td>
-                        <td className="mono">{band(row.catboostInterval80 ?? row.interval80)}</td>
+                        <td className="mono">{fmt(treePt)} ₽</td>
+                        <td className="mono">{band(selMetrics.interval80)}</td>
                         <td className="mono">
-                          <strong>{fmt(cbFinal?.mae)}</strong> / {fmt(eqFinal?.mae)} / {fmt(row.validation.naiveFinal.mae)} ₽
+                          <strong>{fmt(selFinal?.mae)}</strong> / {fmt(cbFinal?.mae)} / {fmt(row.validation.naiveFinal.mae)} ₽
                         </td>
                         <td style={{ fontSize: 11 }}>{MONTHLY_MODELS[row.validation.selected]}</td>
                       </tr>

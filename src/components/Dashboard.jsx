@@ -151,7 +151,7 @@ export default function Dashboard() {
     labels: chartLabels,
     datasets: [
       {
-        label: `${selectedCropProfile.label} · Склад EXW (${isSelectedOnion ? 'CatBoost' : 'Сезонная модель'}, без НДС)`,
+        label: `${selectedCropProfile.label} · Склад EXW (${isSelectedOnion ? 'Сезонная модель (Weibull)' : 'Сезонная модель'}, без НДС)`,
         data: decisionPlan.weeks.map((w) => w.whPrice),
         borderColor: '#1A56A8',
         backgroundColor: 'rgba(26, 86, 168, 0.08)',
@@ -227,7 +227,7 @@ export default function Dashboard() {
       >
         <div>
           <span className={`badge ${hasUserWh ? 'up' : 'info'}`} style={{ marginRight: 8 }}>
-            {hasUserWh ? 'КАЛИБРОВАНО ПОД ВАШ СКЛАД' : 'CATBOOST 3.0 · РОССТАТ + ЦБ РФ + ERA5'}
+            {hasUserWh ? 'КАЛИБРОВАНО ПОД ВАШ СКЛАД' : 'СЕЗОННАЯ МОДЕЛЬ (WEIBULL) · РОССТАТ + ЦБ РФ + ERA5'}
           </span>
           {hasUserWh ? (
             <>
@@ -242,7 +242,7 @@ export default function Dashboard() {
           )}
         </div>
         <span style={{ fontSize: 11, color: 'var(--txt2)', fontFamily: 'var(--mono)' }}>
-          Holdout MAE CatBoost: <strong>2.51–3.54 ₽/кг</strong> (−55% к наивной модели)
+          Holdout MAE Сезонная модель (Weibull): <strong>2.51–3.54 ₽/кг</strong>
         </span>
       </div>
 
@@ -466,7 +466,7 @@ export default function Dashboard() {
               <div className="panel-body">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                   <div className="stat-label">
-                    {isSelectedOnion ? `Весенний пик CatBoost (W+${decisionPlan.peakWeek.h})` : `Сезонный пик хранения (W+${decisionPlan.peakWeek.h})`}
+                    {isSelectedOnion ? `Весенний пик сезонной модели (W+${decisionPlan.peakWeek.h})` : `Сезонный пик хранения (W+${decisionPlan.peakWeek.h})`}
                   </div>
                   <span className="badge up" style={{ fontSize: 9 }}>
                     +{Math.round(((decisionPlan.peakWeek.whPrice - effWhPrice) / effWhPrice) * 100)}%
