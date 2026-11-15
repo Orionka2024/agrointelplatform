@@ -370,6 +370,89 @@ export default function VolgogradOnionIntelPanel({ model, signals }) {
             </div>
           </div>
         </div>
+
+        {/* 6c. Automatic Evidence-Aware Refresh & Source Cutoff Status */}
+        <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', background: 'var(--bg2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <strong style={{ fontSize: 12 }}>
+                6c. Автообновление данных, срез источников и защита от иллюзии свежести
+              </strong>
+              <span className={`badge ${model.refreshStatus?.status === 'success' || model.refreshStatus?.status === 'ok' ? 'up' : 'warn'}`}>
+                {model.refreshStatus?.status === 'success' ? 'СИНХРОНИЗИРОВАНО' : model.refreshStatus?.status === 'partial' ? 'ЧАСТИЧНО' : 'БАЗОВЫЙ СРЕЗ'}
+              </span>
+              <span className={`badge ${model.storeDurable ? 'up' : 'warn'}`}>
+                {model.storeDurable
+                  ? `ДОЛГОВЕЧНОЕ ХРАНИЛИЩЕ (${model.storageBackend === 'vercel_kv' ? 'Vercel KV' : model.storageBackend === 'persistent_volume' ? 'Volume' : 'SQLite'})`
+                  : 'ВРЕМЕННОЕ ХРАНИЛИЩЕ (/tmp)'}
+              </span>
+            </div>
+            <span style={{ fontSize: 10.5, color: 'var(--txt2)' }}>
+              Последнее успешное автообновление:{' '}
+              <strong className="mono">
+                {model.refreshStatus?.lastSuccessfulRefresh
+                  ? model.refreshStatus.lastSuccessfulRefresh.slice(0, 16).replace('T', ' ') + ' UTC'
+                  : 'нет данных'}
+              </strong>
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10, marginTop: 8 }}>
+            {/* Source status table */}
+            <div style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', background: 'var(--bg)' }}>
+              <strong style={{ fontSize: 11, display: 'block', marginBottom: 6 }}>
+                Срезы источников и тип свидетельства:
+              </strong>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 10.5 }}>
+                {Object.values(model.refreshStatus?.sources || {}).map((s) => (
+                  <div key={s.sourceId || s.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', borderBottom: '1px dotted var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span className={`badge ${s.status === 'ok' ? 'up' : 'dn'}`} style={{ fontSize: 8.5, padding: '1px 4px' }}>
+                        {s.status === 'ok' ? 'OK' : 'ERR'}
+                      </span>
+                      <span>{s.name}</span>
+                    </div>
+                    <span className="mono" style={{ color: 'var(--txt2)', whiteSpace: 'nowrap', marginLeft: 8 }}>
+                      срез: {s.cutoff || '—'} · {s.evidenceType === 'indicative_offer' ? 'оферты' : s.evidenceType === 'official_statistic' ? 'статистика' : s.evidenceType === 'weather_forecast' ? 'погода' : 'сигналы'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Forecast decision status */}
+            <div style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', background: 'var(--bg)' }}>
+              <strong style={{ fontSize: 11, display: 'block', marginBottom: 6 }}>
+                Статус перевыпуска прогнозов (защита от ложной свежести):
+              </strong>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 10.5 }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                    <strong>Прогноз EXW Волгоград:</strong>
+                    <span className={`pill ${model.refreshStatus?.forecasts?.warehouse?.reissued ? 'up' : 'neu'}`}>
+                      {model.refreshStatus?.forecasts?.warehouse?.reissued ? 'ПЕРЕВЫПУЩЕН' : 'СОХРАНЁН ПРЕДЫДУЩИЙ'}
+                    </span>
+                  </div>
+                  <div style={{ color: 'var(--txt2)', lineHeight: 1.35 }}>
+                    {model.refreshStatus?.forecasts?.warehouse?.message || 'Входной массив закрытых сделок неизменен. Дата выпуска не фальсифицируется.'}
+                  </div>
+                </div>
+
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 4 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                    <strong>Месячный прогноз Росстата:</strong>
+                    <span className={`pill ${model.refreshStatus?.forecasts?.official_monthly?.reissued ? 'up' : 'neu'}`}>
+                      {model.refreshStatus?.forecasts?.official_monthly?.reissued ? 'ПЕРЕВЫПУЩЕН' : 'СОХРАНЁН ТЕКУЩИЙ'}
+                    </span>
+                  </div>
+                  <div style={{ color: 'var(--txt2)', lineHeight: 1.35 }}>
+                    {model.refreshStatus?.forecasts?.official_monthly?.message || 'Официальный срез производителей сохранён.'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

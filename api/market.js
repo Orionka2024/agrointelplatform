@@ -8,6 +8,7 @@ import { annualEvidence } from '../shared/planning.js';
 import { store } from '../server/store.js';
 import { computeMarketModel } from '../shared/marketModel.js';
 import { todayISO } from '../shared/dates.js';
+import { buildInitialRefreshStatus } from '../server/refreshJob.js';
 
 function macroWithArchiveFallback(cached, today) {
   const usd = officialDrivers.usdRub.filter(r => r.availableDate <= today).at(-1);
@@ -53,7 +54,9 @@ export default async function handler(req, res) {
       storeAvailable: true,
     });
 
-    model.storeDurable = !process.env.VERCEL || process.env.AGRO_PERSISTENT_VOLUME === 'true';
+    model.storeDurable = store.isDurable();
+    model.storageBackend = store.getBackendType();
+    model.refreshStatus = store.getRefreshStatus() || buildInitialRefreshStatus(today);
     model.official = officialSnapshot(today);
     model.annualHistory = store.getAnnual();
     model.annualEvidence = annualEvidence(model.annualHistory, {today, region: model.assumptions.planning?.region});

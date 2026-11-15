@@ -5,6 +5,7 @@ import importHandler from '../api/import.js';
 import forecastHandler from '../api/forecast.js';
 import assumptionsHandler from '../api/assumptions.js';
 import advisorHandler from '../api/advisor.js';
+import refreshHandler from '../api/refresh.js';
 
 function mockReqRes({ method = 'GET', url = '/', body = {} } = {}) {
   let statusCode = 200;
@@ -148,4 +149,19 @@ test('API 6: POST /api/advisor requires message and handles missing keys honestl
   if (validReq.res.statusCode === 401) {
     assert.equal(validReq.res.data.error, 'API_KEY_MISSING');
   }
+});
+
+test('API 7: GET /api/refresh returns public status and model includes refreshStatus', async () => {
+  const { req, res } = mockReqRes({ method: 'GET', url: '/api/refresh?today=2026-11-13' });
+  await refreshHandler(req, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.data.status, 'ok');
+  assert.ok(res.data.refreshStatus != null);
+
+  const marketReq = mockReqRes({ method: 'GET', url: '/api/market?today=2026-11-13' });
+  await marketHandler(marketReq.req, marketReq.res);
+  assert.equal(marketReq.res.statusCode, 200);
+  assert.ok(marketReq.res.data.refreshStatus != null);
+  assert.ok(typeof marketReq.res.data.storeDurable === 'boolean');
+  assert.ok(typeof marketReq.res.data.storageBackend === 'string');
 });
