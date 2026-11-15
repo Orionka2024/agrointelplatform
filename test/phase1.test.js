@@ -871,6 +871,136 @@ test('P1-5 (G-01, G-03): Regional EMISS producer prices (Volgograd, Astrakhan, R
   );
 });
 
+test('P1-6 (F-12, F-13): Plan reconciliation validators flag tranche % mismatch, mass balance gaps, duplicate cash-flow periods, P&L vs cashflow revenue discrepancy, and rotation risk', async () => {
+  const planValMod = await import('../shared/planValidators.js');
+  assert.equal(typeof planValMod.validateTrancheShares, 'function');
+  assert.equal(typeof planValMod.validateMassBalance, 'function');
+  assert.equal(typeof planValMod.validateCashFlowPeriods, 'function');
+  assert.equal(typeof planValMod.validateRevenueReconciliation, 'function');
+  assert.equal(typeof planValMod.validateCropRotation, 'function');
+  assert.equal(typeof planValMod.validateFarmStrategyPlan, 'function');
+
+  // Exact audited numbers from Volgograd_78ha_Strategy.docx:
+  const auditedStrategyCase = {
+    totalAreaHa: 78,
+    crops: [
+      { name: 'Лук репчатый (яровой)', ha: 32, isAllium: true },
+      { name: 'Лук репчатый (озимый)', ha: 10, isAllium: true },
+      { name: 'Морковь', ha: 6 },
+      { name: 'Свёкла', ha: 7 },
+      { name: 'Картофель ранний', ha: 8 },
+      { name: 'Кабачок', ha: 5 },
+      { name: 'Горох овощной', ha: 10 },
+    ],
+    // Tranches: 15% field + 100% storage tranches = 115%
+    tranches: [
+      { name: 'Август-Сентябрь (с поля)', sharePct: 15 },
+      { name: 'Ноябрь (Транш 1)', sharePct: 15 },
+      { name: 'Декабрь (Транш 2)', sharePct: 25 },
+      { name: 'Январь (Транш 3)', sharePct: 15 },
+      { name: 'Февраль (Транш 4)', sharePct: 25 },
+      { name: 'Март (Транш 5)', sharePct: 20 },
+    ],
+    // Mass balance: 1,760 t harvested vs 1,560 t sold in Cashflow
+    massBalance: {
+      harvestedTons: 1760,
+      soldTons: 1560,
+      lossTons: 0, // Unaccounted shrinkage in P&L Table 3
+      unsoldTons: 0,
+    },
+    // Cashflow periods with duplicate February (Row 1 Feb-Apr vs Row 8 Feb-Mar)
+    cashFlowPeriods: [
+      { id: 'row1', label: 'Февраль – Апрель: Продажа остатков прошлого сезона', months: ['2026-02', '2026-03', '2026-04'], inflowRub: 19000000 },
+      { id: 'row2', label: 'Май – Июнь: Затраты на посев и полив', months: ['2026-05', '2026-06'], inflowRub: 0 },
+      { id: 'row8', label: 'Февраль – Март: Продажа лука Транш 3 (550 т) + морковь', months: ['2026-02', '2026-03'], inflowRub: 19170000 },
+    ],
+    // Revenue gap: 34.85M RUB in P&L vs 30.555M RUB in Cashflow (4.295M RUB gap)
+    revenue: {
+      pnlRevenueRub: 34848000,
+      cashflowSalesRub: 30555000,
+      pnlVolumeTons: 1760,
+      cashflowVolumeTons: 1560,
+    },
+  };
+
+  const validationResult = planValMod.validateFarmStrategyPlan(auditedStrategyCase);
+  assert.equal(validationResult.valid, false, 'Audited Volgograd strategy numbers must fail validation');
+
+  // 1. Tranche % mismatch (115% != 100%)
+  const trancheCheck = validationResult.checks.tranches;
+  assert.equal(trancheCheck.valid, false);
+  assert.equal(trancheCheck.totalShare, 115);
+  assert.equal(trancheCheck.code, 'TRANCHE_SUM_MISMATCH');
+
+  // 2. Mass balance (1,760 t harvested != 1,560 t accounted, 200 t gap)
+  const massCheck = validationResult.checks.massBalance;
+  assert.equal(massCheck.valid, false);
+  assert.equal(massCheck.discrepancyTons, 200);
+  assert.equal(massCheck.code, 'MASS_BALANCE_MISMATCH');
+
+  // 3. Cash flow period overlap (February duplicate count)
+  const periodCheck = validationResult.checks.periods;
+  assert.equal(periodCheck.valid, false);
+  assert.ok(periodCheck.duplicateMonths.includes('2026-02'));
+  assert.equal(periodCheck.code, 'PERIOD_DUPLICATION');
+
+  // 4. Revenue reconciliation (4.293M RUB gap between Table 3 P&L and Table 4 Cashflow)
+  const revCheck = validationResult.checks.revenue;
+  assert.equal(revCheck.valid, false);
+  assert.equal(revCheck.gapTons, 200);
+  assert.ok(Math.abs(revCheck.gapRub - 4293000) < 5000);
+  assert.equal(revCheck.code, 'REVENUE_GAP');
+
+  // 5. Crop rotation violation: 42 ha of 78 ha = 53.85% onion (>25% limit, return interval 1.86 yr < 3-4 yr)
+  const rotCheck = validationResult.checks.rotation;
+  assert.equal(rotCheck.valid, false);
+  assert.equal(rotCheck.onionHa, 42);
+  assert.equal(Math.round(rotCheck.onionShare * 100), 54);
+  assert.equal(rotCheck.severity, 'critical');
+  assert.equal(rotCheck.code, 'CROP_ROTATION_VIOLATION');
+
+  // 6. Valid reconciled plan passes all checks
+  const reconciledValidPlan = {
+    totalAreaHa: 78,
+    crops: [
+      { name: 'Лук репчатый', ha: 19.5, isAllium: true }, // 25.0% share
+      { name: 'Морковь', ha: 19.5 },
+      { name: 'Свёкла', ha: 19.5 },
+      { name: 'Горох овощной', ha: 19.5 },
+    ],
+    tranches: [
+      { name: 'Поле (Август-Сентябрь)', sharePct: 15 },
+      { name: 'Транш 1 (Октябрь)', sharePct: 20 },
+      { name: 'Транш 2 (Декабрь)', sharePct: 25 },
+      { name: 'Транш 3 (Февраль)', sharePct: 35 },
+      { name: 'Транш 4 (Апрель)', sharePct: 5 },
+    ],
+    massBalance: {
+      harvestedTons: 1000,
+      soldTons: 860,
+      lossTons: 140, // 14% physical shrinkage & rot explicitly balanced
+      unsoldTons: 0,
+    },
+    cashFlowPeriods: [
+      { id: 'p1', months: ['2026-08', '2026-09'], inflowRub: 2500000 },
+      { id: 'p2', months: ['2026-10', '2026-11'], inflowRub: 3500000 },
+      { id: 'p3', months: ['2026-12', '2027-01'], inflowRub: 5000000 },
+      { id: 'p4', months: ['2027-02', '2027-03'], inflowRub: 7000000 },
+      { id: 'p5', months: ['2027-04'], inflowRub: 1200000 },
+    ],
+    revenue: {
+      pnlRevenueRub: 19200000,
+      cashflowSalesRub: 19200000,
+      pnlVolumeTons: 860,
+      cashflowVolumeTons: 860,
+    },
+  };
+  const validRes = planValMod.validateFarmStrategyPlan(reconciledValidPlan);
+  assert.equal(validRes.valid, true, 'Fully reconciled plan must pass all validation checks');
+  assert.equal(validRes.violations.length, 0);
+});
+
+
 
 
 
