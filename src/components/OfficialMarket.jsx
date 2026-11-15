@@ -17,10 +17,10 @@ import AddActualPrice from './AddActualPrice';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
 const fmt = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString('ru-RU', { maximumFractionDigits: d }) : '—');
-const band = (v) =>
+const band = (v, reason = null) =>
   v && Number.isFinite(v.lo) && Number.isFinite(v.hi)
     ? `${fmt(v.lo)}–${fmt(v.hi)}`
-    : INTERVAL_UNAVAILABLE_MESSAGE;
+    : (reason || INTERVAL_UNAVAILABLE_MESSAGE);
 const STRENGTH = {
   calibrated: 'Калибровка по ≥6 мес.',
   weak: 'Предварительная привязка (3–5 мес.)',
@@ -259,7 +259,7 @@ export default function OfficialMarket() {
                         <td className="mono fw" style={{ color: 'var(--green)' }}>{fmt(selMetrics.point)} ₽</td>
                         {cal && <td className="mono fw" style={{ color: '#7C3AED' }}>{fmt(loc?.point)} ₽</td>}
                         <td className="mono">{fmt(treePt)} ₽</td>
-                        <td className="mono">{band(selMetrics.interval80)}</td>
+                        <td className="mono">{band(selMetrics.interval80, selMetrics.interval80UnavailableReason)}</td>
                         <td className="mono">
                           <strong>{fmt(selFinal?.mae)}</strong> / {fmt(cbFinal?.mae)} / {fmt(row.validation.naiveFinal.mae)} ₽
                         </td>

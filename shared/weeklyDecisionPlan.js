@@ -556,9 +556,38 @@ export function resolveSelectedHorizonPoint(r) {
 }
 
 export function resolveSelectedHorizonMetrics(r) {
-  if (!r) return { selected: null, point: null, q80: null, q95: null, interval80: null, interval95: null, mae: null };
+  if (!r) {
+    return {
+      selected: null,
+      point: null,
+      q80: null,
+      q95: null,
+      interval80: null,
+      interval95: null,
+      mae: null,
+      interval80UnavailableReason: INTERVAL_UNAVAILABLE_MESSAGE,
+    };
+  }
   const selected = r.validation?.selected ?? 'eq_carry';
   const point = resolveSelectedHorizonPoint(r);
+  const logCal = r.validation?.logRelativeCalibration || r.logRelativeCalibration || null;
+
+  if (logCal && logCal.withinTolerance80 === false) {
+    const finalEntry = r.validation?.finalAll?.find((x) => x.id === selected);
+    const mae = finalEntry?.mae ?? r.validation?.final?.mae ?? r.catboostHoldoutMae ?? null;
+    return {
+      selected,
+      point,
+      q80: null,
+      q95: null,
+      interval80: null,
+      interval95: null,
+      mae,
+      interval80UnavailableReason: logCal.unavailableReason80 || INTERVAL_UNAVAILABLE_MESSAGE,
+      logRelativeCalibration: logCal,
+    };
+  }
+
   const rawQ80 =
     selected === 'catboost'
       ? (r.catboostQ80 ?? r.validation?.q80 ?? null)
@@ -581,7 +610,17 @@ export function resolveSelectedHorizonMetrics(r) {
       : null;
   const finalEntry = r.validation?.finalAll?.find((x) => x.id === selected);
   const mae = finalEntry?.mae ?? r.validation?.final?.mae ?? r.catboostHoldoutMae ?? null;
-  return { selected, point, q80, q95, interval80, interval95, mae };
+  return {
+    selected,
+    point,
+    q80,
+    q95,
+    interval80,
+    interval95,
+    mae,
+    interval80UnavailableReason: interval80 ? null : (logCal?.unavailableReason80 || INTERVAL_UNAVAILABLE_MESSAGE),
+    logRelativeCalibration: logCal,
+  };
 }
 
 export function buildCatboostKnots(officialForecast, issueDate, pStart) {

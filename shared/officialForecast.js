@@ -69,6 +69,201 @@ export function errorQuantile(errors, coverage) {
   return i >= 0 && i < a.length ? a[i] : null;
 }
 
+/**
+ * Moving-block bootstrap quantile estimator to preserve serial correlation across adjacent months.
+ */
+export function blockBootstrapQuantile(values, coverage, { blockSize = 3, reps = 120, seed = 1337 } = {}) {
+  if (!Array.isArray(values) || values.length === 0) return null;
+  if (coverage >= 0.95 && values.length < 19) return null;
+  const n = values.length;
+  const bSize = Math.max(1, Math.min(blockSize, n));
+  const numBlocks = Math.ceil(n / bSize);
+  let state = (seed ^ n) >>> 0;
+  const nextRand = () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  const replicateQuantiles = [];
+  for (let r = 0; r < reps; r++) {
+    const sample = [];
+    for (let b = 0; b < numBlocks && sample.length < n; b++) {
+      const start = Math.floor(nextRand() * (n - bSize + 1));
+      for (let k = 0; k < bSize && sample.length < n; k++) {
+        sample.push(values[start + k]);
+      }
+    }
+    const sorted = sample.sort((x, y) => x - y);
+    const idx = Math.min(sorted.length - 1, Math.max(0, Math.ceil((sorted.length + 1) * coverage) - 1));
+    replicateQuantiles.push(sorted[idx]);
+  }
+  replicateQuantiles.sort((x, y) => x - y);
+  const mid = Math.floor(replicateQuantiles.length / 2);
+  return replicateQuantiles.length % 2
+    ? replicateQuantiles[mid]
+    : (replicateQuantiles[mid - 1] + replicateQuantiles[mid]) / 2;
+}
+
+/**
+ * Evaluates a reliability diagram on empirical rise/fall predictions and gates directional probabilities.
+ */
+export function evaluateReliabilityDiagram(samples, { maxCalibrationError = 0.15, minN = 24 } = {}) {
+  const valid = (samples || []).filter(
+    (s) => Number.isFinite(s?.predProbRise) && (s?.actualRose === 0 || s?.actualRose === 1 || typeof s?.actualRose === 'boolean')
+  );
+  const n = valid.length;
+  if (n < minN) {
+    return {
+      n,
+      passes: false,
+      weightedCalibrationError: null,
+      bins: [],
+      gatedRiseProb: null,
+      gatedFallProb: null,
+      hiddenReason: `Вероятности роста/снижения скрыты: недостаточно наблюдений для диаграммы надёжности (n=${n} < ${minN})`,
+    };
+  }
+
+  const binBounds = [
+    [0.0, 0.34],
+    [0.34, 0.67],
+    [0.67, 1.01],
+  ];
+  const bins = [];
+  let weightedErrorSum = 0;
+
+  for (const [lo, hi] of binBounds) {
+    const inBin = valid.filter((s) => s.predProbRise >= lo && s.predProbRise < hi);
+    if (!inBin.length) continue;
+    const meanPred = mean(inBin.map((s) => s.predProbRise));
+    const empFreq = mean(inBin.map((s) => (s.actualRose ? 1 : 0)));
+    const absGap = Math.abs(meanPred - empFreq);
+    weightedErrorSum += (inBin.length / n) * absGap;
+    bins.push({
+      range: [lo, +(hi > 1 ? 1.0 : hi).toFixed(2)],
+      count: inBin.length,
+      meanPredicted: +meanPred.toFixed(4),
+      empiricalFrequency: +empFreq.toFixed(4),
+      absGap: +absGap.toFixed(4),
+    });
+  }
+
+  const weightedCalibrationError = +weightedErrorSum.toFixed(4);
+  const passes = weightedCalibrationError <= maxCalibrationError;
+  const overallEmpiricalRise = +mean(valid.map((s) => (s.actualRose ? 1 : 0))).toFixed(4);
+
+  return {
+    n,
+    passes,
+    weightedCalibrationError,
+    maxCalibrationError,
+    bins,
+    gatedRiseProb: passes ? overallEmpiricalRise : null,
+    gatedFallProb: passes ? +(1 - overallEmpiricalRise).toFixed(4) : null,
+    hiddenReason: passes
+      ? null
+      : `Вероятности роста/снижения скрыты: ошибка калибровки диаграммы надёжности ${(weightedCalibrationError * 100).toFixed(1)}% превышает порог ${(maxCalibrationError * 100).toFixed(0)}%`,
+  };
+}
+
+/**
+ * Computes calibrated intervals from out-of-sample log-relative residuals, pooling across adjacent
+ * horizons to reach n >= 24 per pooled bucket and using moving-block bootstrap to preserve serial correlation.
+ */
+export function computePooledLogRelativeCalibration(
+  points,
+  lead,
+  {
+    selectedModel = 'eq_carry',
+    ctx = null,
+    finalStart = points.length - 12,
+    minPoolN = 24,
+    blockSize = 3,
+    coverageMin = 0.70,
+    coverageMax = 0.90,
+  } = {}
+) {
+  const first = monthNumber(points[0].period);
+  const maxLead = 15;
+  const candidateOffsets = [0, -1, 1, -2, 2, -3, 3, -4, 4];
+  const pooledLogResiduals = [];
+  const pooledLeads = [];
+  const directionalSamples = [];
+
+  for (const offset of candidateOffsets) {
+    const l = lead + offset;
+    if (l < 1 || l > maxLead) continue;
+    const calEndForLead = finalStart - l - 1;
+    const calStartForLead = Math.max(11 + l, calEndForLead - 11);
+    const recs = collectHorizonRecords(points, first, 11, calEndForLead, l, [selectedModel], ctx)[selectedModel] || [];
+    const windowRecs = recs.filter((r) => r.targetIndex >= calStartForLead && r.targetIndex <= calEndForLead);
+    if (!windowRecs.length) continue;
+
+    pooledLeads.push(l);
+    const roseFlags = windowRecs.map((r) => (r.actual > r.base ? 1 : 0));
+    const empRiseRate = mean(roseFlags) ?? 0.5;
+    for (const r of windowRecs) {
+      if (r.point > 0 && r.actual > 0) {
+        pooledLogResiduals.push(Math.abs(Math.log(r.actual) - Math.log(r.point)));
+        directionalSamples.push({
+          predProbRise: r.point > r.base ? Math.max(0.55, empRiseRate) : Math.min(0.45, empRiseRate),
+          actualRose: r.actual > r.base ? 1 : 0,
+        });
+      }
+    }
+    if (pooledLogResiduals.length >= minPoolN) break;
+  }
+
+  const pooledN = pooledLogResiduals.length;
+  const q80Log = pooledN >= minPoolN ? blockBootstrapQuantile(pooledLogResiduals, 0.80, { blockSize, seed: 1000 + lead }) : null;
+  const q95Log = pooledN >= minPoolN ? blockBootstrapQuantile(pooledLogResiduals, 0.95, { blockSize, seed: 2000 + lead }) : null;
+
+  // Evaluate empirical coverage on the held-out rolling window (targetIndex >= finalStart)
+  const finalRecs =
+    collectHorizonRecords(points, first, 11, points.length - 1, lead, [selectedModel], ctx)[selectedModel]?.filter(
+      (r) => r.targetIndex >= finalStart && r.point > 0 && r.actual > 0
+    ) || [];
+
+  const empiricalCoverage80 =
+    q80Log !== null && finalRecs.length > 0
+      ? +mean(finalRecs.map((r) => Number(Math.abs(Math.log(r.actual) - Math.log(r.point)) <= q80Log))).toFixed(4)
+      : null;
+  const empiricalCoverage95 =
+    q95Log !== null && finalRecs.length > 0
+      ? +mean(finalRecs.map((r) => Number(Math.abs(Math.log(r.actual) - Math.log(r.point)) <= q95Log))).toFixed(4)
+      : null;
+
+  const withinTolerance80 =
+    pooledN >= minPoolN &&
+    empiricalCoverage80 !== null &&
+    empiricalCoverage80 >= coverageMin &&
+    empiricalCoverage80 <= coverageMax;
+
+  const obsPct = empiricalCoverage80 !== null ? Math.round(empiricalCoverage80 * 100) : 'н/д';
+  const unavailableReason80 = withinTolerance80
+    ? null
+    : `Интервал недоступен: n=${pooledN}, наблюдаемое покрытие ${obsPct}% вне допуска ${Math.round(coverageMin * 100)}%–${Math.round(coverageMax * 100)}%`;
+
+  const reliability = evaluateReliabilityDiagram(directionalSamples, { minN: minPoolN });
+
+  return {
+    pooledN,
+    pooledLeads,
+    resamplingMethod: 'moving_block_bootstrap',
+    blockSize,
+    q80Log: q80Log !== null ? +q80Log.toFixed(4) : null,
+    q95Log: q95Log !== null ? +q95Log.toFixed(4) : null,
+    empiricalCoverage80,
+    empiricalCoverage95,
+    coverageTolerance80: [coverageMin, coverageMax],
+    withinTolerance80,
+    unavailableReason80,
+    reliabilityDiagram: reliability,
+  };
+}
+
 function summary(rows) {
   return {
     n: rows.length,
@@ -186,7 +381,7 @@ export function evaluateMonthly(points, lead, drivers = null, retailWeekly = [])
   const finalScore = summary(final);
   const naiveScore = summary(naiveFinal);
 
-  return {
+  const result = {
     selected,
     lead,
     comparisons,
@@ -210,6 +405,24 @@ export function evaluateMonthly(points, lead, drivers = null, retailWeekly = [])
     },
     finalPredictions: final,
   };
+
+  let cachedLogRelCal = null;
+  Object.defineProperty(result, 'logRelativeCalibration', {
+    enumerable: false,
+    configurable: true,
+    get() {
+      if (!cachedLogRelCal) {
+        cachedLogRelCal = computePooledLogRelativeCalibration(points, lead, {
+          selectedModel: selected,
+          ctx,
+          finalStart,
+        });
+      }
+      return cachedLogRelCal;
+    },
+  });
+
+  return result;
 }
 
 export function issueOfficialForecast(history, { issueDate, drivers = null } = {}) {

@@ -550,5 +550,104 @@ test('P1-1 (F-05): Month-of-year seasonal local basis curve B(m) with hierarchic
   );
 });
 
+test('P1-2 (F-04): Pooled log-relative residuals (n >= 24) with block resampling, empirical coverage tolerance gate (70%..90%), and reliability-gated empirical directional probabilities', async () => {
+  const officialForecastMod = await import('../shared/officialForecast.js');
+  const { officialHistory } = await import('../shared/officialData.js');
+  const { resolveSelectedHorizonMetrics } = await import('../shared/weeklyDecisionPlan.js');
+
+  assert.equal(
+    typeof officialForecastMod.computePooledLogRelativeCalibration,
+    'function',
+    'computePooledLogRelativeCalibration must be exported from shared/officialForecast.js'
+  );
+  assert.equal(
+    typeof officialForecastMod.evaluateReliabilityDiagram,
+    'function',
+    'evaluateReliabilityDiagram must be exported from shared/officialForecast.js'
+  );
+
+  const points = officialHistory.producer.monthly;
+
+  // 1. Evaluate across horizons and verify adjacent-horizon pooling reaches n >= 24 with block resampling
+  for (const lead of [2, 6, 12, 14]) {
+    const v = officialForecastMod.evaluateMonthly(points, lead);
+    assert.ok(v.logRelativeCalibration, `evaluateMonthly at lead=${lead} must include logRelativeCalibration`);
+    assert.ok(
+      v.logRelativeCalibration.pooledN >= 24,
+      `Pooled calibration sample size at lead=${lead} must be >= 24 (got ${v.logRelativeCalibration.pooledN})`
+    );
+    assert.ok(
+      Array.isArray(v.logRelativeCalibration.pooledLeads) && v.logRelativeCalibration.pooledLeads.includes(lead),
+      `pooledLeads must include target lead=${lead}`
+    );
+    assert.equal(v.logRelativeCalibration.resamplingMethod, 'moving_block_bootstrap');
+    assert.ok(
+      typeof v.logRelativeCalibration.empiricalCoverage80 === 'number',
+      'empiricalCoverage80 must be reported on held-out rolling window'
+    );
+
+    // Check gating rule: band is valid ONLY when empirical coverage is within [0.70, 0.90] and pooledN >= 24
+    const cov = v.logRelativeCalibration.empiricalCoverage80;
+    const withinTol = cov >= 0.70 && cov <= 0.90 && v.logRelativeCalibration.pooledN >= 24;
+    assert.equal(v.logRelativeCalibration.withinTolerance80, withinTol);
+    if (!withinTol) {
+      assert.ok(
+        v.logRelativeCalibration.unavailableReason80 &&
+          v.logRelativeCalibration.unavailableReason80.includes('Интервал недоступен') &&
+          v.logRelativeCalibration.unavailableReason80.includes(`n=${v.logRelativeCalibration.pooledN}`),
+        `When outside tolerance, unavailableReason80 must state 'Интервал недоступен' with n and observed coverage; got: ${v.logRelativeCalibration.unavailableReason80}`
+      );
+    }
+  }
+
+  // 2. Verify resolveSelectedHorizonMetrics hides the band and returns the explicit reason when coverage is outside 70%..90%
+  const outOfTolRow = {
+    h: 5,
+    lead: 6,
+    targetMonth: '2027-03',
+    point: 22.4,
+    interval80: { lo: 18.0, hi: 26.8 },
+    validation: {
+      selected: 'eq_carry',
+      q80: 4.4,
+      final: { mae: 2.5, n: 12 },
+      logRelativeCalibration: {
+        pooledN: 28,
+        q80Log: 0.18,
+        empiricalCoverage80: 0.58,
+        withinTolerance80: false,
+        unavailableReason80: 'Интервал недоступен: n=28, наблюдаемое покрытие 58% вне допуска 70%–90%',
+      },
+    },
+  };
+  const resolvedOut = resolveSelectedHorizonMetrics(outOfTolRow);
+  assert.equal(resolvedOut.interval80, null, 'Band must be null when empirical coverage is outside 70%..90% tolerance');
+  assert.ok(
+    resolvedOut.interval80UnavailableReason.includes('Интервал недоступен') &&
+      resolvedOut.interval80UnavailableReason.includes('n=28') &&
+      resolvedOut.interval80UnavailableReason.includes('58%'),
+    `Expected unavailable reason with n and observed coverage, got: ${resolvedOut.interval80UnavailableReason}`
+  );
+
+  // 3. Verify empirical directional probabilities and reliability diagram gating
+  const goodRel = officialForecastMod.evaluateReliabilityDiagram(
+    Array.from({ length: 30 }, (_, i) => ({
+      predProbRise: i < 15 ? 0.25 : 0.75,
+      actualRose: i < 15 ? (i % 4 === 0 ? 1 : 0) : (i % 4 !== 0 ? 1 : 0),
+    }))
+  );
+  assert.equal(goodRel.passes, true, 'Well-calibrated empirical frequencies must pass reliability diagram test');
+
+  const badRel = officialForecastMod.evaluateReliabilityDiagram(
+    Array.from({ length: 30 }, (_, i) => ({
+      predProbRise: 0.85,
+      actualRose: i < 5 ? 1 : 0, // 85% predicted vs 16.7% observed -> fails reliability diagram
+    }))
+  );
+  assert.equal(badRel.passes, false, 'Miscalibrated probabilities must fail reliability diagram test');
+  assert.equal(badRel.gatedRiseProb, null, 'Rise probability must be hidden (null) when reliability diagram test fails');
+});
+
+
 
 
