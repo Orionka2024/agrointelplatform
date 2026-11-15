@@ -24,8 +24,10 @@ export default async function handler(req, res) {
     });
   }
 
+  const userId = req.user?.id || null;
+
   if (req.method === 'GET') {
-    const list = store.getForecasts();
+    const list = store.getForecasts({ userId });
     return res.status(200).json({ forecasts: list });
   }
 
@@ -48,7 +50,7 @@ export default async function handler(req, res) {
   const now = new Date().toISOString();
 
   try {
-    const observations = store.getObservations();
+    const observations = store.getObservations({ userId });
     const fc = issueForecast({
       observations,
       basis,
@@ -57,7 +59,7 @@ export default async function handler(req, res) {
       now,
     });
 
-    store.saveForecast(fc);
+    store.saveForecast(fc, { userId });
 
     return res.status(200).json({
       success: true,

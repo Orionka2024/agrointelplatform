@@ -207,15 +207,39 @@ export function MarketProvider({ children }) {
     }
   }, []);
 
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function checkAuth() {
+      try {
+        const res = await fetch('/api/auth', { credentials: 'same-origin' });
+        if (res.ok) {
+          const d = await res.json();
+          if (!cancelled) setUser(d.authenticated ? d.user : null);
+        }
+      } catch {
+        // silent
+      }
+    }
+    checkAuth();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const fetchModel = useCallback(async (isDemo = demo) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/market?demo=${isDemo}&today=${today}`);
+      const res = await fetch(`/api/market?demo=${isDemo}&today=${today}`, {
+        credentials: 'same-origin',
+      });
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
       const data = await res.json();
+      if (data.user !== undefined) setUser(data.user);
       setModel(hydrateWithBrowserEntries(data, isDemo, today));
     } catch (err) {
       console.warn('[MarketContext] Fetch /api/market failed, computing client fallback:', err.message);
@@ -230,10 +254,13 @@ export function MarketProvider({ children }) {
     let cancelled = false;
     async function load() {
       try {
-        const res = await fetch(`/api/market?demo=${demo}&today=${today}`);
+        const res = await fetch(`/api/market?demo=${demo}&today=${today}`, {
+          credentials: 'same-origin',
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (!cancelled) {
+          if (data.user !== undefined) setUser(data.user);
           setModel(hydrateWithBrowserEntries(data, demo, today));
           setLoading(false);
         }
@@ -252,11 +279,49 @@ export function MarketProvider({ children }) {
     };
   }, [demo, today]);
 
+  const requestMagicLink = useCallback(async (email) => {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'request_magic_link', email }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+    return data;
+  }, []);
+
+  const verifyMagicLink = useCallback(async (token) => {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify_magic_link', token }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+    setUser(data.user || null);
+    await fetchModel(demo);
+    return data;
+  }, [demo, fetchModel]);
+
+  const logout = useCallback(async () => {
+    await fetch('/api/auth', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'logout' }),
+    });
+    setUser(null);
+    await fetchModel(demo);
+  }, [demo, fetchModel]);
+
   const updateAssumptions = useCallback(async (patch) => {
     mergeStoredAssumptions(patch);
     try {
       const res = await fetch('/api/assumptions', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patch),
       });
@@ -275,6 +340,7 @@ export function MarketProvider({ children }) {
     try {
       const res = await fetch('/api/import', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, csv, importDate: today }),
       });
@@ -292,6 +358,7 @@ export function MarketProvider({ children }) {
     try {
       const res = await fetch('/api/forecast', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ basis: targetBasis, issueDate: today }),
       });
@@ -323,6 +390,10 @@ export function MarketProvider({ children }) {
 
   const value = {
     model,
+    user,
+    requestMagicLink,
+    verifyMagicLink,
+    logout,
     signals,
     signalsBusy,
     refreshSignals,

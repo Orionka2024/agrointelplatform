@@ -45,6 +45,16 @@ export const BENCHMARK_STORAGE = {
   acquisitionCostRubKg: 12,
 };
 
+export const DEFAULT_FARM_PROFILE = {
+  areaHa: 78,
+  storageCapacityTons: 1500,
+  storageType: 'ventilated',
+  energyTariffRubKwh: 6.5,
+  loanRatePct: 19.0,
+  buyerType: 'exw_wholesaler',
+  customizedFields: [],
+};
+
 export const DEFAULT_ASSUMPTIONS = {
   version: 2,
   bridge: BENCHMARK_BRIDGE,
@@ -53,9 +63,14 @@ export const DEFAULT_ASSUMPTIONS = {
   scenarios: DEFAULT_SCENARIOS,
   sensitivities: EMPTY_SENSITIVITIES,
   balance: {},
+  farmProfile: DEFAULT_FARM_PROFILE,
 };
 
 function mergeAssumptions(a) {
+  const fpPatch = a?.farmProfile && typeof a.farmProfile === 'object' ? a.farmProfile : {};
+  const customizedFields = Array.isArray(fpPatch.customizedFields)
+    ? [...new Set(fpPatch.customizedFields)]
+    : Object.keys(fpPatch).filter((k) => k !== 'customizedFields' && fpPatch[k] !== DEFAULT_FARM_PROFILE[k]);
   return {
     ...DEFAULT_ASSUMPTIONS, ...(a || {}),
     bridge: { ...BENCHMARK_BRIDGE, ...(a?.bridge || {}) },
@@ -63,6 +78,7 @@ function mergeAssumptions(a) {
     scenarios: { ...DEFAULT_SCENARIOS, ...(a?.scenarios || {}) },
     sensitivities: { ...EMPTY_SENSITIVITIES, ...(a?.sensitivities || {}) },
     manualPrices: { warehouse: null, moscow: null, ...(a?.manualPrices || {}) },
+    farmProfile: { ...DEFAULT_FARM_PROFILE, ...fpPatch, customizedFields },
   };
 }
 
@@ -245,7 +261,9 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     verifiedObservations,
     onionIntel,
     monitoring: monitorMarket(observations, indicators, today),
-    assumptions, bridge, vatRate, sensitivities: sens,
+    assumptions,
+    farmProfile: assumptions.farmProfile,
+    bridge, vatRate, sensitivities: sens,
     prices, series, bridgeValidation, bridgeResult, empirical, spread,
     forecasts: forecastInfo, scenarios: { results: scenarioResults, rows: scenarioRows },
     balance, storage, seasonal, macro: macroView, dataStatus,

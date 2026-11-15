@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import advisorHandler from './api/advisor.js';
+import authHandler from './api/auth.js';
 import macroHandler from './api/macro.js';
 import marketHandler from './api/market.js';
 import importHandler from './api/import.js';
@@ -12,6 +13,7 @@ import refreshHandler from './api/refresh.js';
 function apiDevServerPlugin() {
   const routes = {
     '/api/advisor': advisorHandler,
+    '/api/auth': authHandler,
     '/api/macro': macroHandler,
     '/api/market': marketHandler,
     '/api/import': importHandler,

@@ -38,10 +38,11 @@ export default async function handler(req, res) {
 
   try {
     await store.ensureInitialized({ forWrite: false });
-    const observations = store.getObservations();
+    const userId = req.user?.id || null;
+    const observations = store.getObservations({ userId });
     const indicators = store.getIndicators();
-    const forecasts = store.getForecasts();
-    const assumptions = store.getAssumptions();
+    const forecasts = store.getForecasts({ userId });
+    const assumptions = store.getAssumptions({ userId });
     const macro = macroWithArchiveFallback(store.getMacroCache(), today);
 
     const model = computeMarketModel({
@@ -55,6 +56,7 @@ export default async function handler(req, res) {
       storeAvailable: true,
     });
 
+    model.user = req.user && req.user.authMethod === 'session' ? { id: req.user.id, email: req.user.email } : null;
     model.storeDurable = store.isDurable();
     model.storageBackend = store.getBackendType();
     model.refreshStatus = store.getRefreshStatus() || buildInitialRefreshStatus(today);

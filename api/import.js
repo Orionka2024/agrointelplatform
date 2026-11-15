@@ -30,6 +30,8 @@ export default async function handler(req, res) {
     });
   }
 
+  const userId = req.user?.id || null;
+
   if (req.method === 'GET') {
     const url = new URL(req.url, 'http://localhost');
     const templateType = url.searchParams.get('template') || 'prices';
@@ -39,7 +41,7 @@ export default async function handler(req, res) {
       indicatorTemplate: INDICATOR_CSV_TEMPLATE,
       requestedTemplate: templateType === 'annual' ? ANNUAL_TEMPLATE : templateType === 'indicators' ? INDICATOR_CSV_TEMPLATE : PRICE_CSV_TEMPLATE,
       counts: {
-        prices: store.getObservations().length,
+        prices: store.getObservations({ userId }).length,
         indicators: store.getIndicators().length,
       },
     });
@@ -69,16 +71,16 @@ export default async function handler(req, res) {
       if (report.accepted.length) store.appendAnnual(report.accepted);
       return res.status(200).json({success: report.accepted.length > 0, type, report});
     } else if (type === 'prices') {
-      const existing = store.getObservations();
+      const existing = store.getObservations({ userId });
       const report = importPriceCSV(csvContent, existing, { importDate, today: importDate });
       if (report.accepted.length > 0) {
-        store.appendObservations(report.accepted);
+        store.appendObservations(report.accepted, { userId });
       }
       return res.status(200).json({
         success: report.accepted.length > 0,
         type: 'prices',
         report,
-        totalStored: store.getObservations().length,
+        totalStored: store.getObservations({ userId }).length,
       });
     } else if (type === 'indicators') {
       const existing = store.getIndicators();

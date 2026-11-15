@@ -1,9 +1,28 @@
+import { useState } from 'react';
 import { useMarket } from '../context/useMarket';
 import { CROP_PROFILES } from '../../shared/cropProfiles.js';
 import { warehouseToMoscow } from '../../shared/bridge.js';
 
 export default function Topbar() {
-  const { model, signals, signalsBusy, demo, setDemo, refresh, loading, today } = useMarket();
+  const {
+    model,
+    user,
+    requestMagicLink,
+    verifyMagicLink,
+    logout,
+    signals,
+    signalsBusy,
+    demo,
+    setDemo,
+    refresh,
+    loading,
+    today,
+  } = useMarket();
+  const [authOpen, setAuthOpen] = useState(false);
+  const [emailInput, setEmailInput] = useState('');
+  const [issuedToken, setIssuedToken] = useState('');
+  const [authStatus, setAuthStatus] = useState('');
+  const [authBusy, setAuthBusy] = useState(false);
 
   const whPrice = model.prices.warehouse;
   const mskPrice = model.prices.moscow;
@@ -32,8 +51,30 @@ export default function Topbar() {
 
   const isBusy = loading || signalsBusy;
 
+  async function handleRequestMagicLink(e) {
+    e.preventDefault();
+    setAuthBusy(true);
+    setAuthStatus('');
+    try {
+      const res = await requestMagicLink(emailInput);
+      if (res.magicLinkToken) {
+        setIssuedToken(res.magicLinkToken);
+        await verifyMagicLink(res.magicLinkToken);
+        setAuthOpen(false);
+        setEmailInput('');
+        setIssuedToken('');
+      } else {
+        setAuthStatus(res.message || 'Ссылка отправлена на почту');
+      }
+    } catch (err) {
+      setAuthStatus(err.message);
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
   return (
-    <div className="topbar">
+    <div className="topbar" style={{ position: 'relative' }}>
       <div className="logo-mark">AGROINTEL</div>
 
       <div className="ticker-strip">
@@ -122,6 +163,32 @@ export default function Topbar() {
           </div>
         )}
 
+        {user ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span className="badge up" style={{ fontSize: 10 }} title={`Изолированный профиль КФХ: ${user.email}`}>
+              👤 {user.email}
+            </span>
+            <button
+              type="button"
+              onClick={logout}
+              className="cash-reset-btn"
+              style={{ fontSize: 10, padding: '2px 6px' }}
+            >
+              Выйти
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAuthOpen(!authOpen)}
+            className="cash-reset-btn"
+            style={{ fontSize: 11, padding: '3px 8px' }}
+            title="Персональный вход по одноразовой ссылке (изоляция ваших сделок и настроек КФХ)"
+          >
+            🔑 Войти (КФХ)
+          </button>
+        )}
+
         <button
           type="button"
           onClick={() => setDemo(!demo)}
@@ -155,6 +222,59 @@ export default function Topbar() {
           {isBusy ? 'Скан…' : '📡 Скан'}
         </button>
       </div>
+
+      {authOpen && !user && (
+        <form
+          onSubmit={handleRequestMagicLink}
+          style={{
+            position: 'absolute',
+            top: '100%',
+            right: 12,
+            zIndex: 100,
+            background: 'var(--bg1, #fff)',
+            border: '1px solid var(--border)',
+            borderRadius: 6,
+            padding: 12,
+            boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            minWidth: 280,
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 600 }}>Вход по одноразовой ссылке (Magic Link)</div>
+          <div style={{ fontSize: 11, color: 'var(--txt2)' }}>
+            Ваши сделки, параметры хранения и профиль хозяйства хранятся изолированно под вашим аккаунтом.
+          </div>
+          <input
+            type="email"
+            required
+            placeholder="farmer@kfh-volgograd.ru"
+            value={emailInput}
+            onChange={(e) => setEmailInput(e.target.value)}
+            style={{ padding: '6px 8px', fontSize: 12, border: '1px solid var(--border)', borderRadius: 4 }}
+          />
+          {issuedToken && (
+            <input
+              type="text"
+              value={issuedToken}
+              onChange={(e) => setIssuedToken(e.target.value)}
+              placeholder="Одноразовый код"
+              style={{ padding: '6px 8px', fontSize: 12, border: '1px solid var(--border)', borderRadius: 4 }}
+            />
+          )}
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+            <button type="button" onClick={() => setAuthOpen(false)} className="cash-reset-btn" style={{ fontSize: 11 }}>
+              Отмена
+            </button>
+            <button type="submit" disabled={authBusy} className="basis-btn active" style={{ fontSize: 11 }}>
+              {authBusy ? 'Вход…' : 'Получить ссылку и войти'}
+            </button>
+          </div>
+          {authStatus && <div style={{ fontSize: 11, color: 'var(--amber)' }}>{authStatus}</div>}
+        </form>
+      )}
     </div>
   );
 }
+

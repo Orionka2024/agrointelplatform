@@ -23,14 +23,16 @@ export default async function handler(req, res) {
     });
   }
 
+  const userId = req.user?.id || null;
+
   if (req.method === 'GET') {
-    const current = store.getAssumptions();
+    const current = store.getAssumptions({ userId });
     return res.status(200).json(current);
   }
 
   if (req.method === 'DELETE') {
     // Reset to defaults
-    store.saveAssumptions(DEFAULT_ASSUMPTIONS);
+    store.saveAssumptions(DEFAULT_ASSUMPTIONS, { userId });
     return res.status(200).json({ success: true, assumptions: DEFAULT_ASSUMPTIONS });
   }
 
@@ -41,10 +43,10 @@ export default async function handler(req, res) {
     }
 
     if (!body || Array.isArray(body) || typeof body !== 'object' || JSON.stringify(body).length > 100000) return res.status(400).json({message:'Invalid assumptions object'});
-    const allowed = ['bridge','storage','scenarios','sensitivities','manualPrices','balance','planning'];
+    const allowed = ['bridge','storage','scenarios','sensitivities','manualPrices','balance','planning','farmProfile'];
     if (Object.keys(body).some(k => !allowed.includes(k)) || Object.values(body).some(v => !v || typeof v !== 'object' || Array.isArray(v))) return res.status(400).json({message:'Invalid assumptions fields'});
     try {
-      const updated = store.updateAssumptions(body);
+      const updated = store.updateAssumptions(body, { userId });
 
       return res.status(200).json({ success: true, assumptions: updated });
     } catch (err) {
