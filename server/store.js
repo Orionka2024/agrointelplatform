@@ -10,6 +10,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { isVerified } from '../shared/observations.js';
 import { DEFAULT_ASSUMPTIONS, DEFAULT_FARM_PROFILE } from '../shared/marketModel.js';
 import { setRuntimeOfficialOverlay } from '../shared/officialData.js';
+import { applyMigrations, insertAuditRevision, runLegacyDocumentsImport } from './migrations.js';
 
 let db;
 let initPromise = null;
@@ -37,6 +38,7 @@ export function isKvConfigured() {
 }
 
 export function isDurable() {
+  if (process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL) return true;
   if (isKvConfigured()) return true;
   if (process.env.DATA_DIR && process.env.DATA_DIR !== '/tmp') return true;
   if (process.env.AGRO_PERSISTENT_VOLUME === 'true') return true;
@@ -45,6 +47,8 @@ export function isDurable() {
 }
 
 export function getBackendType() {
+  if (process.env.DATABASE_URL) return 'postgres_managed';
+  if (process.env.TURSO_DATABASE_URL) return 'turso_managed';
   if (isKvConfigured()) return 'vercel_kv';
   if (process.env.DATA_DIR && process.env.DATA_DIR !== '/tmp') return 'persistent_volume';
   if (process.env.AGRO_PERSISTENT_VOLUME === 'true') return 'persistent_volume';
@@ -159,6 +163,7 @@ function database() {
     db.prepare('INSERT OR IGNORE INTO documents VALUES (?,?)').run(name, JSON.stringify(value));
     db.prepare('INSERT OR IGNORE INTO doc_meta VALUES (?,0)').run(name);
   }
+  applyMigrations(db);
   return db;
 }
 
@@ -212,6 +217,17 @@ function change(name, fn) {
 
 function append(name, rows, { userId = null } = {}) {
   let added = 0;
+  const nowIso = new Date().toISOString();
+  const d = database();
+  const upsertObs =
+    name === 'observations'
+      ? d.prepare(`
+          INSERT OR REPLACE INTO user_observations
+            (id, owner_id, kind, market, observation_date, verification_status, payload_json, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+      : null;
+
   const out = change(name, current => {
     const list = Array.isArray(current) ? current : [];
     for (const rawRow of rows) {
@@ -225,10 +241,55 @@ function append(name, rows, { userId = null } = {}) {
       if (index === -1) {
         list.push(row);
         added++;
+        if (upsertObs && row.id) {
+          upsertObs.run(
+            String(row.id),
+            String(row.ownerId || 'public'),
+            row.kind || null,
+            row.market || null,
+            row.observationDate || null,
+            row.verification?.status || 'unverified',
+            JSON.stringify(row),
+            nowIso,
+            nowIso
+          );
+          insertAuditRevision(d, {
+            userId: row.ownerId || userId || 'public',
+            entityType: 'user_observations',
+            entityId: String(row.id),
+            action: 'insert_observation',
+            before: null,
+            after: row,
+            createdAt: nowIso,
+          });
+        }
       } else if (!isVerified(list[index]) && isVerified(row)) {
+        const beforeRow = list[index];
         // Attestation may be upgraded; historical values remain immutable.
         list[index] = { ...list[index], verification: row.verification };
         added++;
+        if (upsertObs && row.id) {
+          upsertObs.run(
+            String(list[index].id),
+            String(list[index].ownerId || 'public'),
+            list[index].kind || null,
+            list[index].market || null,
+            list[index].observationDate || null,
+            list[index].verification?.status || 'verified',
+            JSON.stringify(list[index]),
+            nowIso,
+            nowIso
+          );
+          insertAuditRevision(d, {
+            userId: list[index].ownerId || userId || 'public',
+            entityType: 'user_observations',
+            entityId: String(list[index].id),
+            action: 'attest_observation',
+            before: beforeRow,
+            after: list[index],
+            createdAt: nowIso,
+          });
+        }
       }
     }
     return list;
@@ -440,10 +501,38 @@ export const store = {
   getForecasts: ({ userId = null } = {}) => filterByOwner(read('forecasts') || [], userId),
   saveForecast(fc, { userId = null } = {}) {
     const tagged = userId && userId !== 'default' ? { ...fc, ownerId: fc.ownerId || userId } : fc;
+    const nowIso = new Date().toISOString();
+    const d = database();
     change('forecasts', rows => {
       const list = Array.isArray(rows) ? rows : [];
       const old = list.find(r => r.id === tagged.id && (r.ownerId || null) === (tagged.ownerId || null));
       if (old && JSON.stringify(old) !== JSON.stringify(tagged)) throw new Error('Forecast ID collision: immutable history');
+      if (!old) {
+        d.prepare(`
+          INSERT OR REPLACE INTO issued_forecasts
+            (id, owner_id, basis, issue_date, input_cutoff, model_version, inputs_hash, payload_json, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          String(tagged.id),
+          String(tagged.ownerId || 'public'),
+          tagged.basis || null,
+          tagged.issueDate || null,
+          tagged.inputCutoff || null,
+          tagged.modelVersion || null,
+          tagged.provenance?.inputHash || null,
+          JSON.stringify(tagged),
+          tagged.issuedAt || nowIso
+        );
+        insertAuditRevision(d, {
+          userId: tagged.ownerId || userId || 'public',
+          entityType: 'issued_forecasts',
+          entityId: String(tagged.id),
+          action: 'issue_forecast',
+          before: null,
+          after: tagged,
+          createdAt: nowIso,
+        });
+      }
       return old ? list : [...list, tagged];
     });
     return tagged;
@@ -458,26 +547,63 @@ export const store = {
     return mergeUserAssumptionsObject(read('assumptions') || DEFAULT_ASSUMPTIONS, {});
   },
   saveAssumptions(a, { userId = null } = {}) {
-    if (userId && userId !== 'default') {
-      change('user_assumptions_map', map => {
-        const nextMap = { ...(map || {}), [userId]: mergeUserAssumptionsObject(a, {}) };
-        return nextMap;
-      });
-      return this.getAssumptions({ userId });
-    }
-    return change('assumptions', () => mergeUserAssumptionsObject(a, {}));
+    return this.updateAssumptions(a, { userId });
   },
   updateAssumptions(patch, { userId = null } = {}) {
+    const d = database();
+    const nowIso = new Date().toISOString();
+    const ownerKey = userId && userId !== 'default' ? userId : 'default';
+    let beforeAssump = null;
+    let updatedAssump = null;
+
     if (userId && userId !== 'default') {
-      let updatedUserAssump = null;
       change('user_assumptions_map', map => {
-        const cur = map?.[userId] || DEFAULT_ASSUMPTIONS;
-        updatedUserAssump = mergeUserAssumptionsObject(cur, patch);
-        return { ...(map || {}), [userId]: updatedUserAssump };
+        beforeAssump = map?.[userId] || DEFAULT_ASSUMPTIONS;
+        updatedAssump = mergeUserAssumptionsObject(beforeAssump, patch);
+        d.prepare(
+          'INSERT OR REPLACE INTO user_assumptions (owner_id, payload_json, updated_at) VALUES (?, ?, ?)'
+        ).run(ownerKey, JSON.stringify(updatedAssump), nowIso);
+        if (updatedAssump.farmProfile) {
+          d.prepare(
+            'INSERT OR REPLACE INTO farm_profiles (owner_id, payload_json, updated_at) VALUES (?, ?, ?)'
+          ).run(ownerKey, JSON.stringify(updatedAssump.farmProfile), nowIso);
+        }
+        insertAuditRevision(d, {
+          userId: ownerKey,
+          entityType: 'user_assumptions',
+          entityId: ownerKey,
+          action: 'update_assumptions',
+          before: beforeAssump,
+          after: updatedAssump,
+          createdAt: nowIso,
+        });
+        return { ...(map || {}), [userId]: updatedAssump };
       });
-      return updatedUserAssump;
+      return updatedAssump;
     }
-    return change('assumptions', cur => mergeUserAssumptionsObject(cur, patch));
+
+    return change('assumptions', cur => {
+      beforeAssump = cur || DEFAULT_ASSUMPTIONS;
+      updatedAssump = mergeUserAssumptionsObject(beforeAssump, patch);
+      d.prepare(
+        'INSERT OR REPLACE INTO user_assumptions (owner_id, payload_json, updated_at) VALUES (?, ?, ?)'
+      ).run('default', JSON.stringify(updatedAssump), nowIso);
+      if (updatedAssump.farmProfile) {
+        d.prepare(
+          'INSERT OR REPLACE INTO farm_profiles (owner_id, payload_json, updated_at) VALUES (?, ?, ?)'
+        ).run('default', JSON.stringify(updatedAssump.farmProfile), nowIso);
+      }
+      insertAuditRevision(d, {
+        userId: 'default',
+        entityType: 'user_assumptions',
+        entityId: 'default',
+        action: 'update_assumptions',
+        before: beforeAssump,
+        after: updatedAssump,
+        createdAt: nowIso,
+      });
+      return updatedAssump;
+    });
   },
   getFarmProfile({ userId = null } = {}) {
     const assump = this.getAssumptions({ userId });
@@ -486,6 +612,125 @@ export const store = {
   saveFarmProfile(fpPatch, { userId = null } = {}) {
     const updated = this.updateAssumptions({ farmProfile: fpPatch }, { userId });
     return updated.farmProfile;
+  },
+  getAppliedMigrations() {
+    const d = database();
+    return d.prepare('SELECT version, name, applied_at AS appliedAt FROM schema_migrations ORDER BY version ASC').all();
+  },
+  importFromLegacySqlite() {
+    const d = database();
+    return runLegacyDocumentsImport(d);
+  },
+  getAuditRevisions({ userId = null, entityType = null, limit = 100 } = {}) {
+    const d = database();
+    let sql = 'SELECT id, user_id AS userId, entity_type AS entityType, entity_id AS entityId, action, before_json, after_json, created_at AS createdAt FROM audit_revisions WHERE 1=1';
+    const params = [];
+    if (userId) {
+      sql += ' AND user_id = ?';
+      params.push(userId);
+    }
+    if (entityType) {
+      sql += ' AND entity_type = ?';
+      params.push(entityType);
+    }
+    sql += ' ORDER BY id DESC LIMIT ?';
+    params.push(limit);
+    return d.prepare(sql).all(...params).map(r => ({
+      id: r.id,
+      userId: r.userId,
+      entityType: r.entityType,
+      entityId: r.entityId,
+      action: r.action,
+      before: r.before_json ? JSON.parse(r.before_json) : null,
+      after: r.after_json ? JSON.parse(r.after_json) : null,
+      createdAt: r.createdAt,
+    }));
+  },
+  exportBackupSnapshot() {
+    const d = database();
+    return {
+      schemaVersion: 2,
+      exportedAt: new Date().toISOString(),
+      backend: getBackendType(),
+      migrations: this.getAppliedMigrations(),
+      tables: {
+        users: d.prepare('SELECT * FROM users ORDER BY id ASC').all(),
+        user_observations: d.prepare('SELECT * FROM user_observations ORDER BY id ASC').all(),
+        user_assumptions: d.prepare('SELECT * FROM user_assumptions ORDER BY owner_id ASC').all(),
+        farm_profiles: d.prepare('SELECT * FROM farm_profiles ORDER BY owner_id ASC').all(),
+        issued_forecasts: d.prepare('SELECT * FROM issued_forecasts ORDER BY id ASC').all(),
+        audit_revisions: d.prepare('SELECT * FROM audit_revisions ORDER BY id ASC').all(),
+      },
+      documents: {
+        observations: read('observations') || [],
+        assumptions: read('assumptions') || DEFAULT_ASSUMPTIONS,
+        user_assumptions_map: read('user_assumptions_map') || {},
+        forecasts: read('forecasts') || [],
+        auth_users: read('auth_users') || [],
+        macro_cache: read('macro_cache'),
+        annual: read('annual') || [],
+        official_forecast: read('official_forecast'),
+      },
+    };
+  },
+  restoreBackupSnapshot(snapshot, { userId = 'system' } = {}) {
+    if (!snapshot || typeof snapshot !== 'object') {
+      throw new Error('Invalid backup snapshot');
+    }
+    const d = database();
+    const nowIso = new Date().toISOString();
+    d.exec('BEGIN IMMEDIATE');
+    try {
+      const docs = snapshot.documents || {};
+      for (const [k, val] of Object.entries(docs)) {
+        if (val !== undefined) {
+          d.prepare('INSERT OR REPLACE INTO documents (name, body) VALUES (?, ?)').run(k, JSON.stringify(val));
+        }
+      }
+      const tables = snapshot.tables || {};
+      if (Array.isArray(tables.users)) {
+        const stmt = d.prepare('INSERT OR REPLACE INTO users (id, email, created_at, updated_at) VALUES (?, ?, ?, ?)');
+        for (const r of tables.users) stmt.run(r.id, r.email, r.created_at || nowIso, r.updated_at || nowIso);
+      }
+      if (Array.isArray(tables.user_observations)) {
+        const stmt = d.prepare(
+          'INSERT OR REPLACE INTO user_observations (id, owner_id, kind, market, observation_date, verification_status, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        for (const r of tables.user_observations) {
+          stmt.run(r.id, r.owner_id, r.kind, r.market, r.observation_date, r.verification_status, r.payload_json, r.created_at || nowIso, r.updated_at || nowIso);
+        }
+      }
+      if (Array.isArray(tables.user_assumptions)) {
+        const stmt = d.prepare('INSERT OR REPLACE INTO user_assumptions (owner_id, payload_json, updated_at) VALUES (?, ?, ?)');
+        for (const r of tables.user_assumptions) stmt.run(r.owner_id, r.payload_json, r.updated_at || nowIso);
+      }
+      if (Array.isArray(tables.farm_profiles)) {
+        const stmt = d.prepare('INSERT OR REPLACE INTO farm_profiles (owner_id, payload_json, updated_at) VALUES (?, ?, ?)');
+        for (const r of tables.farm_profiles) stmt.run(r.owner_id, r.payload_json, r.updated_at || nowIso);
+      }
+      if (Array.isArray(tables.issued_forecasts)) {
+        const stmt = d.prepare(
+          'INSERT OR REPLACE INTO issued_forecasts (id, owner_id, basis, issue_date, input_cutoff, model_version, inputs_hash, payload_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        for (const r of tables.issued_forecasts) {
+          stmt.run(r.id, r.owner_id, r.basis, r.issue_date, r.input_cutoff, r.model_version, r.inputs_hash, r.payload_json, r.created_at || nowIso);
+        }
+      }
+      insertAuditRevision(d, {
+        userId,
+        entityType: 'database',
+        entityId: 'backup_restore',
+        action: 'restore_backup',
+        before: null,
+        after: { exportedAt: snapshot.exportedAt },
+        createdAt: nowIso,
+      });
+      d.exec('COMMIT');
+      return true;
+    } catch (err) {
+      d.exec('ROLLBACK');
+      throw err;
+    }
   },
   getMacroCache: () => read('macro_cache'),
   saveMacroCache: c => change('macro_cache', () => c),
@@ -557,4 +802,5 @@ export const store = {
     }
   },
 };
+
 

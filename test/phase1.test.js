@@ -360,3 +360,127 @@ test('P1-0b (F-07, F-09, F-15): Data scripts and /api/refresh regenerate officia
   }
 });
 
+test('P1-0c (F-08): Relational schema migrations, audit_revisions log, one-time idempotent import from legacy SQLite, and backup/restore', async () => {
+  const migrationsPath = path.join(ROOT, 'server/migrations.js');
+  assert.ok(fs.existsSync(migrationsPath), 'server/migrations.js must exist');
+  const backupDocPath = path.join(ROOT, 'docs/BACKUP_AND_RESTORE.md');
+  assert.ok(fs.existsSync(backupDocPath), 'docs/BACKUP_AND_RESTORE.md must exist');
+
+  const { DatabaseSync } = await import('node:sqlite');
+  const { store } = await import('../server/store.js');
+
+  const origDataDir = process.env.DATA_DIR;
+  const legacyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agro-p1-0c-legacy-'));
+
+  try {
+    // 1. Create a pre-existing legacy SQLite database with only the old `documents` table
+    const legacyDbPath = path.join(legacyDir, 'agro.sqlite');
+    const rawLegacyDb = new DatabaseSync(legacyDbPath);
+    rawLegacyDb.exec('CREATE TABLE documents (name TEXT PRIMARY KEY, body TEXT NOT NULL)');
+    const legacyObs = [
+      {
+        id: 'legacy-tx-1',
+        kind: 'transaction',
+        market: 'warehouse_volgograd',
+        observationDate: '2026-10-20',
+        priceExVatRubKg: 16.4,
+        verification: { status: 'verified', verifiedBy: 'user_ui', verifiedAt: '2026-10-20' },
+      },
+    ];
+    const legacyAssumptions = {
+      version: 2,
+      bridge: { truckCostRub: 168000 },
+      farmProfile: { areaHa: 95, storageCapacityTons: 1900, customizedFields: ['areaHa'] },
+    };
+    const legacyForecasts = [
+      {
+        id: 'fc-legacy-1',
+        basis: 'warehouse',
+        issueDate: '2026-10-20',
+        inputCutoff: '2026-W42',
+        modelVersion: 'local-arx-2.0',
+        provenance: { inputHash: 'abc12345' },
+        schema: 2,
+      },
+    ];
+    const stmt = rawLegacyDb.prepare('INSERT INTO documents (name, body) VALUES (?, ?)');
+    stmt.run('observations', JSON.stringify(legacyObs));
+    stmt.run('assumptions', JSON.stringify(legacyAssumptions));
+    stmt.run('forecasts', JSON.stringify(legacyForecasts));
+    rawLegacyDb.close();
+
+    // 2. Point store at legacyDir -> migrations + one-time import must run automatically and idempotently
+    process.env.DATA_DIR = legacyDir;
+    store.resetForTests();
+    await store.ensureInitialized({ forWrite: true });
+
+    const migrations = store.getAppliedMigrations();
+    assert.ok(migrations.length >= 2, 'At least 2 numbered migrations must be applied');
+    assert.ok(migrations.some((m) => m.name.includes('relational_schema')));
+    assert.ok(migrations.some((m) => m.name.includes('legacy_documents_one_time_import')));
+
+    // Verify legacy observations, assumptions, farmProfile, and forecasts were imported into relational tables
+    const importedObs = store.getObservations();
+    assert.ok(importedObs.some((o) => o.id === 'legacy-tx-1' && o.priceExVatRubKg === 16.4));
+    const importedAssump = store.getAssumptions();
+    assert.equal(importedAssump.bridge.truckCostRub, 168000);
+    assert.equal(importedAssump.farmProfile.areaHa, 95);
+    const importedFc = store.getForecasts();
+    assert.ok(importedFc.some((f) => f.id === 'fc-legacy-1'));
+
+    // Re-running importFromLegacySqlite must be a no-op (idempotent)
+    const secondImport = store.importFromLegacySqlite();
+    assert.equal(secondImport.alreadyImported, true, 'One-time legacy SQLite import must be idempotent');
+
+    // 3. Perform user mutations and verify `audit_revisions` records every change with before/after JSON
+    const magic = store.createMagicLink('auditor@volga.ru');
+    const session = store.verifyMagicLink(magic.token);
+    const userId = session.user.id;
+
+    store.saveAssumptions({ bridge: { truckCostRub: 182000 } }, { userId });
+    store.appendObservations(
+      [
+        {
+          id: 'rel-tx-2',
+          kind: 'transaction',
+          market: 'warehouse_volgograd',
+          observationDate: '2026-10-26',
+          priceExVatRubKg: 17.2,
+          verification: { status: 'verified', verifiedBy: 'user_ui', verifiedAt: '2026-10-26' },
+        },
+      ],
+      { userId }
+    );
+
+    const revisions = store.getAuditRevisions({ userId });
+    assert.ok(revisions.length >= 2, 'audit_revisions must record user mutations');
+    const assumpRev = revisions.find((r) => r.entityType === 'user_assumptions');
+    assert.ok(assumpRev, 'audit_revisions must include user_assumptions change');
+    assert.equal(assumpRev.after.bridge.truckCostRub, 182000);
+
+    // 4. Test backup export and restore into a fresh ephemeral database
+    const backup = store.exportBackupSnapshot();
+    assert.ok(backup.exportedAt);
+    assert.ok(Array.isArray(backup.tables.user_observations));
+    assert.ok(Array.isArray(backup.tables.user_assumptions));
+
+    const restoreDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agro-p1-0c-restore-'));
+    try {
+      process.env.DATA_DIR = restoreDir;
+      store.resetForTests();
+      await store.ensureInitialized({ forWrite: true });
+
+      store.restoreBackupSnapshot(backup);
+      assert.equal(store.getAssumptions({ userId }).bridge.truckCostRub, 182000);
+      assert.ok(store.getObservations({ userId }).some((o) => o.priceExVatRubKg === 17.2));
+    } finally {
+      fs.rmSync(restoreDir, { recursive: true, force: true });
+    }
+  } finally {
+    process.env.DATA_DIR = origDataDir;
+    store.resetForTests();
+    fs.rmSync(legacyDir, { recursive: true, force: true });
+  }
+});
+
+
