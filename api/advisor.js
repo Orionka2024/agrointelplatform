@@ -7,7 +7,7 @@ import { store } from '../server/store.js';
 import { computeMarketModel } from '../shared/marketModel.js';
 import { buildSnapshot, sanitizeSnapshot } from '../shared/snapshot.js';
 import { todayISO } from '../shared/dates.js';
-import { generateAutonomousAnalysis } from '../shared/autonomousAdvisor.js';
+import { generateAutonomousAnalysis, verifyAdvisorResponseGrounding } from '../shared/autonomousAdvisor.js';
 
 function getEnvVar(name) { return process.env[name] || null; }
 
@@ -215,6 +215,21 @@ export default async function handler(req, res) {
       result = await callAnthropic(anthropicKey, promptText);
     } else {
       throw new Error(`Неизвестный провайдер: ${provider}`);
+    }
+
+    const grounding = verifyAdvisorResponseGrounding(result.answer, snapshot);
+    if (!grounding.grounded) {
+      console.warn('[api/advisor] External AI response failed grounding check, falling back to deterministic answer');
+      const fallback = generateAutonomousAnalysis(sanitizedQuery, snapshot);
+      return res.status(200).json({
+        answer: fallback,
+        model: `${result.model} (отклонён проверкой заземления, применён автономный расчёт)`,
+        contextMode: snapshot.mode,
+        basis: snapshot.selectedBasis,
+        groundingCheck: grounding,
+        autonomous: true,
+        timestamp: new Date().toISOString(),
+      });
     }
 
     return res.status(200).json({

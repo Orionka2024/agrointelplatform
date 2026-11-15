@@ -35,6 +35,7 @@ test('Target date advances from issue week, not stale observation week',()=>{
 test('Manual prices never rewrite observed transactions or issue a historical forecast',async()=>{
  process.env.AGRO_API_TOKEN=process.env.AGRO_API_TOKEN||'test-suite-api-token';
  const authHeaders={authorization:`Bearer ${process.env.AGRO_API_TOKEN}`};
+ await store.ensureInitialized({ forWrite: false });
  const before=JSON.stringify(store.getObservations()),forecasts=JSON.stringify(store.getForecasts());
  const res=response();await assumptions({method:'POST',headers:authHeaders,body:{manualPrices:{warehouse:{value:50,vat:'excl',asOf:'2026-10-29'}}}},res);
  assert.equal(res.code,200);assert.equal(JSON.stringify(store.getObservations()),before);assert.equal(JSON.stringify(store.getForecasts()),forecasts);

@@ -81,6 +81,9 @@ export function buildSnapshot(model, { selectedBasis = 'warehouse', selectedScen
       'Пока нет валидированного прогноза, цены в прогнозе — не оценка рынка.',
       'Рыночные балансовые данные, сезонные индикаторы и издержки могут быть демо или введены вручную — см. статусы.',
     ],
+    officialForecast: model.officialForecast || null,
+    signals: model.signals || null,
+    farmProfile: model.farmProfile || null,
   };
 }
 
