@@ -41,4 +41,7 @@ The monthly national benchmark is evaluated on a latest-revision Rosstat snapsho
 
 ## Hosting
 
-For multi-user durable storage, use a persistent Node host or mounted volume (`DATA_DIR` + `AGRO_PERSISTENT_VOLUME=true`), backed-up SQLite storage, and an authenticating reverse proxy (`AGRO_REQUIRE_AUTH=true` and server-side `AGRO_API_TOKEN`). On Vercel without an external database, bundled public history and forecasts are durable in the deployment bundle, while user-entered transactions use `/tmp` on the server plus local browser re-sync for the same device.
+Write and privileged endpoints (`POST /api/import`, `POST`/`DELETE /api/assumptions`, `POST /api/forecast`, `POST /api/advisor`) require `Authorization: Bearer <AGRO_API_TOKEN>` by default (`server/access.js`). Read-only endpoints (`GET /api/market`, `GET /api/macro`, `GET /api/signals`) remain open unless `AGRO_REQUIRE_AUTH=true` is set. For local unauthenticated development only, set `AGRO_ALLOW_ANON_WRITES=true` (which emits a loud startup warning).
+
+For multi-user durable storage, use a persistent Node host or mounted volume (`DATA_DIR` + `AGRO_PERSISTENT_VOLUME=true`) or Vercel KV (`KV_REST_API_URL` + `KV_REST_API_TOKEN`), backed-up SQLite storage, and a server-side `AGRO_API_TOKEN` + `CRON_SECRET`.
+

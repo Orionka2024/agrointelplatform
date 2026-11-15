@@ -230,11 +230,20 @@ test('Local basis calibrates level by monthly medians, flags unpublished-month a
 });
 
 test('Adding a user-attested actual price stores verified observation and calibrates local basis immediately', async () => {
+  process.env.AGRO_API_TOKEN = process.env.AGRO_API_TOKEN || 'test-suite-api-token';
   const csv = buildUserPriceCsv([{ basis: 'warehouse', date: '2026-10-28', price: 15.4, vat: 'excl' }], '2026-10-28');
   let impOut = null;
   let mktOut = null;
   const resImp = { setHeader() {}, status() { return this; }, end() { return this; }, json(d) { impOut = d; return this; } };
-  await importHandler({ method: 'POST', url: '/api/import', body: { type: 'prices', csv } }, resImp);
+  await importHandler(
+    {
+      method: 'POST',
+      url: '/api/import',
+      headers: { authorization: `Bearer ${process.env.AGRO_API_TOKEN}` },
+      body: { type: 'prices', csv },
+    },
+    resImp
+  );
   assert.equal(impOut.success, true);
   const resMkt = { setHeader() {}, status() { return this; }, end() { return this; }, json(d) { mktOut = d; return this; } };
   await marketHandler({ method: 'GET', url: '/api/market?today=2026-10-28' }, resMkt);

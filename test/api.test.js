@@ -7,12 +7,19 @@ import assumptionsHandler from '../api/assumptions.js';
 import advisorHandler from '../api/advisor.js';
 import refreshHandler from '../api/refresh.js';
 
-function mockReqRes({ method = 'GET', url = '/', body = {} } = {}) {
+const TEST_API_TOKEN = 'test-suite-api-token';
+process.env.AGRO_API_TOKEN = process.env.AGRO_API_TOKEN || TEST_API_TOKEN;
+
+function mockReqRes({ method = 'GET', url = '/', body = {}, headers: reqHeaders = null } = {}) {
   let statusCode = 200;
   let responseData = null;
   const headers = {};
 
-  const req = { method, url, body };
+  const defaultHeaders =
+    method !== 'GET' && method !== 'HEAD'
+      ? { authorization: `Bearer ${process.env.AGRO_API_TOKEN || TEST_API_TOKEN}` }
+      : {};
+  const req = { method, url, body, headers: reqHeaders ?? defaultHeaders };
   const res = {
     status(code) {
       statusCode = code;

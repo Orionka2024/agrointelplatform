@@ -200,6 +200,8 @@ test('P0-2 (F-08): Cold start syncs from KV before write, rejects writes with 50
 
     process.env.KV_REST_API_URL = 'https://fake-kv.local';
     process.env.KV_REST_API_TOKEN = 'fake-kv-token';
+    const origApiToken = process.env.AGRO_API_TOKEN;
+    process.env.AGRO_API_TOKEN = 'p02-test-token';
 
     // Part 1: Cold instance with empty tmpDir1 receives POST /api/import
     process.env.DATA_DIR = tmpDir1;
@@ -213,7 +215,7 @@ test('P0-2 (F-08): Cold start syncs from KV before write, rejects writes with 50
     const { req: req1, res: res1 } = mockReqRes({
       method: 'POST',
       url: '/api/import',
-      headers: { 'x-bypass-auth': '1' },
+      headers: { authorization: 'Bearer p02-test-token' },
       body: { type: 'prices', csv: newTxCsv, importDate: '2026-10-24' },
     });
     await importHandler(req1, res1);
@@ -239,7 +241,7 @@ test('P0-2 (F-08): Cold start syncs from KV before write, rejects writes with 50
     const { req: req2, res: res2 } = mockReqRes({
       method: 'POST',
       url: '/api/import',
-      headers: { 'x-bypass-auth': '1' },
+      headers: { authorization: 'Bearer p02-test-token' },
       body: { type: 'prices', csv: newTxCsv, importDate: '2026-10-24' },
     });
     await importHandler(req2, res2);
@@ -264,6 +266,8 @@ test('P0-2 (F-08): Cold start syncs from KV before write, rejects writes with 50
       /revision|conflict|stale|outdated/i,
       'Stale instance with lower revision must not overwrite newer KV state'
     );
+    if (origApiToken === undefined) delete process.env.AGRO_API_TOKEN;
+    else process.env.AGRO_API_TOKEN = origApiToken;
   } finally {
     global.fetch = origFetch;
     if (origKvUrl !== undefined) process.env.KV_REST_API_URL = origKvUrl;
@@ -664,8 +668,124 @@ test('P0-7 (F-04): Intervals with null bounds are never invented or plotted and 
   );
 });
 
+test('P0-8 (F-10): Write endpoints require auth by default (401 without token, 401 with wrong token, 200 with valid token, 200 without token only when AGRO_ALLOW_ANON_WRITES=true)', async () => {
+  const importHandler = (await import('../api/import.js')).default;
+  const assumptionsHandler = (await import('../api/assumptions.js')).default;
+  const forecastHandler = (await import('../api/forecast.js')).default;
+  const advisorHandler = (await import('../api/advisor.js')).default;
+  const marketHandler = (await import('../api/market.js')).default;
+  const signalsHandler = (await import('../api/signals.js')).default;
 
+  const origAllowAnon = process.env.AGRO_ALLOW_ANON_WRITES;
+  const origRequireAuth = process.env.AGRO_REQUIRE_AUTH;
+  const origApiToken = process.env.AGRO_API_TOKEN;
 
+  try {
+    delete process.env.AGRO_ALLOW_ANON_WRITES;
+    delete process.env.AGRO_REQUIRE_AUTH;
+    process.env.AGRO_API_TOKEN = 'secret-farmer-write-token-2026';
 
+    const validCsv = [
+      'observation_date,kind,market,geography,price,unit,vat,vat_rate,delivery_basis,source',
+      '2026-10-15,transaction,warehouse_volgograd,"Волгоградская обл.",14.50,RUB/kg,excl,0.10,EXW,Агросервер',
+    ].join('\n');
 
+    const writeEndpoints = [
+      {
+        name: 'POST /api/import',
+        handler: importHandler,
+        method: 'POST',
+        url: '/api/import',
+        body: { type: 'prices', csv: validCsv },
+      },
+      {
+        name: 'POST /api/assumptions',
+        handler: assumptionsHandler,
+        method: 'POST',
+        url: '/api/assumptions',
+        body: { bridge: { freightRubKg: 7.2 } },
+      },
+      {
+        name: 'DELETE /api/assumptions',
+        handler: assumptionsHandler,
+        method: 'DELETE',
+        url: '/api/assumptions',
+        body: {},
+      },
+      {
+        name: 'POST /api/forecast',
+        handler: forecastHandler,
+        method: 'POST',
+        url: '/api/forecast',
+        body: { basis: 'warehouse', issueDate: '2026-10-24' },
+      },
+      {
+        name: 'POST /api/advisor',
+        handler: advisorHandler,
+        method: 'POST',
+        url: '/api/advisor',
+        body: { message: 'Какова цена склада?', demo: true },
+      },
+    ];
+
+    // 1. Default (AGRO_ALLOW_ANON_WRITES unset): 401 without token
+    for (const ep of writeEndpoints) {
+      const { req, res } = mockReqRes({ method: ep.method, url: ep.url, body: ep.body, headers: {} });
+      await ep.handler(req, res);
+      assert.equal(res.statusCode, 401, `${ep.name} must return 401 without token by default`);
+    }
+
+    // 2. Default (AGRO_ALLOW_ANON_WRITES unset): 401 with wrong token
+    for (const ep of writeEndpoints) {
+      const { req, res } = mockReqRes({
+        method: ep.method,
+        url: ep.url,
+        body: ep.body,
+        headers: { authorization: 'Bearer wrong-token-999' },
+      });
+      await ep.handler(req, res);
+      assert.equal(res.statusCode, 401, `${ep.name} must return 401 with wrong token`);
+    }
+
+    // 3. Default (AGRO_ALLOW_ANON_WRITES unset): 200 with valid Bearer token
+    for (const ep of writeEndpoints) {
+      const { req, res } = mockReqRes({
+        method: ep.method,
+        url: ep.url,
+        body: ep.body,
+        headers: { authorization: 'Bearer secret-farmer-write-token-2026' },
+      });
+      await ep.handler(req, res);
+      assert.equal(res.statusCode, 200, `${ep.name} must return 200 with valid Bearer token`);
+    }
+
+    // 4. Read-only GET endpoints remain open (200) without token
+    const mktReq = mockReqRes({ method: 'GET', url: '/api/market?today=2026-10-24' });
+    await marketHandler(mktReq.req, mktReq.res);
+    assert.equal(mktReq.res.statusCode, 200, 'GET /api/market must remain open without token');
+
+    const sigReq = mockReqRes({ method: 'GET', url: '/api/signals?offline=1&today=2026-10-24' });
+    await signalsHandler(sigReq.req, sigReq.res);
+    assert.equal(sigReq.res.statusCode, 200, 'GET /api/signals must remain open without token');
+
+    const getAssump = mockReqRes({ method: 'GET', url: '/api/assumptions' });
+    await assumptionsHandler(getAssump.req, getAssump.res);
+    assert.equal(getAssump.res.statusCode, 200, 'GET /api/assumptions must remain open without token');
+
+    // 5. Explicit AGRO_ALLOW_ANON_WRITES=true allows writes without token (local dev only)
+    process.env.AGRO_ALLOW_ANON_WRITES = 'true';
+    for (const ep of writeEndpoints) {
+      const { req, res } = mockReqRes({ method: ep.method, url: ep.url, body: ep.body, headers: {} });
+      await ep.handler(req, res);
+      assert.equal(res.statusCode, 200, `${ep.name} must return 200 without token when AGRO_ALLOW_ANON_WRITES=true`);
+    }
+  } finally {
+    if (origAllowAnon === undefined) delete process.env.AGRO_ALLOW_ANON_WRITES;
+    else process.env.AGRO_ALLOW_ANON_WRITES = origAllowAnon;
+    if (origRequireAuth === undefined) delete process.env.AGRO_REQUIRE_AUTH;
+    else process.env.AGRO_REQUIRE_AUTH = origRequireAuth;
+    if (origApiToken === undefined) delete process.env.AGRO_API_TOKEN;
+    else process.env.AGRO_API_TOKEN = origApiToken;
+  }
+});
 
