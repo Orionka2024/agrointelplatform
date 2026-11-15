@@ -54,6 +54,7 @@ export default async function handler(req, res) {
   // Public status query: GET with no cron trigger and no force flag
   const isCronInvocation = Boolean(req.headers?.['x-vercel-cron']) || url.searchParams.get('run') === '1';
   if (req.method === 'GET' && !isCronInvocation && !force) {
+    await store.ensureInitialized({ forWrite: false });
     const status = store.getRefreshStatus() || buildInitialRefreshStatus(today);
     return res.status(200).json({
       status: 'ok',

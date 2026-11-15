@@ -14,6 +14,15 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  try {
+    await store.ensureInitialized({ forWrite: req.method !== 'GET' });
+  } catch (err) {
+    return res.status(err.statusCode || 503).json({
+      error: err.code || 'DURABLE_STORE_UNAVAILABLE',
+      message: err.message,
+    });
+  }
+
   if (req.method === 'GET') {
     const current = store.getAssumptions();
     return res.status(200).json(current);
@@ -40,7 +49,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, assumptions: updated });
     } catch (err) {
       console.error('[api/assumptions] Update error:', err);
-      return res.status(500).json({ error: 'ASSUMPTIONS_UPDATE_FAILED', message: err.message });
+      return res.status(err.statusCode || 500).json({ error: err.code || 'ASSUMPTIONS_UPDATE_FAILED', message: err.message });
     }
   }
 

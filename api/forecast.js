@@ -15,6 +15,15 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  try {
+    await store.ensureInitialized({ forWrite: req.method !== 'GET' });
+  } catch (err) {
+    return res.status(err.statusCode || 503).json({
+      error: err.code || 'DURABLE_STORE_UNAVAILABLE',
+      message: err.message,
+    });
+  }
+
   if (req.method === 'GET') {
     const list = store.getForecasts();
     return res.status(200).json({ forecasts: list });
@@ -56,6 +65,6 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error('[api/forecast] Issue error:', err);
-    return res.status(500).json({ error: 'FORECAST_ISSUE_FAILED', message: err.message });
+    return res.status(err.statusCode || 500).json({ error: err.code || 'FORECAST_ISSUE_FAILED', message: err.message });
   }
 }

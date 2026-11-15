@@ -37,6 +37,7 @@ export default async function handler(req, res) {
   const today = todayParam || todayISO();
 
   try {
+    await store.ensureInitialized({ forWrite: false });
     const observations = store.getObservations();
     const indicators = store.getIndicators();
     const forecasts = store.getForecasts();

@@ -166,6 +166,7 @@ export default async function handler(req, res) {
     const selectedScenario = body?.selectedScenario || 'base';
     const today = body?.today || todayISO();
 
+    await store.ensureInitialized({ forWrite: false });
     const model = computeMarketModel({
       observations: store.getObservations(),
       indicators: store.getIndicators(),

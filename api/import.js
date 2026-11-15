@@ -21,6 +21,15 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  try {
+    await store.ensureInitialized({ forWrite: req.method !== 'GET' });
+  } catch (err) {
+    return res.status(err.statusCode || 503).json({
+      error: err.code || 'DURABLE_STORE_UNAVAILABLE',
+      message: err.message,
+    });
+  }
+
   if (req.method === 'GET') {
     const url = new URL(req.url, 'http://localhost');
     const templateType = url.searchParams.get('template') || 'prices';
@@ -88,6 +97,6 @@ export default async function handler(req, res) {
     }
   } catch (err) {
     console.error('[api/import] Error:', err);
-    return res.status(500).json({ error: 'IMPORT_FAILED', message: err.message });
+    return res.status(err.statusCode || 500).json({ error: err.code || 'IMPORT_FAILED', message: err.message });
   }
 }

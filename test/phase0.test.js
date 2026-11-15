@@ -98,3 +98,183 @@ test('P0-1 (F-06): Spot-calibration preview creates zero rows in observations ta
     'Forecast.jsx UI label must state the spot price is an unverified ask (session only), not a deal'
   );
 });
+
+function mockReqRes({ method = 'GET', url = '/', headers = {}, body = {} } = {}) {
+  let statusCode = 200;
+  let responseData = null;
+  const resHeaders = {};
+  const req = { method, url, headers: { ...headers }, body };
+  const res = {
+    status(code) {
+      statusCode = code;
+      return res;
+    },
+    json(data) {
+      responseData = data;
+      return res;
+    },
+    setHeader(k, v) {
+      resHeaders[k] = v;
+    },
+    end(str) {
+      if (str && responseData === null) {
+        try {
+          responseData = JSON.parse(str);
+        } catch {
+          responseData = str;
+        }
+      }
+      return res;
+    },
+    get statusCode() {
+      return statusCode;
+    },
+    get data() {
+      return responseData;
+    },
+  };
+  return { req, res };
+}
+
+test('P0-2 (F-08): Cold start syncs from KV before write, rejects writes with 503 when KV sync fails, and prevents stale revision overwrite', async () => {
+  const os = await import('node:os');
+  const importHandler = (await import('../api/import.js')).default;
+  const origFetch = global.fetch;
+  const origKvUrl = process.env.KV_REST_API_URL;
+  const origKvToken = process.env.KV_REST_API_TOKEN;
+  const origDataDir = process.env.DATA_DIR;
+
+  const tmpDir1 = fs.mkdtempSync(path.join(os.tmpdir(), 'agro-kv-cold1-'));
+  const tmpDir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'agro-kv-cold2-'));
+
+  try {
+    // Fake KV storage in memory
+    const kvData = new Map();
+    const existingKvTx = {
+      id: 'kv-tx-existing-001',
+      naturalKey: 'kv-nat-001',
+      kind: 'transaction',
+      market: 'warehouse_volgograd',
+      geography: 'Волгоградская обл.',
+      verification: { status: 'verified', by: 'farmer_1', at: '2026-10-10', evidence: 'UPD-101' },
+      observationDate: '2026-10-10',
+      retrievedDate: '2026-10-10',
+      priceRubKg: 16.2,
+      priceExVatRubKg: 16.2,
+      originalPrice: 16.2,
+      originalUnit: 'RUB/kg',
+      vat: 'excl',
+      vatRate: 0.1,
+      deliveryBasis: 'EXW',
+      source: 'Собственная сделка КФХ',
+      sourceRef: 'UPD-101',
+      quality: { outlier: false, warnings: [] },
+    };
+    kvData.set('agro_observations', JSON.stringify([existingKvTx]));
+
+    let kvReadShouldFail = false;
+    let kvSetCalls = 0;
+
+    global.fetch = async (urlStr, opts = {}) => {
+      const u = String(urlStr);
+      if (u.startsWith('https://fake-kv.local/get/')) {
+        if (kvReadShouldFail) {
+          return { ok: false, status: 500, json: async () => ({ error: 'KV Down' }) };
+        }
+        const key = decodeURIComponent(u.slice('https://fake-kv.local/get/'.length));
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ result: kvData.has(key) ? kvData.get(key) : null }),
+        };
+      }
+      if (u.startsWith('https://fake-kv.local/set/')) {
+        kvSetCalls++;
+        const key = decodeURIComponent(u.slice('https://fake-kv.local/set/'.length));
+        const parsedBody = typeof opts.body === 'string' ? JSON.parse(opts.body) : opts.body;
+        kvData.set(key, typeof parsedBody === 'string' ? parsedBody : JSON.stringify(parsedBody));
+        return { ok: true, status: 200, json: async () => ({ result: 'OK' }) };
+      }
+      return origFetch(urlStr, opts);
+    };
+
+    process.env.KV_REST_API_URL = 'https://fake-kv.local';
+    process.env.KV_REST_API_TOKEN = 'fake-kv-token';
+
+    // Part 1: Cold instance with empty tmpDir1 receives POST /api/import
+    process.env.DATA_DIR = tmpDir1;
+    if (typeof store.resetForTests === 'function') store.resetForTests();
+
+    const newTxCsv = [
+      'observation_date,retrieved_date,kind,market,geography,price,unit,vat,vat_rate,delivery_basis,source,source_ref,verification_status,verified_by,verified_at',
+      '2026-10-20,2026-10-20,transaction,warehouse_volgograd,"Волгоградская обл.",16.80,RUB/kg,excl,0.10,EXW,Собственная сделка КФХ,UPD-102,verified,farmer_1,2026-10-20',
+    ].join('\n');
+
+    const { req: req1, res: res1 } = mockReqRes({
+      method: 'POST',
+      url: '/api/import',
+      headers: { 'x-bypass-auth': '1' },
+      body: { type: 'prices', csv: newTxCsv, importDate: '2026-10-24' },
+    });
+    await importHandler(req1, res1);
+    assert.equal(res1.statusCode, 200, 'Import after successful KV sync should return 200');
+
+    const rawKvObs = JSON.parse(kvData.get('agro_observations'));
+    const storedObsList = Array.isArray(rawKvObs) ? rawKvObs : rawKvObs.data;
+    assert.ok(
+      storedObsList.some((o) => o.id === 'kv-tx-existing-001' || o.sourceRef === 'UPD-101'),
+      'KV must still contain the original pre-existing transaction after cold-start write'
+    );
+    assert.ok(
+      storedObsList.some((o) => o.sourceRef === 'UPD-102' && o.priceExVatRubKg === 16.8),
+      'KV must also contain the newly imported transaction'
+    );
+
+    // Part 2: Cold instance where KV read fails must reject the write with 503 and NOT overwrite KV
+    process.env.DATA_DIR = tmpDir2;
+    store.resetForTests();
+    kvReadShouldFail = true;
+    const kvCallsBeforeFail = kvSetCalls;
+
+    const { req: req2, res: res2 } = mockReqRes({
+      method: 'POST',
+      url: '/api/import',
+      headers: { 'x-bypass-auth': '1' },
+      body: { type: 'prices', csv: newTxCsv, importDate: '2026-10-24' },
+    });
+    await importHandler(req2, res2);
+    assert.equal(res2.statusCode, 503, 'Write must fail with 503 when KV sync fails on cold start');
+    assert.equal(kvSetCalls, kvCallsBeforeFail, 'Failed KV sync must never push seed data to KV');
+
+    // Part 3: Revision check prevents an older state from overwriting a newer revision in KV
+    kvReadShouldFail = false;
+    store.resetForTests();
+    await store.ensureInitialized({ forWrite: true });
+    // Simulate another instance bumping the remote revision in KV ahead of this instance
+    const currentEnvelope = JSON.parse(kvData.get('agro_observations'));
+    const bumpedRev = (currentEnvelope?.__agro_rev || 1) + 5;
+    kvData.set(
+      'agro_observations',
+      JSON.stringify({ __agro_rev: bumpedRev, data: storedObsList })
+    );
+    await assert.rejects(
+      async () => {
+        await store.persistToDurable('observations', []);
+      },
+      /revision|conflict|stale|outdated/i,
+      'Stale instance with lower revision must not overwrite newer KV state'
+    );
+  } finally {
+    global.fetch = origFetch;
+    if (origKvUrl !== undefined) process.env.KV_REST_API_URL = origKvUrl;
+    else delete process.env.KV_REST_API_URL;
+    if (origKvToken !== undefined) process.env.KV_REST_API_TOKEN = origKvToken;
+    else delete process.env.KV_REST_API_TOKEN;
+    if (origDataDir !== undefined) process.env.DATA_DIR = origDataDir;
+    else delete process.env.DATA_DIR;
+    if (typeof store.resetForTests === 'function') store.resetForTests();
+    fs.rmSync(tmpDir1, { recursive: true, force: true });
+    fs.rmSync(tmpDir2, { recursive: true, force: true });
+  }
+});
+

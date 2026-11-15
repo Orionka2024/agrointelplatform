@@ -16,6 +16,7 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
+  await store.ensureInitialized({ forWrite: false });
   const cached = store.getMacroCache();
   const errors = [];
   let usdRub = null;
