@@ -5,6 +5,7 @@ import { watchlistLogOffset, WATCH_HORIZON_WEEKS } from './exportWatchlist.js';
 import { buildShortTermDrivers, formatShortTermDriversText } from './shortTermDrivers.js';
 import { resolveDatedCbrMacro } from './marketSignals.js';
 import { officialForecast as defaultOfficialForecast } from './officialData.js';
+import { evaluateHorizonConfidence } from './officialForecast.js';
 
 export const VOLGOGRAD_ONION_TARGET_SPEC = {
   targetId: 'volgograd_yellow_onion_exw_20t',
@@ -972,6 +973,15 @@ export function buildWeeklyDecisionPlan({
         })
       : null;
 
+  const horizonConfidence = isOnionCatBoost
+    ? effectiveOfficial.rows.map((r) => ({
+        h: r.h,
+        lead: r.lead,
+        targetMonth: r.targetMonth,
+        ...evaluateHorizonConfidence(r, effectiveOfficial.lastValue),
+      }))
+    : [];
+
   return {
     isOnionCatBoost,
     isConditionalForecast,
@@ -979,6 +989,9 @@ export function buildWeeklyDecisionPlan({
     basisFactor,
     startMonday,
     baseWarehousePrice: pStart,
+    shortTermAnchorDefault: 'last_observed_price',
+    shortTermAnchorPrice: pStart,
+    horizonConfidence,
     sellNowNet: +sellNowNet.toFixed(1),
     weeks,
     stages,

@@ -487,6 +487,96 @@ test('P0-5 (F-01, F-02): Stop overriding the model selector across h=1..14, foll
   assert.doesNotMatch(readmeSrc, /CatBoost/i, 'README.md must not call the custom tree model "CatBoost"');
 });
 
+test('P0-6 (F-01, F-02): Honest horizon labelling derived dynamically from validation fields (leads 2-3 last price, 4-12 beats seasonal-naive, 13-15 no better than seasonal)', async () => {
+  const { officialForecast } = await import('../shared/officialData.js');
+  const officialForecastMod = await import('../shared/officialForecast.js');
+  const { buildWeeklyDecisionPlan } = await import('../shared/weeklyDecisionPlan.js');
+  const { CROP_PROFILES } = await import('../shared/cropProfiles.js');
+
+  assert.equal(
+    typeof officialForecastMod.evaluateHorizonConfidence,
+    'function',
+    'shared/officialForecast.js must export evaluateHorizonConfidence'
+  );
+
+  // 1. Check current bundled horizons (leads 2..15)
+  for (const row of officialForecast.rows) {
+    const info = officialForecastMod.evaluateHorizonConfidence(row, officialForecast.lastValue);
+    if (row.lead === 2 || row.lead === 3) {
+      assert.equal(info.badge, 'no better than last price', `Lead ${row.lead}m must show "no better than last price"`);
+      assert.equal(info.defaultShortTermAnchor, 'last_observed_price', `Lead ${row.lead}m must default short-term anchor to last observed price`);
+      assert.ok(Math.abs(info.recommendedAnchorPoint - officialForecast.lastValue) < 1e-6);
+      if (row.lead === 2) {
+        assert.match(info.holdoutSummary, /2\.52/, 'Lead 2m summary must include audited naive holdout figure 2.52');
+        assert.match(info.holdoutSummary, /2\.88|3\.03/, 'Lead 2m summary must include audited model holdout figure 2.88/3.03');
+      }
+      if (row.lead === 3) {
+        assert.match(info.holdoutSummary, /2\.91/, 'Lead 3m summary must include audited naive holdout figure 2.91');
+        assert.match(info.holdoutSummary, /3\.09|3\.27/, 'Lead 3m summary must include audited model holdout figure 3.09/3.27');
+      }
+    } else if (row.lead >= 4 && row.lead <= 12) {
+      assert.equal(info.badge, 'beats seasonal-naive', `Lead ${row.lead}m must show "beats seasonal-naive"`);
+    } else if (row.lead >= 13 && row.lead <= 15) {
+      assert.equal(info.badge, 'no better than seasonal', `Lead ${row.lead}m must show "no better than seasonal"`);
+      assert.equal(info.confidence, 'low', `Lead ${row.lead}m must have low confidence`);
+    }
+  }
+
+  // 2. Mutating validation fields on a horizon dynamically changes the badge (proving no hardcoded lead switch)
+  const lead2Row = officialForecast.rows.find((r) => r.lead === 2);
+  const mutatedLead2Wins = {
+    ...lead2Row,
+    validation: {
+      ...lead2Row.validation,
+      final: { ...lead2Row.validation.final, mae: 1.95 },
+      naiveFinal: { ...lead2Row.validation.naiveFinal, mae: 3.80 },
+      finalAll: lead2Row.validation.finalAll.map((x) =>
+        x.id === 'seasonal' ? { ...x, mae: 5.50 } : x.id === lead2Row.validation.selected ? { ...x, mae: 1.95 } : x
+      ),
+    },
+  };
+  const mutatedBadge1 = officialForecastMod.evaluateHorizonConfidence(mutatedLead2Wins, officialForecast.lastValue);
+  assert.equal(
+    mutatedBadge1.badge,
+    'beats seasonal-naive',
+    'When lead=2 validation metrics are mutated so model beats both naive and seasonal-naive, badge must switch to "beats seasonal-naive"'
+  );
+
+  const lead6Row = officialForecast.rows.find((r) => r.lead === 6);
+  const mutatedLead6TiesSeasonal = {
+    ...lead6Row,
+    validation: {
+      ...lead6Row.validation,
+      final: { ...lead6Row.validation.final, mae: 3.10 },
+      naiveFinal: { ...lead6Row.validation.naiveFinal, mae: 6.60 },
+      finalAll: lead6Row.validation.finalAll.map((x) =>
+        x.id === 'seasonal' ? { ...x, mae: 3.25 } : x.id === lead6Row.validation.selected ? { ...x, mae: 3.10 } : x
+      ),
+    },
+  };
+  const mutatedBadge2 = officialForecastMod.evaluateHorizonConfidence(mutatedLead6TiesSeasonal, officialForecast.lastValue);
+  assert.equal(
+    mutatedBadge2.badge,
+    'no better than seasonal',
+    'When lead=6 validation metrics are mutated so model barely differs from seasonal, badge must switch to "no better than seasonal"'
+  );
+
+  // 3. Weekly decision plan exposes short-term anchor default = last observed price
+  const plan = buildWeeklyDecisionPlan({
+    cropId: 'onion',
+    cropProfile: CROP_PROFILES.onion,
+    officialForecast,
+    today: '2026-10-30',
+    baseWarehousePrice: 15.5,
+    bridge: { truckCostRub: 135000, truckPayloadKg: 20000, packagingRubKg: 1.2, handlingRubKg: 0.5, transitLossPct: 1.5, marginRubKg: 2.0, moscowVatRate: 0.1 },
+    storageParams: CROP_PROFILES.onion.storageParams,
+  });
+  assert.equal(plan.shortTermAnchorDefault, 'last_observed_price');
+  assert.equal(plan.shortTermAnchorPrice, 15.5);
+  assert.ok(Array.isArray(plan.horizonConfidence) && plan.horizonConfidence.length === 14);
+});
+
+
 
 
 

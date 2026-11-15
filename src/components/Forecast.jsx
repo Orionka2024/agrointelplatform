@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState, Fragment } from 'react';
 import { useMarket } from '../context/useMarket';
 import { officialForecast, officialSnapshot } from '../../shared/officialData.js';
-import { MONTHLY_MODELS } from '../../shared/officialForecast.js';
+import { MONTHLY_MODELS, evaluateHorizonConfidence } from '../../shared/officialForecast.js';
 import { CROP_PROFILES, CROP_TYPES, getCropProfile } from '../../shared/cropProfiles.js';
 import { warehouseToMoscow, BRIDGE_LABELS } from '../../shared/bridge.js';
 import { buildWeeklyDecisionPlan, buildCatBoostShapCards, resolveSelectedHorizonMetrics } from '../../shared/weeklyDecisionPlan.js';
@@ -1042,6 +1042,7 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                     <th>Лаг (мес.)</th>
                     <th>Прогноз выбранной модели РФ</th>
                     <th>Выбранная модель</th>
+                    <th>Оценка горизонта (Holdout)</th>
                     <th>MAE выбранной модели (holdout)</th>
                     <th>MAE Дерево решений (эксп.)</th>
                     <th>MAE Наивная (посл. цена)</th>
@@ -1052,6 +1053,7 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                 <tbody>
                   {officialForecast.rows.map((r) => {
                     const selMetrics = resolveSelectedHorizonMetrics(r);
+                    const conf = evaluateHorizonConfidence(r, officialForecast.lastValue);
                     const cbFinal = r.validation.finalAll?.find((x) => x.id === 'catboost');
                     const naiveMae = r.validation.naiveFinal?.mae ?? 0;
                     const selMae = selMetrics.mae ?? r.validation.final?.mae ?? 0;
@@ -1064,6 +1066,19 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                           {selMetrics.point?.toFixed(2)} ₽
                         </td>
                         <td style={{ fontSize: 11 }}>{MONTHLY_MODELS[selMetrics.selected] || selMetrics.selected}</td>
+                        <td title={conf.holdoutSummary}>
+                          <span
+                            className={`badge ${
+                              conf.tier === 'beats_seasonal_naive'
+                                ? 'up'
+                                : conf.tier === 'no_better_than_last_price'
+                                  ? 'warn'
+                                  : 'neu'
+                            }`}
+                          >
+                            {conf.badgeRu}
+                          </span>
+                        </td>
                         <td className="mono up" style={{ fontWeight: 600 }}>
                           {selMae.toFixed(2)} ₽
                         </td>
@@ -1085,7 +1100,7 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
             </div>
 
             <div style={{ marginTop: 10, fontSize: 11, color: 'var(--txt3)' }}>
-              * На сверхкоротких горизонтах (1–2 мес.) инерция текущей цены высока у всех моделей; на средних горизонтах (4–12 мес.) Сезонная модель (Weibull) и Дерево решений (экспериментальная) снижают ошибку прогноза относительно сезонного наивного ориентира. Помесячный выбор строгого селектора: {MONTHLY_MODELS[officialForecast.rows[2]?.validation?.selected]}.
+              * На горизонтах 2–3 мес. инерция текущей цены выше модели («Не точнее последней цены» / <code>no better than last price</code>: 2.52 и 2.91 против 2.88–3.27 ₽/кг), поэтому краткосрочный якорь по умолчанию равен последней наблюдаемой цене ({decisionPlan.shortTermAnchorPrice.toFixed(1)} ₽/кг). На горизонтах 4–12 мес. модель статистически обыгрывает сезонный наивный прогноз («Точнее сезонного наивного» / <code>beats seasonal-naive</code>). На горизонтах 13–15 мес. преимущество над сезонным наивным статистически не подтверждено («Не точнее сезонного · низкая надёжность» / <code>no better than seasonal</code>).
             </div>
           </div>
         )}

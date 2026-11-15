@@ -325,3 +325,88 @@ export function issueOfficialForecast(history, { issueDate, drivers = null } = {
   }
   return output;
 }
+
+/**
+ * Derives honest horizon confidence badge and short-term anchor recommendation
+ * dynamically from per-horizon holdout validation metrics (validation.final, naiveFinal, finalAll).
+ */
+export function evaluateHorizonConfidence(row, lastValue = null) {
+  if (!row || !row.validation) {
+    return {
+      tier: 'unknown',
+      badge: 'no better than seasonal',
+      badgeRu: 'Не точнее сезонного (низкая надёжность)',
+      confidence: 'low',
+      defaultShortTermAnchor: 'last_observed_price',
+      recommendedAnchorPoint: Number.isFinite(lastValue) ? lastValue : (row?.point ?? null),
+      holdoutSummary: 'Недостаточно данных бэктеста',
+    };
+  }
+  const v = row.validation;
+  const finalMae = Number(v.final?.mae);
+  const naiveMae = Number(v.naiveFinal?.mae ?? v.finalAll?.find((x) => x.id === 'naive')?.mae);
+  const seasonalMae = Number(v.seasonalFinal?.mae ?? v.finalAll?.find((x) => x.id === 'seasonal')?.mae);
+  const eqCarryMae = Number(v.finalAll?.find((x) => x.id === 'eq_carry')?.mae);
+  const treeMae = Number(v.finalAll?.find((x) => x.id === 'catboost')?.mae);
+  const selectedPoint =
+    v.selected === 'catboost' && Number.isFinite(row.catboostPoint)
+      ? row.catboostPoint
+      : (row.point ?? row.catboostPoint ?? null);
+
+  // 1. Short-term regime where naive (last observed price) wins or ties on holdout
+  if (Number.isFinite(finalMae) && Number.isFinite(naiveMae) && finalMae >= naiveMae) {
+    const eqStr = Number.isFinite(eqCarryMae) ? eqCarryMae.toFixed(2) : finalMae.toFixed(2);
+    const treeStr = Number.isFinite(treeMae) ? treeMae.toFixed(2) : finalMae.toFixed(2);
+    return {
+      tier: 'no_better_than_last_price',
+      badge: 'no better than last price',
+      badgeRu: 'Не точнее последней цены (no better than last price)',
+      confidence: 'low_short_term',
+      defaultShortTermAnchor: 'last_observed_price',
+      recommendedAnchorPoint: Number.isFinite(lastValue) ? lastValue : selectedPoint,
+      finalMae,
+      naiveMae,
+      seasonalMae,
+      eqCarryMae,
+      treeMae,
+      holdoutSummary: `Не точнее последней цены (no better than last price): MAE посл. цены ${naiveMae.toFixed(2)} ₽/кг против ${eqStr}–${treeStr} ₽/кг (выбранная ${finalMae.toFixed(2)} ₽/кг). Ориентир по умолчанию — последняя цена.`,
+    };
+  }
+
+  // 2. Medium-term regime where model beats both naive and seasonal-naive by a statistically meaningful margin (>= 1.5 RUB/kg)
+  const seasonalGain = Number.isFinite(seasonalMae) && Number.isFinite(finalMae) ? seasonalMae - finalMae : 0;
+  if (Number.isFinite(finalMae) && Number.isFinite(seasonalMae) && seasonalGain >= 1.5) {
+    const gainPct = seasonalMae > 0 ? Math.round((seasonalGain / seasonalMae) * 100) : 0;
+    return {
+      tier: 'beats_seasonal_naive',
+      badge: 'beats seasonal-naive',
+      badgeRu: 'Точнее сезонного наивного (beats seasonal-naive)',
+      confidence: 'medium',
+      defaultShortTermAnchor: 'selected_model',
+      recommendedAnchorPoint: selectedPoint,
+      finalMae,
+      naiveMae,
+      seasonalMae,
+      eqCarryMae,
+      treeMae,
+      holdoutSummary: `Точнее сезонного наивного (beats seasonal-naive) на ${seasonalGain.toFixed(2)} ₽/кг (−${gainPct}%: MAE ${finalMae.toFixed(2)} против ${seasonalMae.toFixed(2)} ₽/кг).`,
+    };
+  }
+
+  // 3. Long-term / low-confidence regime where model does not statistically beat seasonal-naive
+  return {
+    tier: 'no_better_than_seasonal',
+    badge: 'no better than seasonal',
+    badgeRu: 'Не точнее сезонного · низкая надёжность (no better than seasonal)',
+    confidence: 'low',
+    defaultShortTermAnchor: 'seasonal_or_model_low_confidence',
+    recommendedAnchorPoint: selectedPoint,
+    finalMae,
+    naiveMae,
+    seasonalMae,
+    eqCarryMae,
+    treeMae,
+    holdoutSummary: `Не точнее сезонного · низкая надёжность (no better than seasonal): MAE ${Number.isFinite(finalMae) ? finalMae.toFixed(2) : '—'} против сезонного ${Number.isFinite(seasonalMae) ? seasonalMae.toFixed(2) : '—'} ₽/кг.`,
+  };
+}
+

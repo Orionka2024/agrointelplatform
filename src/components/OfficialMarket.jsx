@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend } from 'chart.js';
 import { officialHistory as history, officialForecast as fc, officialDrivers as drivers } from '../../shared/officialData.js';
-import { MONTHLY_MODELS, monthNumber } from '../../shared/officialForecast.js';
+import { MONTHLY_MODELS, monthNumber, evaluateHorizonConfidence } from '../../shared/officialForecast.js';
 import { localBasis, applyBasis } from '../../shared/localBasis.js';
 import { resolveSelectedHorizonMetrics } from '../../shared/weeklyDecisionPlan.js';
 import { useMarket } from '../context/useMarket';
@@ -195,12 +195,14 @@ export default function OfficialMarket() {
                     <th>Дерево решений (эксп.)</th>
                     <th>80% диапазон</th>
                     <th>MAE holdout: Селектор / Дерево / Naive</th>
+                    <th>Оценка горизонта</th>
                     <th>Выбранная на настройке модель</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((row) => {
                     const selMetrics = resolveSelectedHorizonMetrics(row);
+                    const conf = evaluateHorizonConfidence(row, fc.lastValue);
                     const treePt = row.catboostPoint ?? row.point;
                     const loc = applyBasis({ point: selMetrics.point, interval80: selMetrics.interval80 }, cal);
                     const cbFinal = row.validation.finalAll?.find((x) => x.id === 'catboost');
@@ -214,6 +216,19 @@ export default function OfficialMarket() {
                         <td className="mono">{band(selMetrics.interval80)}</td>
                         <td className="mono">
                           <strong>{fmt(selFinal?.mae)}</strong> / {fmt(cbFinal?.mae)} / {fmt(row.validation.naiveFinal.mae)} ₽
+                        </td>
+                        <td title={conf.holdoutSummary}>
+                          <span
+                            className={`badge ${
+                              conf.tier === 'beats_seasonal_naive'
+                                ? 'up'
+                                : conf.tier === 'no_better_than_last_price'
+                                  ? 'warn'
+                                  : 'neu'
+                            }`}
+                          >
+                            {conf.badgeRu}
+                          </span>
                         </td>
                         <td style={{ fontSize: 11 }}>{MONTHLY_MODELS[row.validation.selected]}</td>
                       </tr>
