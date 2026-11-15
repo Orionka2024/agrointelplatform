@@ -4,7 +4,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 import { officialHistory as history, officialForecast as fc, officialDrivers as drivers } from '../../shared/officialData.js';
 import { MONTHLY_MODELS, monthNumber, evaluateHorizonConfidence } from '../../shared/officialForecast.js';
 import { localBasis, applyBasis } from '../../shared/localBasis.js';
-import { resolveSelectedHorizonMetrics } from '../../shared/weeklyDecisionPlan.js';
+import { resolveSelectedHorizonMetrics, INTERVAL_UNAVAILABLE_MESSAGE } from '../../shared/weeklyDecisionPlan.js';
 import { useMarket } from '../context/useMarket';
 import OfficialSummary from './OfficialSummary';
 import AddActualPrice from './AddActualPrice';
@@ -12,7 +12,10 @@ import AddActualPrice from './AddActualPrice';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
 const fmt = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString('ru-RU', { maximumFractionDigits: d }) : '—');
-const band = (v) => (v ? `${fmt(v.lo)}–${fmt(v.hi)}` : 'Недостаточно ошибок');
+const band = (v) =>
+  v && Number.isFinite(v.lo) && Number.isFinite(v.hi)
+    ? `${fmt(v.lo)}–${fmt(v.hi)}`
+    : INTERVAL_UNAVAILABLE_MESSAGE;
 const STRENGTH = {
   calibrated: 'Калибровка по ≥6 мес.',
   weak: 'Предварительная привязка (3–5 мес.)',

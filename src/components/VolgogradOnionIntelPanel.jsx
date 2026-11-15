@@ -1,4 +1,5 @@
 import { buildVolgogradOnionIntelligence } from '../../shared/onionValidatedIntel.js';
+import { INTERVAL_UNAVAILABLE_MESSAGE } from '../../shared/weeklyDecisionPlan.js';
 
 export default function VolgogradOnionIntelPanel({ model, signals }) {
   const intel = buildVolgogradOnionIntelligence({
@@ -239,9 +240,15 @@ export default function VolgogradOnionIntelPanel({ model, signals }) {
                         {h.label} <span style={{ color: 'var(--txt3)', fontSize: 10 }}>({h.targetDate})</span>
                       </td>
                       <td className="mono fw">{h.pointExVatRubKg !== null ? `${h.pointExVatRubKg.toFixed(1)} ₽` : 'null'}</td>
-                      <td className="mono">{h.lo80 !== null ? `${h.lo80.toFixed(1)}–${h.hi80.toFixed(1)} ₽` : '—'}</td>
-                      <td className="mono" style={{ color: 'var(--txt2)' }}>
-                        {h.lo95 !== null ? `${h.lo95.toFixed(1)}–${h.hi95.toFixed(1)} ₽` : '—'}
+                      <td className="mono">
+                        {h.lo80 !== null && h.hi80 !== null
+                          ? `${h.lo80.toFixed(1)}–${h.hi80.toFixed(1)} ₽`
+                          : INTERVAL_UNAVAILABLE_MESSAGE}
+                      </td>
+                      <td className="mono" style={{ color: 'var(--txt2)', fontSize: 10.5 }}>
+                        {h.lo95 !== null && h.hi95 !== null
+                          ? `${h.lo95.toFixed(1)}–${h.hi95.toFixed(1)} ₽`
+                          : INTERVAL_UNAVAILABLE_MESSAGE}
                       </td>
                       <td className="mono" style={{ fontSize: 10.5 }}>
                         ±{h.backtest?.maeRubKg ?? '—'} ₽ ({h.backtest?.mapePct ?? '—'}%, n={h.backtest?.nHoldout ?? 0})

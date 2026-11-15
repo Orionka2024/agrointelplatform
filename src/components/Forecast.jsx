@@ -4,7 +4,13 @@ import { officialForecast, officialSnapshot } from '../../shared/officialData.js
 import { MONTHLY_MODELS, evaluateHorizonConfidence } from '../../shared/officialForecast.js';
 import { CROP_PROFILES, CROP_TYPES, getCropProfile } from '../../shared/cropProfiles.js';
 import { warehouseToMoscow, BRIDGE_LABELS } from '../../shared/bridge.js';
-import { buildWeeklyDecisionPlan, buildCatBoostShapCards, resolveSelectedHorizonMetrics } from '../../shared/weeklyDecisionPlan.js';
+import {
+  buildWeeklyDecisionPlan,
+  buildCatBoostShapCards,
+  resolveSelectedHorizonMetrics,
+  formatIntervalBand,
+  INTERVAL_UNAVAILABLE_MESSAGE,
+} from '../../shared/weeklyDecisionPlan.js';
 import { STORAGE_TIERS } from '../../shared/storageEconomics.js';
 import { FACTOR_DEFS } from '../../shared/factorToggles.js';
 import MonthlySalesPlanTable from './MonthlySalesPlanTable';
@@ -710,7 +716,11 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                                   </span>
                                 </td>
                                 <td className="mono" style={{ color: 'var(--txt2)', whiteSpace: 'nowrap', fontSize: 10.5 }}>
-                                  {w.lo80 !== null && w.hi80 !== null ? `${w.lo80}–${w.hi80} ₽` : 'профиль'}
+                                  {w.lo80 !== null && w.hi80 !== null
+                                    ? `${w.lo80}–${w.hi80} ₽`
+                                    : activeCrop === 'onion'
+                                      ? INTERVAL_UNAVAILABLE_MESSAGE
+                                      : 'профиль'}
                                 </td>
                               </tr>
 
@@ -1048,6 +1058,7 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                     <th>MAE Наивная (посл. цена)</th>
                     <th>Выигрыш к наивной</th>
                     <th>80% эмпир. коридор</th>
+                    <th>95% эмпир. коридор</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1088,9 +1099,10 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                           {skill > 0 ? `+${skill}% точнее` : `${skill}%`}
                         </td>
                         <td className="mono">
-                          {selMetrics.interval80
-                            ? `${selMetrics.interval80.lo.toFixed(1)}–${selMetrics.interval80.hi.toFixed(1)} ₽`
-                            : '—'}
+                          {formatIntervalBand(selMetrics.interval80, 1)}
+                        </td>
+                        <td className="mono" style={{ fontSize: 10.5, color: 'var(--txt3)' }}>
+                          {formatIntervalBand(selMetrics.interval95, 1)}
                         </td>
                       </tr>
                     );

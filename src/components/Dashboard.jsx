@@ -14,7 +14,11 @@ import { useMarket } from '../context/useMarket';
 import { officialForecast, officialSnapshot } from '../../shared/officialData.js';
 import { CROP_PROFILES, CROP_TYPES, getCropProfile } from '../../shared/cropProfiles.js';
 import { warehouseToMoscow } from '../../shared/bridge.js';
-import { buildWeeklyDecisionPlan } from '../../shared/weeklyDecisionPlan.js';
+import {
+  buildWeeklyDecisionPlan,
+  buildForecastChartBandDatasets,
+  INTERVAL_UNAVAILABLE_MESSAGE,
+} from '../../shared/weeklyDecisionPlan.js';
 import AddActualPrice from './AddActualPrice';
 import MonthlySalesPlanTable from './MonthlySalesPlanTable';
 import WeatherWidget from './WeatherWidget';
@@ -176,29 +180,7 @@ export default function Dashboard() {
         pointRadius: 1.5,
         tension: 0.25,
       },
-      ...(decisionPlan.weeks[0]?.hi80 !== null
-        ? [
-            {
-              label: 'Верхняя граница 80% диапазона (склад)',
-              data: decisionPlan.weeks.map((w) => w.hi80),
-              borderColor: 'rgba(26, 86, 168, 0.22)',
-              borderWidth: 1,
-              pointRadius: 0,
-              fill: '+1',
-              backgroundColor: 'rgba(26, 86, 168, 0.07)',
-              tension: 0.25,
-            },
-            {
-              label: 'Нижняя граница 80% диапазона (склад)',
-              data: decisionPlan.weeks.map((w) => w.lo80),
-              borderColor: 'rgba(26, 86, 168, 0.22)',
-              borderWidth: 1,
-              pointRadius: 0,
-              fill: false,
-              tension: 0.25,
-            },
-          ]
-        : []),
+      ...buildForecastChartBandDatasets(decisionPlan.weeks, { level: 80 }),
     ],
   };
 
@@ -477,7 +459,12 @@ export default function Dashboard() {
                 </div>
                 <div className="stat-meta">
                   <span className="stat-sub">
-                    чистыми: ~{decisionPlan.bestNetWeek.netPerKg.toFixed(1)} ₽/кг {decisionPlan.peakWeek.lo80 !== null ? `· 80% кор.: ${decisionPlan.peakWeek.lo80}–${decisionPlan.peakWeek.hi80} ₽` : ''}
+                    чистыми: ~{decisionPlan.bestNetWeek.netPerKg.toFixed(1)} ₽/кг{' '}
+                    {decisionPlan.peakWeek.lo80 !== null && decisionPlan.peakWeek.hi80 !== null
+                      ? `· 80% кор.: ${decisionPlan.peakWeek.lo80}–${decisionPlan.peakWeek.hi80} ₽`
+                      : isSelectedOnion
+                        ? `· ${INTERVAL_UNAVAILABLE_MESSAGE}`
+                        : ''}
                   </span>
                 </div>
               </div>

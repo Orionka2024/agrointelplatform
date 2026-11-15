@@ -576,6 +576,95 @@ test('P0-6 (F-01, F-02): Honest horizon labelling derived dynamically from valid
   assert.ok(Array.isArray(plan.horizonConfidence) && plan.horizonConfidence.length === 14);
 });
 
+test('P0-7 (F-04): Intervals with null bounds are never invented or plotted and display "Интервал недоступен: недостаточно данных для калибровки"', async () => {
+  const { officialForecast } = await import('../shared/officialData.js');
+  const weeklyPlanMod = await import('../shared/weeklyDecisionPlan.js');
+  const { CROP_PROFILES } = await import('../shared/cropProfiles.js');
+
+  const expectedMsg = 'Интервал недоступен: недостаточно данных для калибровки';
+  assert.equal(weeklyPlanMod.INTERVAL_UNAVAILABLE_MESSAGE, expectedMsg);
+  assert.equal(typeof weeklyPlanMod.formatIntervalBand, 'function');
+  assert.equal(typeof weeklyPlanMod.buildForecastChartBandDatasets, 'function');
+
+  // 1. Bundled officialForecast has interval95: null on all 14 horizons -> evaluateVolgogradOnionTargetForecast must NOT invent lo95/hi95
+  const fcMonday = weeklyPlanMod.evaluateVolgogradOnionTargetForecast({
+    issueAsOf: '2026-11-13',
+    targetDate: '2026-11-16',
+    baseWarehousePrice: 15.5,
+    hasVerifiedWarehouseDeal: false,
+    officialForecast,
+  });
+  assert.equal(fcMonday.lo95, null, 'lo95 must be null when officialForecast has interval95: null (must not invent relBand80 * 1.55)');
+  assert.equal(fcMonday.hi95, null, 'hi95 must be null when officialForecast has interval95: null');
+  assert.equal(weeklyPlanMod.formatIntervalBand(null), expectedMsg);
+  assert.equal(weeklyPlanMod.formatIntervalBand({ lo: null, hi: null }), expectedMsg);
+
+  // 95% chart band datasets for bundled forecast must be empty (0 series)
+  const planBundled = weeklyPlanMod.buildWeeklyDecisionPlan({
+    cropId: 'onion',
+    cropProfile: CROP_PROFILES.onion,
+    officialForecast,
+    today: '2026-10-30',
+    baseWarehousePrice: 15.5,
+    bridge: { truckCostRub: 135000, truckPayloadKg: 20000, packagingRubKg: 1.2, handlingRubKg: 0.5, transitLossPct: 1.5, marginRubKg: 2.0, moscowVatRate: 0.1 },
+    storageParams: CROP_PROFILES.onion.storageParams,
+  });
+  const band95Series = weeklyPlanMod.buildForecastChartBandDatasets(planBundled.weeks, { level: 95 });
+  assert.equal(band95Series.length, 0, 'Null 95% intervals must produce zero band series in chart dataset');
+
+  // 2. Passing a forecast with null 80% intervals (lo80: null, hi80: null / interval80: null) produces null lo80/hi80 and zero 80% band series
+  const noIntervalsForecast = {
+    ...officialForecast,
+    rows: officialForecast.rows.map((r) => ({
+      ...r,
+      interval80: null,
+      interval95: null,
+      catboostQ80: null,
+      catboostInterval80: null,
+      lo80: null,
+      hi80: null,
+      lo95: null,
+      hi95: null,
+      validation: {
+        ...r.validation,
+        q80: null,
+        q95: null,
+        catboostQ80: null,
+      },
+    })),
+  };
+
+  const planNoIntervals = weeklyPlanMod.buildWeeklyDecisionPlan({
+    cropId: 'onion',
+    cropProfile: CROP_PROFILES.onion,
+    officialForecast: noIntervalsForecast,
+    today: '2026-10-30',
+    baseWarehousePrice: 15.5,
+    bridge: { truckCostRub: 135000, truckPayloadKg: 20000, packagingRubKg: 1.2, handlingRubKg: 0.5, transitLossPct: 1.5, marginRubKg: 2.0, moscowVatRate: 0.1 },
+    storageParams: CROP_PROFILES.onion.storageParams,
+  });
+
+  assert.ok(
+    planNoIntervals.weeks.every((w) => w.lo80 === null && w.hi80 === null && w.lo95 === null && w.hi95 === null),
+    'When forecast has null 80% and 95% intervals, weekly plan must have lo80=null, hi80=null, lo95=null, hi95=null'
+  );
+  const band80SeriesWhenNull = weeklyPlanMod.buildForecastChartBandDatasets(planNoIntervals.weeks, { level: 80 });
+  assert.equal(band80SeriesWhenNull.length, 0, 'Null 80% intervals must produce zero band series in chart dataset');
+
+  // 3. UI files render the exact message "Интервал недоступен: недостаточно данных для калибровки"
+  const forecastUiSrc = fs.readFileSync(path.join(ROOT, 'src/components/Forecast.jsx'), 'utf8');
+  const officialUiSrc = fs.readFileSync(path.join(ROOT, 'src/components/OfficialMarket.jsx'), 'utf8');
+  assert.ok(
+    forecastUiSrc.includes(expectedMsg) || forecastUiSrc.includes('INTERVAL_UNAVAILABLE_MESSAGE') || forecastUiSrc.includes('formatIntervalBand'),
+    'Forecast.jsx must display the interval unavailable message when interval bounds are null'
+  );
+  assert.ok(
+    officialUiSrc.includes(expectedMsg) || officialUiSrc.includes('INTERVAL_UNAVAILABLE_MESSAGE') || officialUiSrc.includes('formatIntervalBand'),
+    'OfficialMarket.jsx must display the interval unavailable message when interval bounds are null'
+  );
+});
+
+
 
 
 

@@ -49,7 +49,14 @@ function interpolateKnots(knots, targetMs) {
       return {
         ms: targetMs,
         logP: a.logP + t * (b.logP - a.logP),
-        relBand80: a.relBand80 + t * (b.relBand80 - a.relBand80),
+        relBand80:
+          Number.isFinite(a.relBand80) && Number.isFinite(b.relBand80)
+            ? a.relBand80 + t * (b.relBand80 - a.relBand80)
+            : null,
+        relBand95:
+          Number.isFinite(a.relBand95) && Number.isFinite(b.relBand95)
+            ? a.relBand95 + t * (b.relBand95 - a.relBand95)
+            : null,
         relMae: a.relMae + t * (b.relMae - a.relMae),
         skillPct: a.skillPct + t * (b.skillPct - a.skillPct),
       };
@@ -491,6 +498,51 @@ export function buildWeekDeltaExplanation({
 export const CONDITIONAL_FORECAST_BANNER =
   'Текущая цена сделки по луку EXW Волгоград не подтверждена. Прогноз является условным.';
 
+export const INTERVAL_UNAVAILABLE_MESSAGE =
+  'Интервал недоступен: недостаточно данных для калибровки';
+
+export function formatIntervalBand(interval, digits = 1) {
+  if (
+    !interval ||
+    !Number.isFinite(interval.lo) ||
+    !Number.isFinite(interval.hi)
+  ) {
+    return INTERVAL_UNAVAILABLE_MESSAGE;
+  }
+  return `${interval.lo.toFixed(digits)}–${interval.hi.toFixed(digits)} ₽`;
+}
+
+export function buildForecastChartBandDatasets(weeks, { level = 80 } = {}) {
+  if (!Array.isArray(weeks) || weeks.length === 0) return [];
+  const loKey = level === 95 ? 'lo95' : 'lo80';
+  const hiKey = level === 95 ? 'hi95' : 'hi80';
+  const hasValidBounds = weeks.some(
+    (w) => w && Number.isFinite(w[loKey]) && Number.isFinite(w[hiKey])
+  );
+  if (!hasValidBounds) return [];
+  return [
+    {
+      label: `Верхняя граница ${level}% диапазона (склад)`,
+      data: weeks.map((w) => (Number.isFinite(w?.[hiKey]) ? w[hiKey] : null)),
+      borderColor: 'rgba(26, 86, 168, 0.22)',
+      borderWidth: 1,
+      pointRadius: 0,
+      fill: '+1',
+      backgroundColor: 'rgba(26, 86, 168, 0.07)',
+      tension: 0.25,
+    },
+    {
+      label: `Нижняя граница ${level}% диапазона (склад)`,
+      data: weeks.map((w) => (Number.isFinite(w?.[loKey]) ? w[loKey] : null)),
+      borderColor: 'rgba(26, 86, 168, 0.22)',
+      borderWidth: 1,
+      pointRadius: 0,
+      fill: false,
+      tension: 0.25,
+    },
+  ];
+}
+
 export function resolveSelectedHorizonPoint(r) {
   if (!r) return null;
   const sel = r.validation?.selected;
@@ -504,20 +556,32 @@ export function resolveSelectedHorizonPoint(r) {
 }
 
 export function resolveSelectedHorizonMetrics(r) {
-  if (!r) return { selected: null, point: null, q80: null, interval80: null, mae: null };
+  if (!r) return { selected: null, point: null, q80: null, q95: null, interval80: null, interval95: null, mae: null };
   const selected = r.validation?.selected ?? 'eq_carry';
   const point = resolveSelectedHorizonPoint(r);
-  const q80 =
+  const rawQ80 =
     selected === 'catboost'
       ? (r.catboostQ80 ?? r.validation?.q80 ?? null)
       : (r.validation?.q80 ?? r.catboostQ80 ?? null);
-  const interval80 =
+  const q80 = Number.isFinite(rawQ80) && rawQ80 > 0 ? rawQ80 : null;
+  const rawQ95 = r.validation?.q95 ?? null;
+  const q95 = Number.isFinite(rawQ95) && rawQ95 > 0 ? rawQ95 : null;
+  const rawInterval80 =
     selected === 'catboost'
       ? (r.catboostInterval80 ?? r.interval80 ?? null)
       : (r.interval80 ?? r.catboostInterval80 ?? null);
+  const interval80 =
+    rawInterval80 && Number.isFinite(rawInterval80.lo) && Number.isFinite(rawInterval80.hi)
+      ? rawInterval80
+      : null;
+  const rawInterval95 = r.interval95 ?? null;
+  const interval95 =
+    rawInterval95 && Number.isFinite(rawInterval95.lo) && Number.isFinite(rawInterval95.hi)
+      ? rawInterval95
+      : null;
   const finalEntry = r.validation?.finalAll?.find((x) => x.id === selected);
   const mae = finalEntry?.mae ?? r.validation?.final?.mae ?? r.catboostHoldoutMae ?? null;
-  return { selected, point, q80, interval80, mae };
+  return { selected, point, q80, q95, interval80, interval95, mae };
 }
 
 export function buildCatboostKnots(officialForecast, issueDate, pStart) {
@@ -529,7 +593,10 @@ export function buildCatboostKnots(officialForecast, issueDate, pStart) {
   const firstMetrics = resolveSelectedHorizonMetrics(firstRow);
   const firstPt = firstMetrics.point ?? lastVal;
   const firstBandDenom = firstRow.catboostPoint ?? firstPt;
-  const firstQ80 = firstRow.catboostQ80 ?? firstMetrics.q80 ?? 2.6;
+  const rawFirstQ80 = firstRow.catboostQ80 ?? firstMetrics.q80;
+  const firstQ80 = Number.isFinite(rawFirstQ80) && rawFirstQ80 > 0 ? rawFirstQ80 : null;
+  const rawFirstQ95 = firstMetrics.q95;
+  const firstQ95 = Number.isFinite(rawFirstQ95) && rawFirstQ95 > 0 ? rawFirstQ95 : null;
   const firstMae = firstMetrics.mae ?? 2.6;
   const firstNaive = firstRow.validation?.naiveFinal?.mae ?? 3.2;
 
@@ -537,15 +604,18 @@ export function buildCatboostKnots(officialForecast, issueDate, pStart) {
   knots.push({
     ms: parseUtcMs(cutoffIso),
     logP: Math.log(lastVal),
-    relBand80: firstQ80 / firstBandDenom,
+    relBand80: firstQ80 !== null && firstBandDenom > 0 ? firstQ80 / firstBandDenom : null,
+    relBand95: firstQ95 !== null && firstBandDenom > 0 ? firstQ95 / firstBandDenom : null,
     relMae: firstMae / firstPt,
     skillPct: firstNaive > 0 ? Math.max(0, (1 - firstMae / firstNaive) * 100) : 0,
   });
 
   for (const r of officialForecast.rows) {
-    const { selected, point: pt, mae: rowMae } = resolveSelectedHorizonMetrics(r);
+    const { selected, point: pt, q95: rowQ95, mae: rowMae } = resolveSelectedHorizonMetrics(r);
     if (!(pt > 0)) continue;
-    const q80 = r.catboostQ80 ?? r.validation?.q80 ?? firstQ80;
+    const rawQ80 = r.catboostQ80 ?? r.validation?.q80 ?? firstQ80;
+    const q80 = Number.isFinite(rawQ80) && rawQ80 > 0 ? rawQ80 : null;
+    const q95 = Number.isFinite(rowQ95) && rowQ95 > 0 ? rowQ95 : null;
     const bandDenom = r.catboostPoint ?? pt;
     const mae = rowMae ?? firstMae;
     const naiveMae = r.validation?.naiveFinal?.mae ?? mae;
@@ -554,7 +624,8 @@ export function buildCatboostKnots(officialForecast, issueDate, pStart) {
       logP: Math.log(pt),
       selectedModel: selected,
       point: pt,
-      relBand80: q80 > 0 ? q80 / bandDenom : 0.14,
+      relBand80: q80 !== null && bandDenom > 0 ? q80 / bandDenom : null,
+      relBand95: q95 !== null && bandDenom > 0 ? q95 / bandDenom : null,
       relMae: mae > 0 ? mae / pt : 0.12,
       skillPct: naiveMae > 0 ? ((1 - mae / naiveMae) * 100) : 0,
     });
@@ -635,7 +706,8 @@ export function evaluateVolgogradOnionTargetForecast({
   const effectiveOfficial = officialForecast || defaultOfficialForecast;
   const knots = buildCatboostKnots(effectiveOfficial, issueAsOf, pStart);
   let baseWh;
-  let relBand80 = 0.14;
+  let relBand80 = null;
+  let relBand95 = null;
   let relMae = 0.12;
 
   const hLead = Math.max(1, Math.round(daysToTarget / 7));
@@ -646,6 +718,7 @@ export function evaluateVolgogradOnionTargetForecast({
     const regime = evaluateOnionWeeklyRegime(targetDate, liveSignals, hLead);
     baseWh = Math.exp(k.logP + regime.logOffset) * knots.basisFactor;
     relBand80 = k.relBand80;
+    relBand95 = k.relBand95;
     relMae = k.relMae;
   } else {
     baseWh = pStart;
@@ -654,12 +727,11 @@ export function evaluateVolgogradOnionTargetForecast({
   const scenarioMultiplier = computeScenarioMultiplier(scenarioId, scenarioDeltaPct, targetDate, leadIdx);
   const rawWhPrice = baseWh * scenarioMultiplier;
   const point = +rawWhPrice.toFixed(1);
-  const relBand95 = Math.min(0.65, relBand80 * 1.55);
 
-  const lo80 = +Math.max(0.5, rawWhPrice * (1 - relBand80)).toFixed(1);
-  const hi80 = +(rawWhPrice * (1 + relBand80)).toFixed(1);
-  const lo95 = +Math.max(0.5, rawWhPrice * (1 - relBand95)).toFixed(1);
-  const hi95 = +(rawWhPrice * (1 + relBand95)).toFixed(1);
+  const lo80 = Number.isFinite(relBand80) ? +Math.max(0.5, rawWhPrice * (1 - relBand80)).toFixed(1) : null;
+  const hi80 = Number.isFinite(relBand80) ? +(rawWhPrice * (1 + relBand80)).toFixed(1) : null;
+  const lo95 = Number.isFinite(relBand95) ? +Math.max(0.5, rawWhPrice * (1 - relBand95)).toFixed(1) : null;
+  const hi95 = Number.isFinite(relBand95) ? +(rawWhPrice * (1 + relBand95)).toFixed(1) : null;
 
   return {
     targetId,
@@ -698,8 +770,10 @@ export function evaluateVolgogradOnionTargetForecast({
     hi80,
     lo95,
     hi95,
-    relBand80: +relBand80.toFixed(4),
-    relBand95: +relBand95.toFixed(4),
+    relBand80: Number.isFinite(relBand80) ? +relBand80.toFixed(4) : null,
+    relBand95: Number.isFinite(relBand95) ? +relBand95.toFixed(4) : null,
+    interval80UnavailableReason: lo80 === null ? INTERVAL_UNAVAILABLE_MESSAGE : null,
+    interval95UnavailableReason: lo95 === null ? INTERVAL_UNAVAILABLE_MESSAGE : null,
     calibrationMethod: 'empirical_holdout_quantiles',
     modelVersion: 'catboost-weekly-v2',
   };
@@ -754,6 +828,7 @@ export function buildWeeklyDecisionPlan({
 
     let baseWh;
     let relBand80 = null;
+    let relBand95 = null;
     let relMae = null;
     let skillPct = null;
     let onionRegime = null;
@@ -763,6 +838,7 @@ export function buildWeeklyDecisionPlan({
       onionRegime = evaluateOnionWeeklyRegime(targetDate, liveSignals, h);
       baseWh = Math.exp(k.logP + onionRegime.logOffset) * basisFactor;
       relBand80 = k.relBand80;
+      relBand95 = k.relBand95;
       relMae = k.relMae;
       skillPct = k.skillPct;
     } else {
@@ -822,9 +898,11 @@ export function buildWeeklyDecisionPlan({
       };
     }
 
-    const lo80 = relBand80 !== null ? +Math.max(0, rawWhPrice * (1 - relBand80)).toFixed(1) : null;
-    const hi80 = relBand80 !== null ? +(rawWhPrice * (1 + relBand80)).toFixed(1) : null;
-    const mae = relMae !== null ? +(rawWhPrice * relMae).toFixed(1) : null;
+    const lo80 = Number.isFinite(relBand80) ? +Math.max(0, rawWhPrice * (1 - relBand80)).toFixed(1) : null;
+    const hi80 = Number.isFinite(relBand80) ? +(rawWhPrice * (1 + relBand80)).toFixed(1) : null;
+    const lo95 = Number.isFinite(relBand95) ? +Math.max(0, rawWhPrice * (1 - relBand95)).toFixed(1) : null;
+    const hi95 = Number.isFinite(relBand95) ? +(rawWhPrice * (1 + relBand95)).toFixed(1) : null;
+    const mae = Number.isFinite(relMae) ? +(rawWhPrice * relMae).toFixed(1) : null;
 
     const deltaExplanation = buildWeekDeltaExplanation({
       cropId,
@@ -873,6 +951,8 @@ export function buildWeeklyDecisionPlan({
       deltaExplanation,
       lo80,
       hi80,
+      lo95,
+      hi95,
       mae,
       skillPct: skillPct !== null ? Math.round(skillPct) : null,
       isConditionalForecast,
