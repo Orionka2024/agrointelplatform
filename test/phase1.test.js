@@ -241,3 +241,122 @@ test('P1-0a (F-10): Per-user magic-link sign-in, no shared secret in browser bun
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
+
+test('P1-0b (F-07, F-09, F-15): Data scripts and /api/refresh regenerate official-hashes.json atomically and end-to-end refresh+load has no integrity error', async () => {
+  // 1. server/officialHashes.js must exist and export writeJsonAtomically & regenerateOfficialHashesAtomically
+  const officialHashesPath = path.join(ROOT, 'server/officialHashes.js');
+  assert.ok(fs.existsSync(officialHashesPath), 'server/officialHashes.js must exist');
+  const { writeJsonAtomically, regenerateOfficialHashesAtomically } = await import('../server/officialHashes.js');
+  const { verifyOfficialDataHashes, officialSnapshot, officialHistory, officialDrivers } = await import('../shared/officialData.js');
+
+  // 2. All data scripts (build_official_forecast.mjs, collect_cbr.mjs, collect_rosstat.py, fetch_rosstat.mjs) must regenerate official-hashes.json atomically
+  for (const scriptRel of [
+    'scripts/build_official_forecast.mjs',
+    'scripts/collect_cbr.mjs',
+    'scripts/collect_rosstat.py',
+    'scripts/fetch_rosstat.mjs',
+  ]) {
+    const fullPath = path.join(ROOT, scriptRel);
+    assert.ok(fs.existsSync(fullPath), `${scriptRel} must exist`);
+    const src = fs.readFileSync(fullPath, 'utf8');
+    assert.ok(
+      src.includes('official-hashes.json') || src.includes('regenerateOfficialHashesAtomically'),
+      `${scriptRel} must regenerate official-hashes.json`
+    );
+  }
+
+  // 3. Test atomic regeneration in an isolated directory with updated official-history.json (new month 2026-10)
+  const tmpOfficialDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agro-p1-0b-official-'));
+  const origDataDir = process.env.DATA_DIR;
+  const { store } = await import('../server/store.js');
+  const refreshHandler = (await import('../api/refresh.js')).default;
+  const marketHandler = (await import('../api/market.js')).default;
+
+  try {
+    process.env.DATA_DIR = tmpOfficialDir;
+    process.env.CRON_SECRET = 'test-cron-secret-p1-0b';
+    store.resetForTests();
+
+    const updatedHistory = structuredClone(officialHistory);
+    updatedHistory.collectedAt = '2026-11-15';
+    updatedHistory.producer.monthly.push({
+      period: '2026-10',
+      unit: 'RUB/kg',
+      value: 20.15,
+      sourceId: updatedHistory.sources[0].id,
+      sheet: '2026',
+      cell: 'L74',
+      rawValue: 20150,
+      availableDate: '2026-11-10',
+    });
+
+    const updatedDrivers = structuredClone(officialDrivers);
+    updatedDrivers.collectedAt = '2026-11-15';
+
+    writeJsonAtomically(path.join(tmpOfficialDir, 'official-history.json'), updatedHistory);
+    writeJsonAtomically(path.join(tmpOfficialDir, 'official-drivers.json'), updatedDrivers);
+    const manifest = regenerateOfficialHashesAtomically(tmpOfficialDir);
+
+    assert.ok(manifest.files['official-history.json']?.sha256, 'Manifest must include sha256 for official-history.json');
+    assert.ok(manifest.files['official-drivers.json']?.sha256, 'Manifest must include sha256 for official-drivers.json');
+
+    // Verify no leftover .tmp files exist after atomic write
+    const filesInDir = fs.readdirSync(tmpOfficialDir);
+    assert.ok(!filesInDir.some((f) => f.includes('.tmp')), 'Atomic write must not leave .tmp files behind');
+
+    // Verify integrity against the regenerated official-hashes.json
+    const check = verifyOfficialDataHashes({
+      rawFiles: {
+        'official-history.json': fs.readFileSync(path.join(tmpOfficialDir, 'official-history.json')),
+        'official-drivers.json': fs.readFileSync(path.join(tmpOfficialDir, 'official-drivers.json')),
+      },
+      expected: JSON.parse(fs.readFileSync(path.join(tmpOfficialDir, 'official-hashes.json'), 'utf8')),
+    });
+    assert.equal(check.ok, true, 'Regenerated official-hashes.json must pass verifyOfficialDataHashes');
+
+    // 4. End-to-end test: run /api/refresh (which detects the new 2026-10 official month in DATA_DIR and regenerates hashes & forecast), then load /api/market
+    const refreshReq = mockReqRes({
+      method: 'POST',
+      url: '/api/refresh?today=2026-11-15',
+      headers: { authorization: 'Bearer test-cron-secret-p1-0b' },
+      body: {
+        today: '2026-11-15',
+        customFetchers: {
+          cbr: async () =>
+            '<ValCurs Date="15.11.2026"><Valute ID="R01235"><Nominal>1</Nominal><Value>98,50</Value></Valute><Valute ID="R01335"><Nominal>100</Nominal><Value>19,80</Value></Valute></ValCurs>',
+          weather: async () => [{ daily: { time: ['2026-11-15'] } }],
+          agroRu: async () => '<html><body></body></html>',
+          foodStar: async () => '<html><body><span>24,50 руб/кг</span></body></html>',
+          agroServer: async () => '<html><body></body></html>',
+          news: async () => [],
+        },
+      },
+    });
+    await refreshHandler(refreshReq.req, refreshReq.res);
+    assert.equal(refreshReq.res.statusCode, 200);
+    assert.equal(refreshReq.res.data.forecasts.official_monthly.reissued, true);
+    assert.equal(refreshReq.res.data.forecasts.official_monthly.inputCutoff, '2026-10');
+
+    // Now load app data via GET /api/market and officialSnapshot -> zero integrity errors and updated cutoff 2026-10
+    const mktReq = mockReqRes({
+      method: 'GET',
+      url: '/api/market?today=2026-11-15',
+    });
+    await marketHandler(mktReq.req, mktReq.res);
+    assert.equal(mktReq.res.statusCode, 200);
+    assert.equal(mktReq.res.data.official.status, 'ok', 'GET /api/market official.status must be ok after refresh');
+    assert.equal(mktReq.res.data.official.integrity.ok, true, 'GET /api/market official.integrity.ok must be true');
+    assert.equal(mktReq.res.data.official.producer.period, '2026-10', 'GET /api/market must reflect refreshed 2026-10 producer data');
+    assert.equal(mktReq.res.data.official.forecast.inputCutoff, '2026-10', 'GET /api/market must reflect reissued official forecast');
+
+    const snap = officialSnapshot('2026-11-15');
+    assert.equal(snap.status, 'ok');
+    assert.equal(snap.integrity.ok, true);
+  } finally {
+    process.env.DATA_DIR = origDataDir;
+    delete process.env.CRON_SECRET;
+    store.resetForTests();
+    fs.rmSync(tmpOfficialDir, { recursive: true, force: true });
+  }
+});
+

@@ -181,6 +181,16 @@ export function verifyOfficialDataHashes({
 export const officialDataIntegrity = verifyOfficialDataHashes();
 const safeForecast = officialDataIntegrity.ok ? forecast : null;
 
+let runtimeOverlay = null;
+
+export function setRuntimeOfficialOverlay(overlay = null) {
+  runtimeOverlay = overlay;
+}
+
+export function getRuntimeOfficialOverlay() {
+  return runtimeOverlay;
+}
+
 export function endOfMonthIso(periodOrDate) {
   const s = String(periodOrDate || '').trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
@@ -192,9 +202,9 @@ export function endOfMonthIso(periodOrDate) {
   return d.toISOString().slice(0, 10);
 }
 
-export function computeForecastFreshness(fc = safeForecast, { today = null, maxAgeDays = 90 } = {}) {
+export function computeForecastFreshness(fc = safeForecast, { today = null, maxAgeDays = 90, historyObj = history } = {}) {
   const inputCutoff =
-    fc?.inputCutoff || fc?.dataCutoff || history?.producer?.monthly?.at(-1)?.period || '2026-09';
+    fc?.inputCutoff || fc?.dataCutoff || historyObj?.producer?.monthly?.at(-1)?.period || '2026-09';
   const cutoffEndDate = endOfMonthIso(inputCutoff) || '2026-09-30';
   const modelVersion = fc?.modelVersion || forecast?.modelVersion || 'rosstat-catboost-3.0.0';
   const lastBacktestDate = fc?.lastBacktestDate || inputCutoff;
@@ -237,9 +247,16 @@ export {
 };
 
 export function officialSnapshot(today, options = {}) {
-  const integrity =
+  const effectiveOptions =
     options.rawFiles || options.parsedFiles || options.expected
-      ? verifyOfficialDataHashes(options)
+      ? options
+      : runtimeOverlay
+        ? runtimeOverlay
+        : {};
+
+  const integrity =
+    effectiveOptions.rawFiles || effectiveOptions.parsedFiles || effectiveOptions.expected
+      ? verifyOfficialDataHashes(effectiveOptions)
       : officialDataIntegrity;
 
   if (!integrity.ok) {
@@ -263,36 +280,40 @@ export function officialSnapshot(today, options = {}) {
     };
   }
 
-  const producer = history.producer.monthly.filter((r) => r.availableDate <= today && r.period <= today.slice(0, 7));
-  const producerSouth = (history.producer.regional || []).filter(
+  const activeHistory = effectiveOptions.parsedFiles?.['official-history.json'] || history;
+  const activeDrivers = effectiveOptions.parsedFiles?.['official-drivers.json'] || drivers;
+  const activeForecast = options.forecast || effectiveOptions.forecast || forecast;
+
+  const producer = activeHistory.producer.monthly.filter((r) => r.availableDate <= today && r.period <= today.slice(0, 7));
+  const producerSouth = (activeHistory.producer.regional || []).filter(
     (r) =>
       r.region &&
       r.region.trim() === 'Южный федеральный округ' &&
       r.availableDate <= today &&
       r.period <= today.slice(0, 7)
   );
-  const retail = history.retail.weekly.filter((r) => r.availableDate <= today && r.date <= today);
-  const usdRub = (drivers.usdRub || []).filter((r) => r.availableDate <= today);
-  const kztRub = (drivers.kztRub || []).filter((r) => r.availableDate <= today);
-  const keyRate = (drivers.keyRate || []).filter((r) => r.availableDate <= today);
-  const vlgWeather = (drivers.weather?.volgograd || []).filter((r) => r.availableDate <= today);
-  const zhmWeather = (drivers.weather?.zhambyl || []).filter((r) => r.availableDate <= today);
-  const freshness = computeForecastFreshness(forecast, { today });
+  const retail = activeHistory.retail.weekly.filter((r) => r.availableDate <= today && r.date <= today);
+  const usdRub = (activeDrivers.usdRub || []).filter((r) => r.availableDate <= today);
+  const kztRub = (activeDrivers.kztRub || []).filter((r) => r.availableDate <= today);
+  const keyRate = (activeDrivers.keyRate || []).filter((r) => r.availableDate <= today);
+  const vlgWeather = (activeDrivers.weather?.volgograd || []).filter((r) => r.availableDate <= today);
+  const zhmWeather = (activeDrivers.weather?.zhambyl || []).filter((r) => r.availableDate <= today);
+  const freshness = computeForecastFreshness(activeForecast, { today, historyObj: activeHistory });
 
   return {
     status: 'ok',
     error: null,
     integrity,
     freshness,
-    collectedAt: history.collectedAt,
+    collectedAt: activeHistory.collectedAt,
     producer: producer.at(-1) ?? null,
     producerSouth: producerSouth.at(-1) ?? null,
     retail: retail.at(-1) ?? null,
     producerCount: producer.length,
     retailCount: retail.length,
-    annualCount: history.producer.annual.length,
+    annualCount: activeHistory.producer.annual.length,
     drivers: {
-      collectedAt: drivers.collectedAt,
+      collectedAt: activeDrivers.collectedAt,
       count: Math.min(usdRub.length, keyRate.length),
       usdRub: usdRub.at(-1) ?? null,
       kztRub: kztRub.at(-1) ?? null,
@@ -301,20 +322,20 @@ export function officialSnapshot(today, options = {}) {
         volgograd: vlgWeather.at(-1) ?? null,
         zhambyl: zhmWeather.at(-1) ?? null,
       },
-      sources: drivers.sources,
-      note: drivers.note,
+      sources: activeDrivers.sources,
+      note: activeDrivers.note,
     },
     forecast:
-      forecast.issueDate <= today
+      activeForecast && activeForecast.issueDate <= today
         ? {
-            id: forecast.id,
-            issueDate: forecast.issueDate,
-            inputCutoff: forecast.inputCutoff,
-            status: forecast.status,
-            modelVersion: forecast.modelVersion,
-            target: forecast.target,
+            id: activeForecast.id,
+            issueDate: activeForecast.issueDate,
+            inputCutoff: activeForecast.inputCutoff,
+            status: activeForecast.status,
+            modelVersion: activeForecast.modelVersion,
+            target: activeForecast.target,
             freshness,
-            rows: forecast.rows.map((r) => ({
+            rows: activeForecast.rows.map((r) => ({
               targetMonth: r.targetMonth,
               point: r.point,
               catboostPoint: r.catboostPoint,
@@ -326,9 +347,10 @@ export function officialSnapshot(today, options = {}) {
             })),
           }
         : null,
-    limitations: history.limitations,
-    sources: history.sources,
+    limitations: activeHistory.limitations,
+    sources: activeHistory.sources,
   };
 }
+
 
 

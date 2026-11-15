@@ -148,6 +148,17 @@ def main():
     # Save only after every series passed validation. Retain each downloaded vintage.
     if a.download: (RAW/f'price-index-{a.as_of}.html').write_text(index)
     out=ROOT/'data/official-history.json';temp=out.with_suffix('.tmp');temp.write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n');temp.replace(out)
+    hash_files={}
+    for name in ('official-history.json','official-drivers.json'):
+        p=ROOT/'data'/name
+        if p.exists():
+            raw=p.read_bytes()
+            parsed=json.loads(raw.decode('utf-8'))
+            canonical=json.dumps(parsed,ensure_ascii=False,separators=(',',':')).encode('utf-8')
+            hash_files[name]={'sha256':sha(raw),'canonicalSha256':sha(canonical),'bytes':len(raw)}
+    hashes_out=ROOT/'data/official-hashes.json';hashes_tmp=hashes_out.with_suffix('.tmp')
+    hashes_tmp.write_text(json.dumps({'version':1,'files':hash_files},ensure_ascii=False,indent=2)+'\n')
+    hashes_tmp.replace(hashes_out)
     print(json.dumps({'producerMonths':len(result['producer']['monthly']),'annualYears':len(result['producer']['annual']),
                      'retailWeeks':len(result['retail']['weekly']),'latestProducer':result['producer']['monthly'][-1],
                      'latestRetail':result['retail']['weekly'][-1]},ensure_ascii=False))

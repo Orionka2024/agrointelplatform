@@ -60,7 +60,8 @@ export default async function handler(req, res) {
     model.storeDurable = store.isDurable();
     model.storageBackend = store.getBackendType();
     model.refreshStatus = store.getRefreshStatus() || buildInitialRefreshStatus(today);
-    model.official = officialSnapshot(today);
+    const storedOfficialFc = store.getOfficialForecast();
+    model.official = officialSnapshot(today, storedOfficialFc ? { forecast: storedOfficialFc } : {});
     model.annualHistory = store.getAnnual();
     model.annualEvidence = annualEvidence(model.annualHistory, {today, region: model.assumptions.planning?.region});
     res.status(200).json(model);

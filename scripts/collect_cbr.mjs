@@ -129,7 +129,9 @@ const out = {
     zhambyl: zhm.rows,
   },
 };
-fs.writeFileSync(new URL('data/official-drivers.json', root), JSON.stringify(out, null, 2) + '\n');
+const { writeJsonAtomically, regenerateOfficialHashesAtomically } = await import('../server/officialHashes.js');
+writeJsonAtomically(new URL('data/official-drivers.json', root), JSON.stringify(out, null, 2) + '\n');
+regenerateOfficialHashesAtomically(new URL('data/', root));
 console.log(JSON.stringify({
   usdMonths: out.usdRub.length,
   kztMonths: out.kztRub.length,

@@ -19,8 +19,13 @@ import { hash32, isVerified } from '../shared/observations.js';
 import { buildWeeklySeries, describeSeries } from '../shared/series.js';
 import { issueForecast, MAX_DATA_AGE_WEEKS_FOR_ISSUE, FULL_HORIZONS } from '../shared/forecast.js';
 import { MODEL_VERSION } from '../shared/models.js';
-import { officialHistory, officialDrivers, officialForecast } from '../shared/officialData.js';
+import { officialHistory, officialDrivers, officialForecast, setRuntimeOfficialOverlay } from '../shared/officialData.js';
 import { issueOfficialForecast } from '../shared/officialForecast.js';
+import {
+  readRuntimeOfficialFiles,
+  regenerateOfficialHashesAtomically,
+  writeJsonAtomically,
+} from './officialHashes.js';
 import {
   parseAgroRuVolgogradHtml,
   parseFoodStarOnionHtml,
@@ -574,27 +579,43 @@ export async function runRefreshJob({
       errors.push({ step: 'news_export', source: 'news_export', error: newsRes.reason?.message });
     }
 
-    // 8. Official Rosstat Monthly Producer Forecast check (persisted via store.saveOfficialForecast)
-    const currentHistPoints = officialHistory.producer.monthly.filter(
+    // 8. Official Rosstat Monthly Producer Forecast check (persisted via store.saveOfficialForecast + atomic official-hashes.json)
+    const runtimeFiles = readRuntimeOfficialFiles(process.env.DATA_DIR);
+    let activeHistory = runtimeFiles.parsedFiles['official-history.json'] || officialHistory;
+    let activeDrivers = runtimeFiles.parsedFiles['official-drivers.json'] || officialDrivers;
+    let regeneratedHashes = null;
+
+    if (runtimeFiles.hasCustomFiles && process.env.DATA_DIR) {
+      regeneratedHashes = regenerateOfficialHashesAtomically(process.env.DATA_DIR);
+    }
+
+    const currentHistPoints = activeHistory.producer.monthly.filter(
       (r) => r.availableDate <= today && r.period <= today.slice(0, 7)
     );
     const latestOfficialPeriod = currentHistPoints.at(-1)?.period || '2026-09';
-    const storedOfficialFc = store.getOfficialForecast() || officialForecast;
+    const storedOfficialFc = store.getOfficialForecast() || runtimeFiles.forecastObj || officialForecast;
     const currentFcCutoff = storedOfficialFc?.inputCutoff;
     let officialForecastReissued = false;
+    let effectiveOfficialFc = storedOfficialFc;
 
     if (latestOfficialPeriod > currentFcCutoff) {
       try {
-        const newOfficialFc = issueOfficialForecast(officialHistory, {
+        const newOfficialFc = issueOfficialForecast(activeHistory, {
           issueDate: today,
-          drivers: officialDrivers,
+          drivers: activeDrivers,
         });
         store.saveOfficialForecast(newOfficialFc);
+        effectiveOfficialFc = newOfficialFc;
+        if (runtimeFiles.hasCustomFiles && process.env.DATA_DIR) {
+          writeJsonAtomically(`${process.env.DATA_DIR}/official-forecast.json`, newOfficialFc);
+          regeneratedHashes = regenerateOfficialHashesAtomically(process.env.DATA_DIR);
+        }
         officialForecastReissued = true;
         forecastReports.official_monthly = {
           target: 'РФ · лук · цена сельхозпроизводителей',
           reissued: true,
           persistedToStore: true,
+          hashesRegenerated: Boolean(regeneratedHashes),
           reason: 'NEW_OFFICIAL_MONTH_AVAILABLE',
           message: `Опубликован новый отчёт Росстата за ${latestOfficialPeriod}. Официальный прогноз пересчитан и сохранён в хранилище.`,
           newForecastId: newOfficialFc.id,
@@ -615,10 +636,20 @@ export async function runRefreshJob({
         target: 'РФ · лук · цена сельхозпроизводителей',
         reissued: false,
         persistedToStore: Boolean(store.getOfficialForecast()),
+        hashesRegenerated: Boolean(regeneratedHashes),
         reason: 'OFFICIAL_DATA_UNCHANGED',
         message: `Новых помесячных публикаций Росстата нет (текущий срез: ${latestOfficialPeriod}). Официальный прогноз сохранён.`,
         inputCutoff: currentFcCutoff,
       };
+    }
+
+    if (runtimeFiles.hasCustomFiles) {
+      setRuntimeOfficialOverlay({
+        rawFiles: runtimeFiles.rawFiles,
+        parsedFiles: runtimeFiles.parsedFiles,
+        expected: regeneratedHashes || runtimeFiles.expected,
+        forecast: effectiveOfficialFc,
+      });
     }
     sourceReports.rosstat_producer = {
       sourceId: 'rosstat_producer',

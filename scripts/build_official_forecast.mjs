@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 import {createHash} from 'node:crypto';
 import {issueOfficialForecast} from '../shared/officialForecast.js';
+import {writeJsonAtomically, regenerateOfficialHashesAtomically} from '../server/officialHashes.js';
 const root=new URL('../',import.meta.url);
+const dataDir=new URL('data/',root);
 const history=JSON.parse(fs.readFileSync(new URL('data/official-history.json',root),'utf8'));
 const driversUrl=new URL('data/official-drivers.json',root);
 const drivers=fs.existsSync(driversUrl)?JSON.parse(fs.readFileSync(driversUrl,'utf8')):null;
@@ -12,22 +14,9 @@ const text=JSON.stringify(fc,null,2)+'\n';
 const archive=new URL('data/official-forecasts/',root);fs.mkdirSync(archive,{recursive:true});
 const path=new URL(fc.id+'.json',archive);
 if(fs.existsSync(path)&&fs.readFileSync(path,'utf8')!==text)throw new Error('Immutable forecast collision');
-fs.writeFileSync(path,text);
-fs.writeFileSync(new URL('data/official-forecast.json',root),text);
-const hashFiles={};
-for(const name of ['official-history.json','official-drivers.json']){
-  const u=new URL('data/'+name,root);
-  if(fs.existsSync(u)){
-    const buf=fs.readFileSync(u);
-    const parsed=JSON.parse(buf.toString('utf8'));
-    hashFiles[name]={
-      sha256:createHash('sha256').update(buf).digest('hex'),
-      canonicalSha256:createHash('sha256').update(JSON.stringify(parsed)).digest('hex'),
-      bytes:buf.length,
-    };
-  }
-}
-fs.writeFileSync(new URL('data/official-hashes.json',root),JSON.stringify({version:1,files:hashFiles},null,2)+'\n');
+writeJsonAtomically(path,text);
+writeJsonAtomically(new URL('data/official-forecast.json',root),text);
+regenerateOfficialHashesAtomically(dataDir);
 const short=r=>r===null||r===undefined?null:Math.round(r*100)/100;
 console.log(JSON.stringify({id:fc.id,status:fc.status,cutoff:fc.inputCutoff,usesDrivers:!!fc.drivers,
   rows:fc.rows.map(r=>({target:r.targetMonth,point:short(r.point),model:r.validation.selected,mae:short(r.validation.final.mae),naive:short(r.validation.naiveFinal.mae),n:r.validation.final.n,

@@ -9,6 +9,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { isVerified } from '../shared/observations.js';
 import { DEFAULT_ASSUMPTIONS, DEFAULT_FARM_PROFILE } from '../shared/marketModel.js';
+import { setRuntimeOfficialOverlay } from '../shared/officialData.js';
 
 let db;
 let initPromise = null;
@@ -322,6 +323,7 @@ export const store = {
     kvSyncSucceeded = false;
     kvSyncError = null;
     docRevs.clear();
+    setRuntimeOfficialOverlay(null);
   },
   createMagicLink(rawEmail, { nowMs = Date.now(), ttlMs = 15 * 60 * 1000 } = {}) {
     const email = String(rawEmail || '').trim().toLowerCase();
