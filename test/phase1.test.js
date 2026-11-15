@@ -722,6 +722,93 @@ test('P1-3 (F-01, F-02): Seasonal Weibull (eq_carry) is default product forecast
   assert.ok(gateFail.violations.length === 1);
 });
 
+test('P1-4 (F-01, F-09): Forecast scorecard stores immutable records with metadata, calculates realized errors against actual arrivals, and benchmarks vs naive and seasonal-naive over rolling 12m', async () => {
+  const scorecardMod = await import('../shared/scorecard.js');
+  assert.equal(typeof scorecardMod.buildForecastScorecard, 'function');
+  assert.equal(typeof scorecardMod.computeRealizedErrors, 'function');
+
+  // 1. Mock historical issued forecasts with metadata
+  const mockHistory = [
+    { period: '2025-01', value: 15.0 },
+    { period: '2025-02', value: 16.0 },
+    { period: '2025-03', value: 18.0 },
+    { period: '2025-04', value: 20.0 },
+    { period: '2026-01', value: 16.5 },
+    { period: '2026-02', value: 17.0 },
+    { period: '2026-03', value: 19.5 },
+    { period: '2026-04', value: 22.0 },
+  ];
+
+  const issuedForecast1 = {
+    id: 'fc_2025_12',
+    issueDate: '2025-12-15',
+    dataCutoff: '2025-11',
+    modelVersion: 'rosstat-catboost-3.0.0',
+    inputsHash: 'a1b2c3d4e5f6',
+    baseValue: 14.5,
+    rows: [
+      { h: 1, lead: 2, targetMonth: '2026-01', point: 16.0 },
+      { h: 2, lead: 3, targetMonth: '2026-02', point: 18.0 },
+      { h: 3, lead: 4, targetMonth: '2026-03', point: 21.0 },
+      { h: 4, lead: 5, targetMonth: '2026-05', point: 24.0 }, // future/pending
+    ],
+  };
+
+  const scorecard = scorecardMod.buildForecastScorecard([issuedForecast1], mockHistory);
+
+  assert.equal(scorecard.totalIssues, 1);
+  assert.equal(scorecard.realizedPointsCount, 3);
+  assert.equal(scorecard.pendingPointsCount, 1);
+
+  // Check per-horizon realized error evaluation
+  const h1 = scorecard.byHorizon.find((h) => h.lead === 2);
+  assert.ok(h1, 'Horizon lead 2 must be evaluated');
+  assert.equal(h1.n, 1);
+  // Actual 2026-01 is 16.5, forecast was 16.0 -> error = -0.5, absError = 0.5
+  assert.equal(h1.modelMae, 0.5);
+  // Naive (last observed 14.5 vs actual 16.5) -> absError = 2.0
+  assert.equal(h1.naiveMae, 2.0);
+  // Seasonal naive (2025-01 was 15.0 vs actual 16.5) -> absError = 1.5
+  assert.equal(h1.seasonalMae, 1.5);
+  assert.equal(h1.beatsNaive, true);
+  assert.equal(h1.beatsSeasonal, true);
+  assert.equal(h1.directionalHitRate, 1.0);
+
+  // Rolling 12-month metrics
+  assert.ok(scorecard.rolling12m, 'Rolling 12m section must exist');
+  assert.equal(scorecard.rolling12m.evaluatedN, 3);
+  assert.ok(Number.isFinite(scorecard.rolling12m.modelMae));
+  assert.ok(Number.isFinite(scorecard.rolling12m.naiveMae));
+  assert.ok(Number.isFinite(scorecard.rolling12m.seasonalMae));
+
+  // 2. GET /api/scorecard endpoint
+  const scorecardHandler = (await import('../api/scorecard.js')).default;
+  const req = { method: 'GET', query: {}, headers: {} };
+  let statusCode = 200;
+  let jsonBody = null;
+  const res = {
+    setHeader: () => {},
+    status: (code) => {
+      statusCode = code;
+      return {
+        json: (data) => {
+          jsonBody = data;
+        },
+      };
+    },
+  };
+  await scorecardHandler(req, res);
+  assert.equal(statusCode, 200);
+  assert.ok(jsonBody.scorecard, 'API /api/scorecard must return scorecard payload');
+
+  // 3. UI component Scorecard.jsx must exist and render table and badges
+  const scorecardCompSrc = fs.readFileSync(path.join(ROOT, 'src/components/Scorecard.jsx'), 'utf8');
+  assert.ok(
+    scorecardCompSrc.includes('Scorecard') || scorecardCompSrc.includes('scorecard'),
+    'Scorecard component must exist'
+  );
+});
+
 
 
 

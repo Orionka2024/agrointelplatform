@@ -9,6 +9,7 @@ import forecastHandler from './api/forecast.js';
 import assumptionsHandler from './api/assumptions.js';
 import signalsHandler from './api/signals.js';
 import refreshHandler from './api/refresh.js';
+import scorecardHandler from './api/scorecard.js';
 
 function apiDevServerPlugin() {
   const routes = {
@@ -21,6 +22,7 @@ function apiDevServerPlugin() {
     '/api/assumptions': assumptionsHandler,
     '/api/signals': signalsHandler,
     '/api/refresh': refreshHandler,
+    '/api/scorecard': scorecardHandler,
   };
 
   return {

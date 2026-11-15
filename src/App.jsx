@@ -9,6 +9,7 @@ import Profit from './components/Profit';
 import Cycle from './components/Cycle';
 import DataImport from './components/DataImport';
 import AIAdvisor from './components/AIAdvisor';
+import Scorecard from './components/Scorecard';
 
 class TabErrorBoundary extends Component {
   constructor(props) {
@@ -36,6 +37,7 @@ class TabErrorBoundary extends Component {
 const TABS = [
   { id: 'dashboard',   label: 'Обзор' },
   { id: 'forecast',    label: 'Прогноз цен' },
+  { id: 'scorecard',   label: 'Карточка точности' },
   { id: 'deficit',     label: 'Баланс и дефицит' },
   { id: 'profit',      label: 'Экономика хранения' },
   { id: 'cycle',       label: 'Планирование 2027/28' },
@@ -50,6 +52,7 @@ function AppContent() {
     switch (tab) {
       case 'dashboard':   return <Dashboard />;
       case 'forecast':    return <Forecast onNavigateToImport={() => setTab('data_import')} onNavigateToDashboard={() => setTab('dashboard')} />;
+      case 'scorecard':   return <Scorecard />;
       case 'deficit':     return <Deficit />;
       case 'profit':      return <Profit />;
       case 'cycle':       return <Cycle />;
