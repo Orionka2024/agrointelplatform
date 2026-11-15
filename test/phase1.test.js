@@ -1109,6 +1109,105 @@ test('P1-7 (F-14): Autonomous advisor routes 8 intents deterministically, answer
   assert.equal(groundCheck2.grounded, false, 'Hallucinated numbers must fail grounding check');
 });
 
+test('P1-8 (F-06, F-11): Farmer-first UX with Farm Profile state & default badges, single decision screen calculations, verified transaction attestation form, and mobile offline queue', async () => {
+  const { DEFAULT_FARM_PROFILE } = await import('../shared/marketModel.js');
+  const offlineMod = await import('../shared/offlineQueue.js');
+  const decisionMod = await import('../shared/decisionScreenEngine.js');
+
+  // 1. Farm Profile defaults and customisation badges
+  assert.equal(DEFAULT_FARM_PROFILE.areaHa, 78);
+  assert.equal(DEFAULT_FARM_PROFILE.storageCapacityTons, 1500);
+  assert.equal(DEFAULT_FARM_PROFILE.storageType, 'ventilated');
+  assert.equal(DEFAULT_FARM_PROFILE.energyTariffRubKwh, 6.5);
+  assert.equal(DEFAULT_FARM_PROFILE.loanRatePct, 19.0);
+  assert.ok(DEFAULT_FARM_PROFILE.buyerType || DEFAULT_FARM_PROFILE.usualBuyerType);
+
+  // 2. Offline queue mechanics
+  const fakeStorage = new Map();
+  const mockStorage = {
+    getItem: (k) => fakeStorage.get(k) || null,
+    setItem: (k, v) => fakeStorage.set(k, String(v)),
+    removeItem: (k) => fakeStorage.delete(k),
+  };
+  offlineMod.setOfflineStorageProvider(mockStorage);
+
+  offlineMod.clearPendingQueue();
+  assert.equal(offlineMod.getPendingQueue().length, 0);
+
+  const tx1 = {
+    id: 'tx-offline-1',
+    lotSizeT: 25,
+    grade: '1 сорт (ГОСТ 34306-2017)',
+    caliber: '5+ см',
+    packaging: 'Сетка 25-30 кг на паллетах',
+    paymentTerms: '100% предоплата',
+    buyerType: 'Оптовик (EXW склад)',
+    priceRubKg: 16.5,
+    date: '2026-11-15',
+    attested: true,
+  };
+  offlineMod.enqueuePendingTransaction(tx1);
+  assert.equal(offlineMod.getPendingQueue().length, 1);
+
+  // Flush simulation
+  let flushedCount = 0;
+  const mockImportFn = async (tx) => {
+    flushedCount++;
+    return { ok: true, id: tx.id };
+  };
+  const flushRes = await offlineMod.flushPendingQueue({ importFn: mockImportFn });
+  assert.equal(flushRes.successCount, 1);
+  assert.equal(flushedCount, 1);
+  assert.equal(offlineMod.getPendingQueue().length, 0);
+
+  // 3. Attestation gate
+  assert.equal(offlineMod.validateAttestedTransaction({ ...tx1, attested: false }).valid, false);
+  assert.equal(offlineMod.validateAttestedTransaction({ ...tx1, lotSizeT: null }).valid, false);
+  assert.equal(offlineMod.validateAttestedTransaction(tx1).valid, true);
+
+  // 4. Decision Screen Engine calculations
+  const sampleModel = {
+    today: '2026-11-15',
+    prices: { warehouse: { exVat: 15.5, status: 'indicative_offer' } },
+    storage: {
+      rows: [
+        { weeks: 4, h: 4, breakEvenFuturePrice: 17.5, futurePrice: 19.8, gain: 2.3 },
+        { weeks: 13, h: 13, breakEvenFuturePrice: 20.1, futurePrice: 24.2, gain: 4.1 },
+        { weeks: 20, h: 20, breakEvenFuturePrice: 22.4, futurePrice: 27.5, gain: 5.1 },
+      ],
+    },
+    officialForecast: {
+      horizons: [
+        { h: 1, targetMonth: '2026-11', point: 18.5 },
+        { h: 2, targetMonth: '2026-12', point: 19.8 },
+        { h: 4, targetMonth: '2027-02', point: 24.2 },
+        { h: 5, targetMonth: '2027-03', point: 27.5 },
+      ],
+    },
+    farmProfile: DEFAULT_FARM_PROFILE,
+  };
+
+  const decision = decisionMod.computeFarmerDecisions(sampleModel);
+  // Answers 3 core questions:
+  assert.ok(decision.sellNowOrHold, 'Must compute sellNowOrHold decision');
+  assert.equal(decision.sellNowOrHold.verdict, 'HOLD');
+  assert.ok(decision.sellNowOrHold.recommendationRu.includes('Держать'));
+
+  assert.ok(decision.bestTranche, 'Must compute best tranche timing');
+  assert.equal(decision.bestTranche.targetMonth, '2027-03');
+  assert.ok(decision.bestTranche.sharePct >= 35);
+
+  assert.ok(decision.currentMonthBreakEven, 'Must compute current month break-even');
+  assert.ok(decision.currentMonthBreakEven.breakEvenRubKg > 15.5);
+
+  // 5. UI components exist
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const ROOT = process.cwd();
+  assert.ok(fs.existsSync(path.join(ROOT, 'src/components/DecisionScreen.jsx')), 'DecisionScreen.jsx must exist');
+  assert.ok(fs.existsSync(path.join(ROOT, 'src/components/FarmProfile.jsx')), 'FarmProfile.jsx must exist');
+});
+
 
 
 
