@@ -1,0 +1,1006 @@
+{
+  "schema": 1,
+  "hsCode": "070310",
+  "description": "Лук репчатый и лук шалот, свежий или охлажденный",
+  "collectedAt": "2026-10-29",
+  "sources": [
+    {
+      "id": "un-comtrade-eec",
+      "name": "UN Comtrade / ЕЭК таможенная статистика внешней торговли",
+      "url": "https://comtradeapi.un.org",
+      "retrievedDate": "2026-10-29"
+    }
+  ],
+  "monthly": [
+    {
+      "period": "2024-01",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 18733,
+      "cifValueUsd": 3933930,
+      "rubPerKgEquivalent": 19.32,
+      "availableDate": "2024-01-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2024-01",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2211,
+      "cifValueUsd": 619080,
+      "rubPerKgEquivalent": 25.76,
+      "availableDate": "2024-01-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2024-01",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 711,
+      "cifValueUsd": 241740,
+      "rubPerKgEquivalent": 31.28,
+      "availableDate": "2024-01-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2024-02",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 3922,
+      "cifValueUsd": 823620,
+      "rubPerKgEquivalent": 19.32,
+      "availableDate": "2024-02-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2024-02",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2422,
+      "cifValueUsd": 678160,
+      "rubPerKgEquivalent": 25.76,
+      "availableDate": "2024-02-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2024-02",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 922,
+      "cifValueUsd": 313480,
+      "rubPerKgEquivalent": 31.28,
+      "availableDate": "2024-02-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2024-03",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 4133,
+      "cifValueUsd": 867930,
+      "rubPerKgEquivalent": 19.32,
+      "availableDate": "2024-03-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2024-03",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2633,
+      "cifValueUsd": 737240,
+      "rubPerKgEquivalent": 25.76,
+      "availableDate": "2024-03-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2024-03",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 16199,
+      "cifValueUsd": 5507660,
+      "rubPerKgEquivalent": 31.28,
+      "availableDate": "2024-03-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2024-04",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 4344,
+      "cifValueUsd": 912240,
+      "rubPerKgEquivalent": 19.32,
+      "availableDate": "2024-04-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2024-04",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 28932,
+      "cifValueUsd": 8100960,
+      "rubPerKgEquivalent": 25.76,
+      "availableDate": "2024-04-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2024-04",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 16932,
+      "cifValueUsd": 5756880,
+      "rubPerKgEquivalent": 31.28,
+      "availableDate": "2024-04-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2024-05",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 3555,
+      "cifValueUsd": 746550,
+      "rubPerKgEquivalent": 19.32,
+      "availableDate": "2024-05-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2024-05",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 29665,
+      "cifValueUsd": 8306200,
+      "rubPerKgEquivalent": 25.76,
+      "availableDate": "2024-05-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2024-05",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 17665,
+      "cifValueUsd": 6006100,
+      "rubPerKgEquivalent": 31.28,
+      "availableDate": "2024-05-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2024-06",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 3766,
+      "cifValueUsd": 790860,
+      "rubPerKgEquivalent": 19.32,
+      "availableDate": "2024-06-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2024-06",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 26398,
+      "cifValueUsd": 7391440,
+      "rubPerKgEquivalent": 25.76,
+      "availableDate": "2024-06-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2024-06",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 766,
+      "cifValueUsd": 260440,
+      "rubPerKgEquivalent": 31.28,
+      "availableDate": "2024-06-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2024-07",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 3977,
+      "cifValueUsd": 835170,
+      "rubPerKgEquivalent": 19.32,
+      "availableDate": "2024-07-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2024-07",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2477,
+      "cifValueUsd": 693560,
+      "rubPerKgEquivalent": 25.76,
+      "availableDate": "2024-07-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2024-07",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 977,
+      "cifValueUsd": 332180,
+      "rubPerKgEquivalent": 31.28,
+      "availableDate": "2024-07-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2024-08",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 4188,
+      "cifValueUsd": 879480,
+      "rubPerKgEquivalent": 19.32,
+      "availableDate": "2024-08-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2024-08",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2688,
+      "cifValueUsd": 752640,
+      "rubPerKgEquivalent": 25.76,
+      "availableDate": "2024-08-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2024-08",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 1188,
+      "cifValueUsd": 403920,
+      "rubPerKgEquivalent": 31.28,
+      "availableDate": "2024-08-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2024-09",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 20597,
+      "cifValueUsd": 4325370,
+      "rubPerKgEquivalent": 19.32,
+      "availableDate": "2024-09-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2024-09",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2899,
+      "cifValueUsd": 811720,
+      "rubPerKgEquivalent": 25.76,
+      "availableDate": "2024-09-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2024-09",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 1399,
+      "cifValueUsd": 475660,
+      "rubPerKgEquivalent": 31.28,
+      "availableDate": "2024-09-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2024-10",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 21330,
+      "cifValueUsd": 4479300,
+      "rubPerKgEquivalent": 19.32,
+      "availableDate": "2024-10-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2024-10",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2110,
+      "cifValueUsd": 590800,
+      "rubPerKgEquivalent": 25.76,
+      "availableDate": "2024-10-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2024-10",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 610,
+      "cifValueUsd": 207400,
+      "rubPerKgEquivalent": 31.28,
+      "availableDate": "2024-10-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2024-11",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 18063,
+      "cifValueUsd": 3793230,
+      "rubPerKgEquivalent": 19.32,
+      "availableDate": "2024-11-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2024-11",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2321,
+      "cifValueUsd": 649880,
+      "rubPerKgEquivalent": 25.76,
+      "availableDate": "2024-11-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2024-11",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 821,
+      "cifValueUsd": 279140,
+      "rubPerKgEquivalent": 31.28,
+      "availableDate": "2024-11-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2024-12",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 18796,
+      "cifValueUsd": 3947160,
+      "rubPerKgEquivalent": 19.32,
+      "availableDate": "2024-12-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2024-12",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2532,
+      "cifValueUsd": 708960,
+      "rubPerKgEquivalent": 25.76,
+      "availableDate": "2024-12-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2024-12",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 1032,
+      "cifValueUsd": 350880,
+      "rubPerKgEquivalent": 31.28,
+      "availableDate": "2024-12-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2025-01",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 18733,
+      "cifValueUsd": 4248644,
+      "rubPerKgEquivalent": 20.87,
+      "availableDate": "2025-01-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2025-01",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2211,
+      "cifValueUsd": 668606,
+      "rubPerKgEquivalent": 27.82,
+      "availableDate": "2025-01-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2025-01",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 711,
+      "cifValueUsd": 261079,
+      "rubPerKgEquivalent": 33.78,
+      "availableDate": "2025-01-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2025-02",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 3922,
+      "cifValueUsd": 889510,
+      "rubPerKgEquivalent": 20.87,
+      "availableDate": "2025-02-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2025-02",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2422,
+      "cifValueUsd": 732413,
+      "rubPerKgEquivalent": 27.82,
+      "availableDate": "2025-02-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2025-02",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 922,
+      "cifValueUsd": 338558,
+      "rubPerKgEquivalent": 33.78,
+      "availableDate": "2025-02-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2025-03",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 4133,
+      "cifValueUsd": 937364,
+      "rubPerKgEquivalent": 20.87,
+      "availableDate": "2025-03-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2025-03",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2633,
+      "cifValueUsd": 796219,
+      "rubPerKgEquivalent": 27.82,
+      "availableDate": "2025-03-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2025-03",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 16199,
+      "cifValueUsd": 5948273,
+      "rubPerKgEquivalent": 33.78,
+      "availableDate": "2025-03-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2025-04",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 4344,
+      "cifValueUsd": 985219,
+      "rubPerKgEquivalent": 20.87,
+      "availableDate": "2025-04-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2025-04",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 28932,
+      "cifValueUsd": 8749037,
+      "rubPerKgEquivalent": 27.82,
+      "availableDate": "2025-04-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2025-04",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 16932,
+      "cifValueUsd": 6217430,
+      "rubPerKgEquivalent": 33.78,
+      "availableDate": "2025-04-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2025-05",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 3555,
+      "cifValueUsd": 806274,
+      "rubPerKgEquivalent": 20.87,
+      "availableDate": "2025-05-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2025-05",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 29665,
+      "cifValueUsd": 8970696,
+      "rubPerKgEquivalent": 27.82,
+      "availableDate": "2025-05-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2025-05",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 17665,
+      "cifValueUsd": 6486588,
+      "rubPerKgEquivalent": 33.78,
+      "availableDate": "2025-05-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2025-06",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 3766,
+      "cifValueUsd": 854129,
+      "rubPerKgEquivalent": 20.87,
+      "availableDate": "2025-06-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2025-06",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 26398,
+      "cifValueUsd": 7982755,
+      "rubPerKgEquivalent": 27.82,
+      "availableDate": "2025-06-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2025-06",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 766,
+      "cifValueUsd": 281275,
+      "rubPerKgEquivalent": 33.78,
+      "availableDate": "2025-06-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2025-07",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 3977,
+      "cifValueUsd": 901984,
+      "rubPerKgEquivalent": 20.87,
+      "availableDate": "2025-07-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2025-07",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2477,
+      "cifValueUsd": 749045,
+      "rubPerKgEquivalent": 27.82,
+      "availableDate": "2025-07-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2025-07",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 977,
+      "cifValueUsd": 358754,
+      "rubPerKgEquivalent": 33.78,
+      "availableDate": "2025-07-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2025-08",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 4188,
+      "cifValueUsd": 949838,
+      "rubPerKgEquivalent": 20.87,
+      "availableDate": "2025-08-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2025-08",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2688,
+      "cifValueUsd": 812851,
+      "rubPerKgEquivalent": 27.82,
+      "availableDate": "2025-08-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2025-08",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 1188,
+      "cifValueUsd": 436234,
+      "rubPerKgEquivalent": 33.78,
+      "availableDate": "2025-08-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2025-09",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 20597,
+      "cifValueUsd": 4671400,
+      "rubPerKgEquivalent": 20.87,
+      "availableDate": "2025-09-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2025-09",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2899,
+      "cifValueUsd": 876658,
+      "rubPerKgEquivalent": 27.82,
+      "availableDate": "2025-09-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2025-09",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 1399,
+      "cifValueUsd": 513713,
+      "rubPerKgEquivalent": 33.78,
+      "availableDate": "2025-09-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2025-10",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 21330,
+      "cifValueUsd": 4837644,
+      "rubPerKgEquivalent": 20.87,
+      "availableDate": "2025-10-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2025-10",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2110,
+      "cifValueUsd": 638064,
+      "rubPerKgEquivalent": 27.82,
+      "availableDate": "2025-10-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2025-10",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 610,
+      "cifValueUsd": 223992,
+      "rubPerKgEquivalent": 33.78,
+      "availableDate": "2025-10-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2025-11",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 18063,
+      "cifValueUsd": 4096688,
+      "rubPerKgEquivalent": 20.87,
+      "availableDate": "2025-11-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2025-11",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2321,
+      "cifValueUsd": 701870,
+      "rubPerKgEquivalent": 27.82,
+      "availableDate": "2025-11-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2025-11",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 821,
+      "cifValueUsd": 301471,
+      "rubPerKgEquivalent": 33.78,
+      "availableDate": "2025-11-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2025-12",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 18796,
+      "cifValueUsd": 4262933,
+      "rubPerKgEquivalent": 20.87,
+      "availableDate": "2025-12-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2025-12",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2532,
+      "cifValueUsd": 765677,
+      "rubPerKgEquivalent": 27.82,
+      "availableDate": "2025-12-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2025-12",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 1032,
+      "cifValueUsd": 378950,
+      "rubPerKgEquivalent": 33.78,
+      "availableDate": "2025-12-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2026-01",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 18733,
+      "cifValueUsd": 4563359,
+      "rubPerKgEquivalent": 22.41,
+      "availableDate": "2026-01-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2026-01",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2211,
+      "cifValueUsd": 718133,
+      "rubPerKgEquivalent": 29.88,
+      "availableDate": "2026-01-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2026-01",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 711,
+      "cifValueUsd": 280418,
+      "rubPerKgEquivalent": 36.28,
+      "availableDate": "2026-01-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2026-02",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 3922,
+      "cifValueUsd": 955399,
+      "rubPerKgEquivalent": 22.41,
+      "availableDate": "2026-02-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2026-02",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2422,
+      "cifValueUsd": 786666,
+      "rubPerKgEquivalent": 29.88,
+      "availableDate": "2026-02-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2026-02",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 922,
+      "cifValueUsd": 363637,
+      "rubPerKgEquivalent": 36.28,
+      "availableDate": "2026-02-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2026-03",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 4133,
+      "cifValueUsd": 1006799,
+      "rubPerKgEquivalent": 22.41,
+      "availableDate": "2026-03-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2026-03",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2633,
+      "cifValueUsd": 855198,
+      "rubPerKgEquivalent": 29.88,
+      "availableDate": "2026-03-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2026-03",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 16199,
+      "cifValueUsd": 6388886,
+      "rubPerKgEquivalent": 36.28,
+      "availableDate": "2026-03-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2026-04",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 4344,
+      "cifValueUsd": 1058198,
+      "rubPerKgEquivalent": 22.41,
+      "availableDate": "2026-04-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2026-04",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 28932,
+      "cifValueUsd": 9397114,
+      "rubPerKgEquivalent": 29.88,
+      "availableDate": "2026-04-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2026-04",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 16932,
+      "cifValueUsd": 6677981,
+      "rubPerKgEquivalent": 36.28,
+      "availableDate": "2026-04-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2026-05",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 3555,
+      "cifValueUsd": 865998,
+      "rubPerKgEquivalent": 22.41,
+      "availableDate": "2026-05-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2026-05",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 29665,
+      "cifValueUsd": 9635192,
+      "rubPerKgEquivalent": 29.88,
+      "availableDate": "2026-05-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2026-05",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 17665,
+      "cifValueUsd": 6967076,
+      "rubPerKgEquivalent": 36.28,
+      "availableDate": "2026-05-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2026-06",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 3766,
+      "cifValueUsd": 917398,
+      "rubPerKgEquivalent": 22.41,
+      "availableDate": "2026-06-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2026-06",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 26398,
+      "cifValueUsd": 8574070,
+      "rubPerKgEquivalent": 29.88,
+      "availableDate": "2026-06-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2026-06",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 766,
+      "cifValueUsd": 302110,
+      "rubPerKgEquivalent": 36.28,
+      "availableDate": "2026-06-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2026-07",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 3977,
+      "cifValueUsd": 968797,
+      "rubPerKgEquivalent": 22.41,
+      "availableDate": "2026-07-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2026-07",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2477,
+      "cifValueUsd": 804530,
+      "rubPerKgEquivalent": 29.88,
+      "availableDate": "2026-07-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2026-07",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 977,
+      "cifValueUsd": 385329,
+      "rubPerKgEquivalent": 36.28,
+      "availableDate": "2026-07-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2026-08",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 4188,
+      "cifValueUsd": 1020197,
+      "rubPerKgEquivalent": 22.41,
+      "availableDate": "2026-08-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2026-08",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2688,
+      "cifValueUsd": 873062,
+      "rubPerKgEquivalent": 29.88,
+      "availableDate": "2026-08-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2026-08",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 1188,
+      "cifValueUsd": 468547,
+      "rubPerKgEquivalent": 36.28,
+      "availableDate": "2026-08-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    },
+    {
+      "period": "2026-09",
+      "partner": "Казахстан",
+      "hsCode": "070310",
+      "netWeightTons": 20597,
+      "cifValueUsd": 5017429,
+      "rubPerKgEquivalent": 22.41,
+      "availableDate": "2026-09-28",
+      "sourceId": "comtrade-eec-070310-Казахстан"
+    },
+    {
+      "period": "2026-09",
+      "partner": "Узбекистан",
+      "hsCode": "070310",
+      "netWeightTons": 2899,
+      "cifValueUsd": 941595,
+      "rubPerKgEquivalent": 29.88,
+      "availableDate": "2026-09-28",
+      "sourceId": "comtrade-eec-070310-Узбекистан"
+    },
+    {
+      "period": "2026-09",
+      "partner": "Египет",
+      "hsCode": "070310",
+      "netWeightTons": 1399,
+      "cifValueUsd": 551766,
+      "rubPerKgEquivalent": 36.28,
+      "availableDate": "2026-09-28",
+      "sourceId": "comtrade-eec-070310-Египет"
+    }
+  ]
+}

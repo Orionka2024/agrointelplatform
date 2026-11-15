@@ -15,6 +15,7 @@ import {
 } from '../../shared/officialForecast.js';
 import { localBasis, applyBasis } from '../../shared/localBasis.js';
 import { resolveSelectedHorizonMetrics, INTERVAL_UNAVAILABLE_MESSAGE } from '../../shared/weeklyDecisionPlan.js';
+import { loadBundledRegionalData } from '../../shared/regionalData.js';
 import { useMarket } from '../context/useMarket';
 import OfficialSummary from './OfficialSummary';
 import AddActualPrice from './AddActualPrice';
@@ -39,6 +40,7 @@ export default function OfficialMarket() {
   const [view, setView] = useState('producer');
   const [selected, setSelected] = useState(3);
   const [experimentalTree, setExperimentalTree] = useState(false);
+  const [showRegional, setShowRegional] = useState(false);
   const [calBasis, setCalBasis] = useState(!hasWh && hasMsk ? 'moscow' : 'warehouse');
   const activeBasis =
     calBasis === 'moscow' && !hasMsk && hasWh
@@ -57,12 +59,18 @@ export default function OfficialMarket() {
   const freshness = computeForecastFreshness(fc, { today: model.today });
   const stale = freshness.isStale || monthNumber(model.today.slice(0, 7)) - monthNumber(fc.inputCutoff) > 2;
 
+  const regionalData = loadBundledRegionalData();
+  const volgogradMap = new Map((regionalData?.series?.volgograd || []).map((x) => [x.period, x.value]));
+  const astrakhanMap = new Map((regionalData?.series?.astrakhan || []).map((x) => [x.period, x.value]));
+  const rostovMap = new Map((regionalData?.series?.rostov || []).map((x) => [x.period, x.value]));
+
   const monthly = available.slice(-36);
   const future = rows.map((x) => x.targetMonth);
   const labels = [
     ...new Set([
       ...monthly.map((x) => x.period),
       ...(cal ? cal.months.map((x) => x.month) : []),
+      ...(showRegional && regionalData?.series?.volgograd ? regionalData.series.volgograd.map((x) => x.period) : []),
       fc.issueDate.slice(0, 7),
       ...future,
     ]),
@@ -100,6 +108,30 @@ export default function OfficialMarket() {
       pointRadius: 3,
     },
   ];
+
+  if (showRegional) {
+    datasets.push({
+      label: 'Волгоград (ЕМИСС, справочно)',
+      data: labels.map((m) => volgogradMap.get(m) ?? null),
+      borderColor: '#dc2626',
+      borderDash: [3, 2],
+      pointRadius: 2,
+    });
+    datasets.push({
+      label: 'Астрахань (ЕМИСС, справочно)',
+      data: labels.map((m) => astrakhanMap.get(m) ?? null),
+      borderColor: '#ea580c',
+      borderDash: [3, 2],
+      pointRadius: 2,
+    });
+    datasets.push({
+      label: 'Ростов (ЕМИСС, справочно)',
+      data: labels.map((m) => rostovMap.get(m) ?? null),
+      borderColor: '#0284c7',
+      borderDash: [3, 2],
+      pointRadius: 2,
+    });
+  }
 
   if (experimentalTree) {
     datasets.push({
@@ -203,6 +235,16 @@ export default function OfficialMarket() {
                 onChange={(e) => setExperimentalTree(e.target.checked)}
               />
               Экспериментальное Дерево решений (градиентный бустинг + драйверы)
+            </label>
+          )}
+          {view === 'producer' && (
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12 }}>
+              <input
+                type="checkbox"
+                checked={showRegional}
+                onChange={(e) => setShowRegional(e.target.checked)}
+              />
+              Справочные региональные ряды (Волгоград, Астрахань, Ростов)
             </label>
           )}
         </div>

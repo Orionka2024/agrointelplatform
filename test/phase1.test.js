@@ -809,6 +809,68 @@ test('P1-4 (F-01, F-09): Forecast scorecard stores immutable records with metada
   );
 });
 
+test('P1-5 (G-01, G-03): Regional EMISS producer prices (Volgograd, Astrakhan, Rostov) and monthly HS 070310 imports have schema validation, hashes, freshness stamps, and fail loudly on layout changes', async () => {
+  const regionalMod = await import('../shared/regionalData.js');
+  assert.equal(typeof regionalMod.validateRegionalSeriesSchema, 'function');
+  assert.equal(typeof regionalMod.validateImportsHs070310Schema, 'function');
+  assert.equal(typeof regionalMod.parseRegionalCsv, 'function');
+  assert.equal(typeof regionalMod.parseImportsCsv, 'function');
+
+  // 1. Files data/regional-history.json and data/imports-hs070310.json must exist
+  const regPath = path.join(ROOT, 'data/regional-history.json');
+  const impPath = path.join(ROOT, 'data/imports-hs070310.json');
+  assert.ok(fs.existsSync(regPath), 'data/regional-history.json must exist');
+  assert.ok(fs.existsSync(impPath), 'data/imports-hs070310.json must exist');
+
+  const regData = JSON.parse(fs.readFileSync(regPath, 'utf8'));
+  const impData = JSON.parse(fs.readFileSync(impPath, 'utf8'));
+
+  // 2. Validate schema & freshness
+  const regVal = regionalMod.validateRegionalSeriesSchema(regData);
+  assert.equal(regVal.valid, true, `Regional schema validation failed: ${JSON.stringify(regVal.errors)}`);
+  assert.ok(regData.series?.volgograd?.length >= 24, 'Volgograd regional series must contain >= 24 months');
+  assert.ok(regData.series?.astrakhan?.length >= 24, 'Astrakhan regional series must contain >= 24 months');
+  assert.ok(regData.series?.rostov?.length >= 24, 'Rostov regional series must contain >= 24 months');
+
+  const impVal = regionalMod.validateImportsHs070310Schema(impData);
+  assert.equal(impVal.valid, true, `Imports schema validation failed: ${JSON.stringify(impVal.errors)}`);
+  assert.ok(impData.monthly?.length >= 24, 'HS 070310 imports must contain >= 24 records');
+
+  // 3. Schema validator must fail loudly on altered layout
+  const brokenLayout = {
+    schema: 1,
+    indicator: '31448',
+    series: {
+      volgograd: [{ period: 'invalid-date', value: -10 }], // negative price, bad date
+    },
+  };
+  assert.throws(
+    () => regionalMod.validateRegionalSeriesSchema(brokenLayout, { throwOnError: true }),
+    /REGIONAL_SCHEMA_ERROR/,
+    'Validator must throw on corrupted regional layout'
+  );
+
+  // 4. Hashes recorded in data/official-hashes.json
+  const hashes = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/official-hashes.json'), 'utf8'));
+  assert.ok(hashes.files?.['regional-history.json'], 'official-hashes.json must track regional-history.json');
+  assert.ok(hashes.files?.['imports-hs070310.json'], 'official-hashes.json must track imports-hs070310.json');
+
+  // 5. CSV Fallback parsing
+  const csvRegionalSample = `period,price,availableDate\n2026-01,24.50,2026-02-15\n2026-02,26.00,2026-03-15`;
+  const parsedRegional = regionalMod.parseRegionalCsv(csvRegionalSample, { region: 'Волгоградская область' });
+  assert.equal(parsedRegional.length, 2);
+  assert.equal(parsedRegional[0].period, '2026-01');
+  assert.equal(parsedRegional[0].value, 24.5);
+  assert.equal(parsedRegional[0].unit, 'RUB/kg');
+
+  // 6. UI: OfficialMarket.jsx includes reference regional layer
+  const officialMarketSrc = fs.readFileSync(path.join(ROOT, 'src/components/OfficialMarket.jsx'), 'utf8');
+  assert.ok(
+    officialMarketSrc.includes('regional') || officialMarketSrc.includes('Региональные') || officialMarketSrc.includes('Волгоград'),
+    'OfficialMarket.jsx must support regional reference layer'
+  );
+});
+
 
 
 

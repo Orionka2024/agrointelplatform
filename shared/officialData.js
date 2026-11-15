@@ -2,6 +2,8 @@ import history from '../data/official-history.json' with { type: 'json' };
 import forecast from '../data/official-forecast.json' with { type: 'json' };
 import drivers from '../data/official-drivers.json' with { type: 'json' };
 import expectedHashes from '../data/official-hashes.json' with { type: 'json' };
+import regionalHistory from '../data/regional-history.json' with { type: 'json' };
+import importsHs070310 from '../data/imports-hs070310.json' with { type: 'json' };
 
 // Pure-JS FIPS 180-4 SHA-256 (works identically in Node >= 24 and browser bundles without Node polyfills)
 const SHA256_K = new Uint32Array([
@@ -75,6 +77,8 @@ export function verifyOfficialDataHashes({
   const defaultParsed = {
     'official-history.json': history,
     'official-drivers.json': drivers,
+    'regional-history.json': regionalHistory,
+    'imports-hs070310.json': importsHs070310,
   };
   const targets = parsedFiles || defaultParsed;
   const expMap = expected?.files || {};
@@ -351,6 +355,8 @@ export function officialSnapshot(today, options = {}) {
     sources: activeHistory.sources,
   };
 }
+
+export { regionalHistory, importsHs070310 };
 
 
 

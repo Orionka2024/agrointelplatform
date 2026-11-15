@@ -6,6 +6,7 @@ import { importAnnualCSV, ANNUAL_TEMPLATE } from '../shared/planning.js';
  */
 import { store } from '../server/store.js';
 import { importPriceCSV, importIndicatorCSV, PRICE_CSV_TEMPLATE } from '../shared/observations.js';
+import { parseRegionalCsv, parseImportsCsv } from '../shared/regionalData.js';
 import { todayISO } from '../shared/dates.js';
 
 const INDICATOR_CSV_TEMPLATE = [
@@ -94,8 +95,24 @@ export default async function handler(req, res) {
         report,
         totalStored: store.getIndicators().length,
       });
+    } else if (type === 'regional_prices') {
+      const records = parseRegionalCsv(csvContent, { region: body?.region || 'Волгоградская область' });
+      return res.status(200).json({
+        success: records.length > 0,
+        type: 'regional_prices',
+        importedCount: records.length,
+        records,
+      });
+    } else if (type === 'imports_hs070310') {
+      const records = parseImportsCsv(csvContent);
+      return res.status(200).json({
+        success: records.length > 0,
+        type: 'imports_hs070310',
+        importedCount: records.length,
+        records,
+      });
     } else {
-      return res.status(400).json({ error: 'BAD_REQUEST', message: 'Неизвестный тип импорта: допустимо "prices" или "indicators"' });
+      return res.status(400).json({ error: 'BAD_REQUEST', message: 'Неизвестный тип импорта: допустимо "prices", "indicators", "annual", "regional_prices" или "imports_hs070310"' });
     }
   } catch (err) {
     console.error('[api/import] Error:', err);

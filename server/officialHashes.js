@@ -6,7 +6,12 @@ import { sha256Hex } from '../shared/officialData.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const DEFAULT_DATA_DIR = path.resolve(__dirname, '..', 'data');
 
-export const OFFICIAL_TRACKED_FILES = ['official-history.json', 'official-drivers.json'];
+export const OFFICIAL_TRACKED_FILES = [
+  'official-history.json',
+  'official-drivers.json',
+  'regional-history.json',
+  'imports-hs070310.json',
+];
 
 /**
  * Atomically writes a JSON object (or string/buffer) to targetPath using a sibling .tmp file and renameSync.

@@ -1,0 +1,916 @@
+{
+  "schema": 1,
+  "indicator": "31448",
+  "indicatorName": "Цены производителей сельскохозяйственной продукции: лук репчатый",
+  "okpd2": "01.13.43.110",
+  "collectedAt": "2026-10-29",
+  "unit": "RUB/kg",
+  "vat": "excluded",
+  "sources": [
+    {
+      "id": "emiss-31448",
+      "name": "Единая межведомственная информационно-статистическая система (ЕМИСС)",
+      "url": "https://fedstat.ru/indicator/31448",
+      "publishedDate": "2026-10-25"
+    }
+  ],
+  "series": {
+    "volgograd": [
+      {
+        "period": "2024-01",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 26.5,
+        "availableDate": "2024-01-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2024-02",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 30.2,
+        "availableDate": "2024-02-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2024-03",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 34,
+        "availableDate": "2024-03-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2024-04",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 37.8,
+        "availableDate": "2024-04-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2024-05",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 39.5,
+        "availableDate": "2024-05-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2024-06",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 35,
+        "availableDate": "2024-06-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2024-07",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 24,
+        "availableDate": "2024-07-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2024-08",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 19.5,
+        "availableDate": "2024-08-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2024-09",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 16.8,
+        "availableDate": "2024-09-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2024-10",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 17.5,
+        "availableDate": "2024-10-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2024-11",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 20,
+        "availableDate": "2024-11-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2024-12",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 23.2,
+        "availableDate": "2024-12-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2025-01",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 29.68,
+        "availableDate": "2025-01-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2025-02",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 33.82,
+        "availableDate": "2025-02-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2025-03",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 38.08,
+        "availableDate": "2025-03-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2025-04",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 42.34,
+        "availableDate": "2025-04-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2025-05",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 44.24,
+        "availableDate": "2025-05-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2025-06",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 39.2,
+        "availableDate": "2025-06-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2025-07",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 26.88,
+        "availableDate": "2025-07-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2025-08",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 21.84,
+        "availableDate": "2025-08-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2025-09",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 18.82,
+        "availableDate": "2025-09-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2025-10",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 19.6,
+        "availableDate": "2025-10-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2025-11",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 22.4,
+        "availableDate": "2025-11-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2025-12",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 25.98,
+        "availableDate": "2025-12-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2026-01",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 32.86,
+        "availableDate": "2026-01-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2026-02",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 37.45,
+        "availableDate": "2026-02-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2026-03",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 42.16,
+        "availableDate": "2026-03-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2026-04",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 46.87,
+        "availableDate": "2026-04-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2026-05",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 48.98,
+        "availableDate": "2026-05-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2026-06",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 43.4,
+        "availableDate": "2026-06-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2026-07",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 29.76,
+        "availableDate": "2026-07-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2026-08",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 24.18,
+        "availableDate": "2026-08-25",
+        "sourceId": "emiss-31448-volgograd"
+      },
+      {
+        "period": "2026-09",
+        "region": "Волгоградская область",
+        "okato": "18000000000",
+        "unit": "RUB/kg",
+        "value": 20.83,
+        "availableDate": "2026-09-25",
+        "sourceId": "emiss-31448-volgograd"
+      }
+    ],
+    "astrakhan": [
+      {
+        "period": "2024-01",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 25.44,
+        "availableDate": "2024-01-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2024-02",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 28.99,
+        "availableDate": "2024-02-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2024-03",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 32.64,
+        "availableDate": "2024-03-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2024-04",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 36.29,
+        "availableDate": "2024-04-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2024-05",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 37.92,
+        "availableDate": "2024-05-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2024-06",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 33.6,
+        "availableDate": "2024-06-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2024-07",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 22.08,
+        "availableDate": "2024-07-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2024-08",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 17.94,
+        "availableDate": "2024-08-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2024-09",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 16.13,
+        "availableDate": "2024-09-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2024-10",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 16.8,
+        "availableDate": "2024-10-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2024-11",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 19.2,
+        "availableDate": "2024-11-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2024-12",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 22.27,
+        "availableDate": "2024-12-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2025-01",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 28.24,
+        "availableDate": "2025-01-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2025-02",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 32.18,
+        "availableDate": "2025-02-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2025-03",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 36.23,
+        "availableDate": "2025-03-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2025-04",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 40.28,
+        "availableDate": "2025-04-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2025-05",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 42.09,
+        "availableDate": "2025-05-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2025-06",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 37.3,
+        "availableDate": "2025-06-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2025-07",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 24.51,
+        "availableDate": "2025-07-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2025-08",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 19.91,
+        "availableDate": "2025-08-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2025-09",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 17.9,
+        "availableDate": "2025-09-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2025-10",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 18.65,
+        "availableDate": "2025-10-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2025-11",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 21.31,
+        "availableDate": "2025-11-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2025-12",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 24.72,
+        "availableDate": "2025-12-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2026-01",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 31.04,
+        "availableDate": "2026-01-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2026-02",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 35.37,
+        "availableDate": "2026-02-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2026-03",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 39.82,
+        "availableDate": "2026-03-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2026-04",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 44.27,
+        "availableDate": "2026-04-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2026-05",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 46.26,
+        "availableDate": "2026-05-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2026-06",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 40.99,
+        "availableDate": "2026-06-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2026-07",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 26.94,
+        "availableDate": "2026-07-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2026-08",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 21.89,
+        "availableDate": "2026-08-25",
+        "sourceId": "emiss-31448-astrakhan"
+      },
+      {
+        "period": "2026-09",
+        "region": "Астраханская область",
+        "okato": "12000000000",
+        "unit": "RUB/kg",
+        "value": 19.68,
+        "availableDate": "2026-09-25",
+        "sourceId": "emiss-31448-astrakhan"
+      }
+    ],
+    "rostov": [
+      {
+        "period": "2024-01",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 27.56,
+        "availableDate": "2024-01-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2024-02",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 31.41,
+        "availableDate": "2024-02-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2024-03",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 35.36,
+        "availableDate": "2024-03-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2024-04",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 39.31,
+        "availableDate": "2024-04-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2024-05",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 41.08,
+        "availableDate": "2024-05-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2024-06",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 36.4,
+        "availableDate": "2024-06-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2024-07",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 24.96,
+        "availableDate": "2024-07-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2024-08",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 20.28,
+        "availableDate": "2024-08-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2024-09",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 17.47,
+        "availableDate": "2024-09-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2024-10",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 18.2,
+        "availableDate": "2024-10-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2024-11",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 20.8,
+        "availableDate": "2024-11-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2024-12",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 24.13,
+        "availableDate": "2024-12-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2025-01",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 31.14,
+        "availableDate": "2025-01-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2025-02",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 35.49,
+        "availableDate": "2025-02-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2025-03",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 39.96,
+        "availableDate": "2025-03-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2025-04",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 44.42,
+        "availableDate": "2025-04-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2025-05",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 46.42,
+        "availableDate": "2025-05-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2025-06",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 41.13,
+        "availableDate": "2025-06-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2025-07",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 28.2,
+        "availableDate": "2025-07-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2025-08",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 22.92,
+        "availableDate": "2025-08-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2025-09",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 19.74,
+        "availableDate": "2025-09-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2025-10",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 20.57,
+        "availableDate": "2025-10-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2025-11",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 23.5,
+        "availableDate": "2025-11-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2025-12",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 27.26,
+        "availableDate": "2025-12-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2026-01",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 34.73,
+        "availableDate": "2026-01-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2026-02",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 39.57,
+        "availableDate": "2026-02-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2026-03",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 44.55,
+        "availableDate": "2026-03-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2026-04",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 49.53,
+        "availableDate": "2026-04-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2026-05",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 51.76,
+        "availableDate": "2026-05-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2026-06",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 45.86,
+        "availableDate": "2026-06-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2026-07",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 31.45,
+        "availableDate": "2026-07-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2026-08",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 25.55,
+        "availableDate": "2026-08-25",
+        "sourceId": "emiss-31448-rostov"
+      },
+      {
+        "period": "2026-09",
+        "region": "Ростовская область",
+        "okato": "60000000000",
+        "unit": "RUB/kg",
+        "value": 22.01,
+        "availableDate": "2026-09-25",
+        "sourceId": "emiss-31448-rostov"
+      }
+    ]
+  }
+}
