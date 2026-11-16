@@ -20,6 +20,7 @@ import { buildDemoForecast, DEMO_ISSUE_DATE, DEMO_BRIDGE, DEMO_STORAGE, DEMO_BAL
 import { DEFAULT_VAT_RATE, TARGET_SPECS } from './spec.js';
 import { moscowToWarehouse } from './bridge.js';
 import { buildVolgogradOnionIntelligence } from './onionValidatedIntel.js';
+import { computeCurrentMarketIndex, computeSupplyPressureIndex, computeQualityAdjustedDeficit } from './marketIndex.js';
 
 export const BENCHMARK_BRIDGE = {
   truckCostRub: 135000,
@@ -256,10 +257,39 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     assumptions,
   });
 
+  const currentMarketIndex = computeCurrentMarketIndex({
+    observations: demo ? [] : observations,
+    today,
+    benchmarkBasePrice: prices.warehouse.exVat || 16.0,
+  });
+
+  const activeOffersCount = demo ? 18 : observations.filter(o => o.kind === 'indicative_offer').length;
+  const storageCap = Number(assumptions.farmProfile?.storageCapacityTons || 1500);
+  const supplyPressureIndex = computeSupplyPressureIndex({
+    activeOffersCount,
+    availableTonnage: demo ? 1200 : storageCap,
+    salesVelocityTonsPerWeek: demo ? 1100 : Math.max(100, +(storageCap / 12).toFixed(0)),
+    importTonnageMonth: 4000,
+    weeklyListingsGrowthPct: demo ? 2.0 : 0,
+    marketableGradeShare: 0.85,
+  });
+
+  const qualityAdjustedDeficit = computeQualityAdjustedDeficit(
+    {
+      totalHarvestTons: storageCap,
+      initialQualityGradeShare: 0.85,
+      storageType: assumptions.farmProfile?.storageType || 'ventilated',
+    },
+    { horizonsMonths: [1, 2, 3, 5] }
+  );
+
   return {
     mode: demo ? 'demo' : 'observed', today, storeAvailable, evidence,
     verifiedObservations,
     onionIntel,
+    currentMarketIndex,
+    supplyPressureIndex,
+    qualityAdjustedDeficit,
     monitoring: monitorMarket(observations, indicators, today),
     assumptions,
     farmProfile: assumptions.farmProfile,
@@ -269,3 +299,4 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     balance, storage, seasonal, macro: macroView, dataStatus,
   };
 }
+

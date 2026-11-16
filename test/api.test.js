@@ -62,7 +62,11 @@ test('API 1: GET /api/market?demo=true returns full demo model', async () => {
   assert.ok(res.data.prices.moscow.inclVat != null);
   assert.ok(res.data.forecasts.warehouse.horizons.length > 0);
   assert.equal(res.data.forecasts.warehouse.issueDate, '2026-10-24');
+  assert.ok(res.data.currentMarketIndex != null);
+  assert.ok(res.data.supplyPressureIndex != null);
+  assert.ok(res.data.qualityAdjustedDeficit != null);
 });
+
 
 test('API 2: POST /api/assumptions updates cost bridge and storage parameters', async () => {
   const patch = {
