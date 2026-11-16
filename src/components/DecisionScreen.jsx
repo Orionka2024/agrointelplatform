@@ -5,6 +5,8 @@ import { getPendingQueue, flushPendingQueue, initOfflineSyncListener } from '../
 import FarmProfile from './FarmProfile';
 import AddActualPrice from './AddActualPrice';
 import MarketIntelligenceModule1 from './MarketIntelligenceModule1';
+import CentralAsiaCorridorModule2 from './CentralAsiaCorridorModule2';
+
 
 export default function DecisionScreen() {
   const { model } = useMarket();
@@ -205,7 +207,11 @@ export default function DecisionScreen() {
 
       {/* Module 1: Market Intelligence, Supply Pressure Index, Quality-Adjusted Deficit */}
       <MarketIntelligenceModule1 model={model} />
+
+      {/* Module 2: Central Asian Trade Corridors, FX Triggers & Spring Influx Window */}
+      <CentralAsiaCorridorModule2 model={model} />
     </div>
   );
 }
+
 

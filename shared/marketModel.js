@@ -21,6 +21,13 @@ import { DEFAULT_VAT_RATE, TARGET_SPECS } from './spec.js';
 import { moscowToWarehouse } from './bridge.js';
 import { buildVolgogradOnionIntelligence } from './onionValidatedIntel.js';
 import { computeCurrentMarketIndex, computeSupplyPressureIndex, computeQualityAdjustedDeficit } from './marketIndex.js';
+import {
+  computeCentralAsianParity,
+  calculateCriticalFxTrigger,
+  evaluateFlowRedistributionChain,
+  evaluateSpringArrivalWindow,
+} from './centralAsiaCorridor.js';
+
 
 export const BENCHMARK_BRIDGE = {
   truckCostRub: 135000,
@@ -283,6 +290,68 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     { horizonsMonths: [1, 2, 3, 5] }
   );
 
+  const kztRate = Number(macroView.kztRub.value || 0.186573);
+  const usdRate = Number(macroView.usdRub.value || 98.0);
+  const localWhPrice = prices.warehouse.exVat || 16.0;
+
+  const kzParity = computeCentralAsianParity({
+    origin: 'KAZAKHSTAN_TARAZ',
+    purchasePriceForeignCurrency: 55,
+    currency: 'KZT',
+    fxRateToRub: kztRate,
+    freightRubKg: 6.20,
+    customsPhytoRubKg: 0.35,
+    transitLossPct: 3.0,
+    importerMarginRubKg: 1.0,
+    localVolgogradExwRubKg: localWhPrice,
+  });
+
+  const uzParity = computeCentralAsianParity({
+    origin: 'UZBEKISTAN_TASHKENT',
+    purchasePriceForeignCurrency: 110,
+    currency: 'USD',
+    fxRateToRub: usdRate,
+    freightRubKg: 8.50,
+    customsPhytoRubKg: 0.60,
+    transitLossPct: 4.5,
+    importerMarginRubKg: 1.20,
+    localVolgogradExwRubKg: localWhPrice,
+  });
+
+  const criticalFx = calculateCriticalFxTrigger({
+    purchaseKztKg: 55,
+    freightRubKg: 6.20,
+    customsPhytoRubKg: 0.35,
+    transitLossPct: 3.0,
+    importerMarginRubKg: 1.0,
+    targetLocalExwRubKg: localWhPrice,
+  });
+
+  const flowChain = evaluateFlowRedistributionChain({
+    triggerEvent: 'iraq_import_tender',
+    evidence: {
+      stage1_iraqTenderAnnounced: false,
+      stage2_uzbekExportConfirmed: false,
+      stage3_kazakhTransitDiverted: false,
+      stage4_russianInflowReduced: false,
+    },
+    localVolgogradPriceRubKg: localWhPrice,
+  });
+
+  const springWindow = evaluateSpringArrivalWindow({
+    today,
+    plannedSaleDate: `${today.slice(0, 4)}-03-15`,
+    storageType: assumptions.farmProfile?.storageType || 'ventilated',
+  });
+
+  const centralAsiaCorridor = {
+    kzParity,
+    uzParity,
+    criticalFx,
+    flowChain,
+    springWindow,
+  };
+
   return {
     mode: demo ? 'demo' : 'observed', today, storeAvailable, evidence,
     verifiedObservations,
@@ -290,6 +359,7 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     currentMarketIndex,
     supplyPressureIndex,
     qualityAdjustedDeficit,
+    centralAsiaCorridor,
     monitoring: monitorMarket(observations, indicators, today),
     assumptions,
     farmProfile: assumptions.farmProfile,
@@ -299,4 +369,5 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     balance, storage, seasonal, macro: macroView, dataStatus,
   };
 }
+
 

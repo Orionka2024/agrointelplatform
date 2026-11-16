@@ -65,7 +65,9 @@ test('API 1: GET /api/market?demo=true returns full demo model', async () => {
   assert.ok(res.data.currentMarketIndex != null);
   assert.ok(res.data.supplyPressureIndex != null);
   assert.ok(res.data.qualityAdjustedDeficit != null);
+  assert.ok(res.data.centralAsiaCorridor != null);
 });
+
 
 
 test('API 2: POST /api/assumptions updates cost bridge and storage parameters', async () => {
