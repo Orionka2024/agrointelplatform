@@ -1208,6 +1208,120 @@ test('P1-8 (F-06, F-11): Farmer-first UX with Farm Profile state & default badge
   assert.ok(fs.existsSync(path.join(ROOT, 'src/components/FarmProfile.jsx')), 'FarmProfile.jsx must exist');
 });
 
+test('P1-9 (F-12): Reconciled PDF/XLSX export engine gates exports behind P1-6 validation, blocks inconsistent plans with HTTP 422, and embeds source hashes and disclaimer', async () => {
+  const exportMod = await import('../shared/reportExport.js');
+  const exportHandler = (await import('../api/export.js')).default;
+
+  // 1. Inconsistent plan (audited 115% tranches, 200 t gap) must fail pre-export validation
+  const inconsistentPlan = {
+    totalAreaHa: 78,
+    crops: [
+      { name: 'Лук', ha: 42, isAllium: true },
+      { name: 'Морковь', ha: 36 },
+    ],
+    tranches: [
+      { name: 'С поля', sharePct: 15 },
+      { name: 'Зима', sharePct: 100 },
+    ],
+    massBalance: {
+      harvestedTons: 1760,
+      soldTons: 1560,
+      lossTons: 0,
+      unsoldTons: 0,
+    },
+    cashFlowPeriods: [
+      { id: 'p1', months: ['2026-02'], inflowRub: 1000 },
+      { id: 'p2', months: ['2026-02'], inflowRub: 2000 },
+    ],
+    revenue: {
+      pnlRevenueRub: 34848000,
+      cashflowSalesRub: 30555000,
+      pnlVolumeTons: 1760,
+      cashflowVolumeTons: 1560,
+    },
+  };
+
+  const failRes = exportMod.buildReconciledPlanExport(inconsistentPlan);
+  assert.equal(failRes.valid, false, 'Inconsistent plan must fail export build');
+  assert.equal(failRes.statusCode, 422);
+  assert.equal(failRes.error, 'PLAN_RECONCILIATION_FAILED');
+  assert.ok(failRes.violations.length >= 4);
+
+  // 2. Reconciled valid plan succeeds
+  const validPlan = {
+    totalAreaHa: 78,
+    crops: [
+      { name: 'Лук репчатый', ha: 19.5, isAllium: true },
+      { name: 'Морковь', ha: 19.5 },
+      { name: 'Свёкла', ha: 19.5 },
+      { name: 'Горох овощной', ha: 19.5 },
+    ],
+    tranches: [
+      { name: 'Поле (Сентябрь)', sharePct: 20 },
+      { name: 'Транш 1 (Декабрь)', sharePct: 30 },
+      { name: 'Транш 2 (Март)', sharePct: 50 },
+    ],
+    massBalance: {
+      harvestedTons: 1000,
+      soldTons: 880,
+      lossTons: 120,
+      unsoldTons: 0,
+    },
+    cashFlowPeriods: [
+      { id: 'p1', months: ['2026-09'], inflowRub: 3000000 },
+      { id: 'p2', months: ['2026-12'], inflowRub: 5000000 },
+      { id: 'p3', months: ['2027-03'], inflowRub: 10000000 },
+    ],
+    revenue: {
+      pnlRevenueRub: 18000000,
+      cashflowSalesRub: 18000000,
+      pnlVolumeTons: 880,
+      cashflowVolumeTons: 880,
+    },
+  };
+
+  const successRes = exportMod.buildReconciledPlanExport(validPlan, { format: 'json' });
+  assert.equal(successRes.valid, true, 'Valid plan must succeed export build');
+  assert.ok(successRes.document, 'Must return export document');
+  assert.ok(successRes.document.sourceHashes, 'Export document must embed sourceHashes');
+  assert.ok(successRes.document.disclaimer, 'Export document must embed disclaimer');
+  assert.equal(successRes.document.massBalance.harvestedTons, 1000);
+  assert.equal(successRes.document.massBalance.soldTons, 880);
+
+  // 3. API endpoint /api/export HTTP test
+  let req = {
+    method: 'POST',
+    body: { plan: inconsistentPlan },
+    headers: {},
+  };
+  let statusCode = 200;
+  let jsonBody = null;
+  let res = {
+    setHeader() {},
+    status(c) { statusCode = c; return this; },
+    json(b) { jsonBody = b; return this; },
+    end() {},
+  };
+
+  await exportHandler(req, res);
+  assert.equal(statusCode, 422, 'API must return 422 for inconsistent plan');
+  assert.equal(jsonBody.error, 'PLAN_RECONCILIATION_FAILED');
+  assert.ok(Array.isArray(jsonBody.violations));
+
+  // Valid plan via API
+  req = {
+    method: 'POST',
+    body: { plan: validPlan, format: 'json' },
+    headers: {},
+  };
+  statusCode = 200;
+  jsonBody = null;
+  await exportHandler(req, res);
+  assert.equal(statusCode, 200, 'API must return 200 for valid reconciled plan');
+  assert.equal(jsonBody.success, true);
+  assert.ok(jsonBody.document.sourceHashes);
+});
+
 
 
 
