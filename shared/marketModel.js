@@ -27,6 +27,11 @@ import {
   evaluateFlowRedistributionChain,
   evaluateSpringArrivalWindow,
 } from './centralAsiaCorridor.js';
+import {
+  evaluateThreeFarmerQuestions,
+  optimizeQualityAllocation,
+} from './qualityTierSalesStrategy.js';
+
 
 
 export const BENCHMARK_BRIDGE = {
@@ -352,6 +357,41 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     springWindow,
   };
 
+  const qualityAllocation = optimizeQualityAllocation({
+    totalTonnage: storageCap,
+    shares: {
+      riskyPct: 20,
+      standardPct: 40,
+      premiumPct: 40,
+    },
+    currentPriceRubKg: localWhPrice,
+    springForecastPriceRubKg: 26.5,
+  });
+
+  const threeFarmerQuestions = {
+    risky: evaluateThreeFarmerQuestions({
+      lotTierId: 'risky',
+      priceNowRubKg: localWhPrice,
+      storageCostRubKgMonth: 0.55,
+      financingRateAnnualPct: Number(assumptions.farmProfile?.loanRatePct || 19.0),
+      futurePriceRubKg: 21.0,
+      holdingDays: 90,
+    }),
+    premium: evaluateThreeFarmerQuestions({
+      lotTierId: 'premium_keeping',
+      priceNowRubKg: localWhPrice,
+      storageCostRubKgMonth: 0.55,
+      financingRateAnnualPct: Number(assumptions.farmProfile?.loanRatePct || 19.0),
+      futurePriceRubKg: 26.5,
+      holdingDays: 90,
+    }),
+  };
+
+  const qualityTierSalesStrategy = {
+    qualityAllocation,
+    threeFarmerQuestions,
+  };
+
   return {
     mode: demo ? 'demo' : 'observed', today, storeAvailable, evidence,
     verifiedObservations,
@@ -360,6 +400,7 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     supplyPressureIndex,
     qualityAdjustedDeficit,
     centralAsiaCorridor,
+    qualityTierSalesStrategy,
     monitoring: monitorMarket(observations, indicators, today),
     assumptions,
     farmProfile: assumptions.farmProfile,
@@ -368,6 +409,7 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     forecasts: forecastInfo, scenarios: { results: scenarioResults, rows: scenarioRows },
     balance, storage, seasonal, macro: macroView, dataStatus,
   };
+
 }
 
 

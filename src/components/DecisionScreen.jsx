@@ -6,6 +6,7 @@ import FarmProfile from './FarmProfile';
 import AddActualPrice from './AddActualPrice';
 import MarketIntelligenceModule1 from './MarketIntelligenceModule1';
 import CentralAsiaCorridorModule2 from './CentralAsiaCorridorModule2';
+import QualityTierStrategyModule3 from './QualityTierStrategyModule3';
 
 
 export default function DecisionScreen() {
@@ -210,8 +211,12 @@ export default function DecisionScreen() {
 
       {/* Module 2: Central Asian Trade Corridors, FX Triggers & Spring Influx Window */}
       <CentralAsiaCorridorModule2 model={model} />
+
+      {/* Module 3: 3-Tier Quality Sales Strategy & Allocation Optimizer */}
+      <QualityTierStrategyModule3 model={model} />
     </div>
   );
 }
+
 
 
