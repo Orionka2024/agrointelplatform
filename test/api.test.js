@@ -67,7 +67,9 @@ test('API 1: GET /api/market?demo=true returns full demo model', async () => {
   assert.ok(res.data.qualityAdjustedDeficit != null);
   assert.ok(res.data.centralAsiaCorridor != null);
   assert.ok(res.data.qualityTierSalesStrategy != null);
+  assert.ok(res.data.prePlantingEconomics != null);
 });
+
 
 
 

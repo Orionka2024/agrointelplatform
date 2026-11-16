@@ -31,6 +31,12 @@ import {
   evaluateThreeFarmerQuestions,
   optimizeQualityAllocation,
 } from './qualityTierSalesStrategy.js';
+import {
+  calculateProfitPerHectare,
+  evaluatePrePlantingScenarios,
+  calculateCropDiversification,
+} from './prePlantingEconomics.js';
+
 
 
 
@@ -392,6 +398,45 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     threeFarmerQuestions,
   };
 
+  const hectareEconomics = calculateProfitPerHectare({
+    grossYieldTHa: 55,
+    marketableSharePct: 85,
+    categoryShares: { earlyHarvestPct: 15, standardPct: 45, premiumKeepingPct: 40 },
+    categoryPricesRubKg: { earlyHarvestPrice: 15.0, standardPrice: 19.0, premiumKeepingPrice: 25.0 },
+    costsRubHa: {
+      seedsAndCultivation: 320000,
+      harvestAndHauling: 140000,
+      sortingAndPackaging: 95000,
+      storageOpexAndFinance: 85000,
+      logisticsLocal: 40000,
+    },
+  });
+
+  const prePlantingScenarios = evaluatePrePlantingScenarios({
+    farmProfile: {
+      totalArableLandHa: Number(assumptions.farmProfile?.areaHa || 78) * 1.5,
+      currentOnionAreaHa: Number(assumptions.farmProfile?.areaHa || 78),
+      storageCapacityTons: storageCap,
+    },
+    productionCostRubHa: 680000,
+  });
+
+  const cropDiversification = calculateCropDiversification({
+    totalArableLandHa: 100,
+    crops: {
+      onion: { targetAreaHa: 30, expectedProfitPerHa: 292000, riskIndex: 0.65 },
+      carrot: { targetAreaHa: 30, expectedProfitPerHa: 190000, riskIndex: 0.35 },
+      watermelon: { targetAreaHa: 20, expectedProfitPerHa: 240000, riskIndex: 0.45 },
+      fallowCoverCrop: { targetAreaHa: 20, expectedProfitPerHa: -15000, riskIndex: 0.05 },
+    },
+  });
+
+  const prePlantingEconomics = {
+    hectareEconomics,
+    prePlantingScenarios,
+    cropDiversification,
+  };
+
   return {
     mode: demo ? 'demo' : 'observed', today, storeAvailable, evidence,
     verifiedObservations,
@@ -401,6 +446,7 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     qualityAdjustedDeficit,
     centralAsiaCorridor,
     qualityTierSalesStrategy,
+    prePlantingEconomics,
     monitoring: monitorMarket(observations, indicators, today),
     assumptions,
     farmProfile: assumptions.farmProfile,
@@ -409,6 +455,7 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     forecasts: forecastInfo, scenarios: { results: scenarioResults, rows: scenarioRows },
     balance, storage, seasonal, macro: macroView, dataStatus,
   };
+
 
 }
 

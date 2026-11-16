@@ -7,6 +7,8 @@ import AddActualPrice from './AddActualPrice';
 import MarketIntelligenceModule1 from './MarketIntelligenceModule1';
 import CentralAsiaCorridorModule2 from './CentralAsiaCorridorModule2';
 import QualityTierStrategyModule3 from './QualityTierStrategyModule3';
+import PrePlantingPlanningModule4 from './PrePlantingPlanningModule4';
+
 
 
 export default function DecisionScreen() {
@@ -214,9 +216,13 @@ export default function DecisionScreen() {
 
       {/* Module 3: 3-Tier Quality Sales Strategy & Allocation Optimizer */}
       <QualityTierStrategyModule3 model={model} />
+
+      {/* Module 4: Pre-Planting Acreage Economics & Next-Crop Planning */}
+      <PrePlantingPlanningModule4 model={model} />
     </div>
   );
 }
+
 
 
 
