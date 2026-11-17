@@ -28,7 +28,10 @@ import {
   calculateCriticalFxTrigger,
   evaluateFlowRedistributionChain,
   evaluateSpringArrivalWindow,
+  evaluateImportScenarioSwitches,
+  analyzeEarlyImportArrivalsByYear,
 } from './centralAsiaCorridor.js';
+import importsHs070310 from '../data/imports-hs070310.json' with { type: 'json' };
 import {
   evaluateThreeFarmerQuestions,
   optimizeQualityAllocation,
@@ -351,11 +354,23 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     localVolgogradPriceRubKg: localWhPrice,
   });
 
+  const springArrivalCutoff = assumptions.farmProfile?.springArrivalCutoff || assumptions.springArrivalCutoff || '03-20';
   const springWindow = evaluateSpringArrivalWindow({
     today,
     plannedSaleDate: `${today.slice(0, 4)}-03-15`,
     storageType: assumptions.farmProfile?.storageType || 'ventilated',
+    springArrivalCutoff,
   });
+
+  const currentMonth = Number(today.slice(5, 7));
+  const importScenarioSwitches = evaluateImportScenarioSwitches({
+    month: currentMonth,
+    parityDiffRubKg: kzParity.parityDiffRubKg,
+    caExportBan: !!assumptions.scenarios?.caExportBan,
+    iranBanStatus: assumptions.scenarios?.iranBanStatus || 'none',
+    phytoRestrictions: !!assumptions.scenarios?.phytoRestrictions,
+  });
+  const earlyImportArrivalsByYear = analyzeEarlyImportArrivalsByYear(importsHs070310?.monthly || []);
 
   const centralAsiaCorridor = {
     kzParity,
@@ -363,6 +378,8 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     criticalFx,
     flowChain,
     springWindow,
+    importScenarioSwitches,
+    earlyImportArrivalsByYear,
   };
 
   const qualityAllocation = optimizeQualityAllocation({
@@ -376,12 +393,19 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     springForecastPriceRubKg: 26.5,
   });
 
+  const liveCbrKeyRatePct = Number.isFinite(Number(macroView.keyRate?.value)) ? Number(macroView.keyRate.value) : 18.0;
+  const effectiveLoanRatePct = assumptions.farmProfile?.customizedFields?.includes('loanRatePct')
+    ? Number(assumptions.farmProfile.loanRatePct)
+    : liveCbrKeyRatePct;
+
   const threeFarmerQuestions = {
+    liveCbrKeyRatePct,
+    effectiveLoanRatePct,
     risky: evaluateThreeFarmerQuestions({
       lotTierId: 'risky',
       priceNowRubKg: localWhPrice,
       storageCostRubKgMonth: 0.55,
-      financingRateAnnualPct: Number(assumptions.farmProfile?.loanRatePct || 19.0),
+      financingRateAnnualPct: effectiveLoanRatePct,
       futurePriceRubKg: 21.0,
       holdingDays: 90,
     }),
@@ -389,7 +413,7 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
       lotTierId: 'premium_keeping',
       priceNowRubKg: localWhPrice,
       storageCostRubKgMonth: 0.55,
-      financingRateAnnualPct: Number(assumptions.farmProfile?.loanRatePct || 19.0),
+      financingRateAnnualPct: effectiveLoanRatePct,
       futurePriceRubKg: 26.5,
       holdingDays: 90,
     }),

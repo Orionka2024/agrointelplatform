@@ -236,22 +236,104 @@ export function calculateCriticalFxTrigger({
   };
 }
 
+export const DEFAULT_SPRING_ARRIVAL_CUTOFF = '03-20';
+
+/**
+ * Returns phase-dependent import pressure weight by calendar month (1..12).
+ * Nov-Feb ~0 (0.05), rising from March (0.45) to April-June peak (1.0).
+ */
+export function getImportPhaseWeight(month) {
+  const m = Number(month);
+  if (m === 11 || m === 12 || m === 1 || m === 2) return 0.05;
+  if (m === 3) return 0.45;
+  if (m === 4 || m === 5 || m === 6) return 1.0;
+  return 0.15;
+}
+
+/**
+ * Evaluates import parity and geopolitical/phytosanitary flags strictly as scenario switches
+ * (not trained ML features), weighted by seasonal phase.
+ */
+export function evaluateImportScenarioSwitches({
+  month = 3,
+  parityDiffRubKg = 0,
+  caExportBan = false,
+  iranBanStatus = 'none',
+  phytoRestrictions = false,
+} = {}) {
+  const phaseWeight = getImportPhaseWeight(month);
+  let scenarioDeltaRubKg = 0;
+
+  if (caExportBan) {
+    // Export ban in Kazakhstan/Uzbekistan tightens domestic RF supply
+    scenarioDeltaRubKg += 2.2 * Math.max(0.25, phaseWeight);
+  } else if (parityDiffRubKg < -1.5) {
+    // Import glut pressure scaled by phase (near 0 in Nov-Feb, rising from March)
+    scenarioDeltaRubKg += parityDiffRubKg * 0.5 * phaseWeight;
+  }
+
+  if (iranBanStatus === 'restricted' || iranBanStatus === 'closed') {
+    scenarioDeltaRubKg += 0.9 * Math.max(0.25, phaseWeight);
+  }
+  if (phytoRestrictions) {
+    scenarioDeltaRubKg += 1.1 * Math.max(0.2, phaseWeight);
+  }
+
+  return {
+    month: Number(month),
+    phaseWeight,
+    isScenarioSwitchOnly: true,
+    switches: { caExportBan: !!caExportBan, iranBanStatus, phytoRestrictions: !!phytoRestrictions },
+    scenarioDeltaRubKg: +scenarioDeltaRubKg.toFixed(2),
+  };
+}
+
+/**
+ * Analyzes monthly HS 070310 import volumes by year to detect when early imports actually arrived.
+ */
+export function analyzeEarlyImportArrivalsByYear(importsMonthly = []) {
+  const byYearPartner = new Map();
+  for (const row of importsMonthly || []) {
+    if (!row?.period || !row?.partner) continue;
+    const year = row.period.slice(0, 4);
+    const month = Number(row.period.slice(5, 7));
+    const key = `${year}|${row.partner}`;
+    if (!byYearPartner.has(key)) byYearPartner.set(key, []);
+    byYearPartner.get(key).push({ period: row.period, month, tons: Number(row.netWeightTons || 0) });
+  }
+
+  const summary = [];
+  for (const [key, rows] of byYearPartner.entries()) {
+    const [year, partner] = key.split('|');
+    if (partner !== 'Узбекистан' && partner !== 'Египет') continue;
+    rows.sort((a, b) => a.month - b.month);
+    const janFeb = rows.filter((r) => r.month === 1 || r.month === 2);
+    const baseline = janFeb.length ? janFeb.reduce((s, r) => s + r.tons, 0) / janFeb.length : 0;
+    const surgeRow = rows.find((r) => r.month >= 3 && r.month <= 6 && baseline > 0 && r.tons >= baseline * 3);
+    summary.push({
+      year,
+      partner,
+      janFebAvgTons: Math.round(baseline),
+      surgeMonth: surgeRow ? surgeRow.period : null,
+      surgeTons: surgeRow ? surgeRow.tons : null,
+    });
+  }
+  return summary.sort((a, b) => `${a.year}${a.partner}`.localeCompare(`${b.year}${b.partner}`));
+}
+
 /**
  * Evaluates safe storage horizon against the spring arrival wave of new-crop Uzbek/Tajik onions.
- *
- * @param {Object} options
- * @param {string} options.today
- * @param {string} options.plannedSaleDate
- * @param {string} [options.storageType]
- * @returns {Object}
  */
 export function evaluateSpringArrivalWindow({
   today = '2027-02-10',
   plannedSaleDate = '2027-03-15',
   storageType = 'ventilated',
+  springArrivalCutoff = DEFAULT_SPRING_ARRIVAL_CUTOFF,
 } = {}) {
+  void storageType;
   const currentYear = today.slice(0, 4);
-  const springCutoff = `${currentYear}-03-20`;
+  const mmdd = /^\d{2}-\d{2}$/.test(String(springArrivalCutoff)) ? springArrivalCutoff : DEFAULT_SPRING_ARRIVAL_CUTOFF;
+  const springCutoff = `${currentYear}-${mmdd}`;
   const daysUntilSpringWave = Math.max(0, daysBetween(today, springCutoff));
   const isAfterCutoff = plannedSaleDate > springCutoff;
 
@@ -263,23 +345,24 @@ export function evaluateSpringArrivalWindow({
     safeStorageWindowActive = false;
     importHazardLevel = 'critical';
     hazardWarningRu =
-      'Высокий риск прихода раннего лука из Средней Азии (март–апрель): новый озимый урожай ' +
-      'из Узбекистана и Таджикистана начинает вытеснять прошлогодний складской фонд. Рекомендуется завершить основные отгрузки до 20 марта.';
+      `Высокий риск прихода раннего лука из Средней Азии: новый озимый урожай ` +
+      `начинает вытеснять прошлогодний складской фонд. Рекомендуется завершить основные отгрузки до ${mmdd} (${springCutoff}).`;
   } else if (daysUntilSpringWave <= 14) {
     safeStorageWindowActive = true;
     importHazardLevel = 'moderate';
     hazardWarningRu =
-      `До начала поступления раннего лука из Средней Азии осталось ${daysUntilSpringWave} дней. Окно стабильных цен закрывается.`;
+      `До настроенной отсечки раннего лука (${springCutoff}) осталось ${daysUntilSpringWave} дней. Окно стабильных цен закрывается.`;
   } else {
     safeStorageWindowActive = true;
     importHazardLevel = 'low';
     hazardWarningRu =
-      `Безопасное окно хранения активно: до массового прихода раннего урожая ${daysUntilSpringWave} дней.`;
+      `Безопасное окно хранения активно: до отсечки прихода раннего урожая (${springCutoff}) ${daysUntilSpringWave} дней.`;
   }
 
   return {
     today,
     plannedSaleDate,
+    springArrivalCutoff: mmdd,
     recommendedMaxHoldingDate: springCutoff,
     daysUntilSpringWave,
     safeStorageWindowActive,
