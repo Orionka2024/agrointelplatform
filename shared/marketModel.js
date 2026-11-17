@@ -32,6 +32,8 @@ import {
   analyzeEarlyImportArrivalsByYear,
 } from './centralAsiaCorridor.js';
 import importsHs070310 from '../data/imports-hs070310.json' with { type: 'json' };
+import officialDrivers from '../data/official-drivers.json' with { type: 'json' };
+import { runConsistencyAudit } from './consistencyAudit.js';
 import {
   evaluateThreeFarmerQuestions,
   optimizeQualityAllocation,
@@ -225,13 +227,33 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     ? { status: 'demo', asOf: DEMO_ISSUE_DATE, pressures: DEMO_SEASONAL_PRESSURES, note: 'ДЕМО: иллюстративные сезонные фазы на 24.10.2026.' }
     : evaluateSeasonalPressure({ asOf: today, indicators });
 
-  // macro
+  // macro (live/passed macro with fallback to latest officialDrivers <= today)
   const macroView = {};
   for (const k of ['usdRub', 'kztRub', 'keyRate']) {
     const f = macro?.[k];
-    macroView[k] = f && f.value != null
-      ? { value: f.value, unit: k === 'keyRate' ? '%' : 'RUB', provenance: { ...classifyFreshness({ origin: f.origin || 'cached', value: f.value, asOf: f.asOf || null, today, staleDays: FRESHNESS_DAYS.macroDaily }), source: f.source || 'cbr.ru', fetchedAt: f.fetchedAt || null } }
-      : { value: null, unit: k === 'keyRate' ? '%' : 'RUB', provenance: { status: 'unavailable' } };
+    if (f && f.value != null) {
+      macroView[k] = {
+        value: f.value,
+        unit: k === 'keyRate' ? '%' : 'RUB',
+        provenance: {
+          ...classifyFreshness({ origin: f.origin || 'cached', value: f.value, asOf: f.asOf || null, today, staleDays: FRESHNESS_DAYS.macroDaily }),
+          source: f.source || 'cbr.ru',
+          fetchedAt: f.fetchedAt || null,
+        },
+      };
+    } else {
+      const archived = (officialDrivers?.[k] || []).filter((r) => !r.availableDate || r.availableDate <= today).at(-1);
+      macroView[k] = archived && archived.value != null
+        ? {
+            value: archived.value,
+            unit: k === 'keyRate' ? '%' : 'RUB',
+            provenance: {
+              ...classifyFreshness({ origin: 'cached', value: archived.value, asOf: archived.availableDate || archived.date || null, today, staleDays: FRESHNESS_DAYS.macroDaily }),
+              source: 'cbr.ru (архив)',
+            },
+          }
+        : { value: null, unit: k === 'keyRate' ? '%' : 'RUB', provenance: { status: 'unavailable' } };
+    }
   }
 
   const dataStatus = [
@@ -341,6 +363,7 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     transitLossPct: 3.0,
     importerMarginRubKg: 1.0,
     targetLocalExwRubKg: localWhPrice,
+    currentKztRubRate: kztRate,
   });
 
   const flowChain = evaluateFlowRedistributionChain({
@@ -357,7 +380,7 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
   const springArrivalCutoff = assumptions.farmProfile?.springArrivalCutoff || assumptions.springArrivalCutoff || '03-20';
   const springWindow = evaluateSpringArrivalWindow({
     today,
-    plannedSaleDate: `${today.slice(0, 4)}-03-15`,
+    plannedSaleDate: null,
     storageType: assumptions.farmProfile?.storageType || 'ventilated',
     springArrivalCutoff,
   });
@@ -365,7 +388,7 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
   const currentMonth = Number(today.slice(5, 7));
   const importScenarioSwitches = evaluateImportScenarioSwitches({
     month: currentMonth,
-    parityDiffRubKg: kzParity.parityDiffRubKg,
+    parityDiffRubKg: kzParity.competitivenessGapRubKg,
     caExportBan: !!assumptions.scenarios?.caExportBan,
     iranBanStatus: assumptions.scenarios?.iranBanStatus || 'none',
     phytoRestrictions: !!assumptions.scenarios?.phytoRestrictions,
@@ -393,7 +416,10 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     springForecastPriceRubKg: 26.5,
   });
 
-  const liveCbrKeyRatePct = Number.isFinite(Number(macroView.keyRate?.value)) ? Number(macroView.keyRate.value) : 18.0;
+  const liveCbrKeyRatePct =
+    macroView.keyRate?.value != null && Number.isFinite(Number(macroView.keyRate.value))
+      ? Number(macroView.keyRate.value)
+      : 18.0;
   const effectiveLoanRatePct = assumptions.farmProfile?.customizedFields?.includes('loanRatePct')
     ? Number(assumptions.farmProfile.loanRatePct)
     : liveCbrKeyRatePct;
@@ -438,22 +464,29 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     },
   });
 
+  const farmAreaHa = Number(assumptions.farmProfile?.areaHa || 78);
+
   const prePlantingScenarios = evaluatePrePlantingScenarios({
     farmProfile: {
-      totalArableLandHa: Number(assumptions.farmProfile?.areaHa || 78) * 1.5,
-      currentOnionAreaHa: Number(assumptions.farmProfile?.areaHa || 78),
+      totalArableLandHa: farmAreaHa,
+      currentOnionAreaHa: farmAreaHa,
       storageCapacityTons: storageCap,
     },
     productionCostRubHa: 680000,
   });
 
+  const onionDivHa = Math.round(farmAreaHa * 0.31);
+  const carrotDivHa = Math.round(farmAreaHa * 0.31);
+  const melonDivHa = Math.round(farmAreaHa * 0.19);
+  const fallowDivHa = Math.max(0, +(farmAreaHa - onionDivHa - carrotDivHa - melonDivHa).toFixed(1));
+
   const cropDiversification = calculateCropDiversification({
-    totalArableLandHa: 100,
+    totalArableLandHa: farmAreaHa,
     crops: {
-      onion: { targetAreaHa: 30, expectedProfitPerHa: 292000, riskIndex: 0.65 },
-      carrot: { targetAreaHa: 30, expectedProfitPerHa: 190000, riskIndex: 0.35 },
-      watermelon: { targetAreaHa: 20, expectedProfitPerHa: 240000, riskIndex: 0.45 },
-      fallowCoverCrop: { targetAreaHa: 20, expectedProfitPerHa: -15000, riskIndex: 0.05 },
+      onion: { targetAreaHa: onionDivHa, expectedProfitPerHa: 292000, riskIndex: 0.65 },
+      carrot: { targetAreaHa: carrotDivHa, expectedProfitPerHa: 190000, riskIndex: 0.35 },
+      watermelon: { targetAreaHa: melonDivHa, expectedProfitPerHa: 240000, riskIndex: 0.45 },
+      fallowCoverCrop: { targetAreaHa: fallowDivHa, expectedProfitPerHa: -15000, riskIndex: 0.05 },
     },
   });
 
@@ -469,7 +502,7 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     observations,
   });
 
-  return {
+  const result = {
     mode: demo ? 'demo' : 'observed', today, storeAvailable, evidence,
     verifiedObservations,
     priceBasis,
@@ -489,7 +522,8 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     balance, storage, seasonal, macro: macroView, dataStatus,
   };
 
-
+  result.consistencyAudit = runConsistencyAudit(result);
+  return result;
 }
 
 

@@ -138,25 +138,28 @@ export function evaluateThreeFarmerQuestions({
     monthlyLossPct = 1.2;
   }
 
-  // Compounded cumulative loss
+  // Compounded cumulative loss (explicit physical mass loss + marketability loss)
   const cumulativeLossPct = +(100 * (1 - Math.pow(1 - monthlyLossPct / 100, months))).toFixed(1);
-  const saleableYield = Math.max(0.01, 1 - cumulativeLossPct / 100);
+  const physicalMassLossPct = +(cumulativeLossPct * 0.6).toFixed(1);
+  const marketabilityLossPct = +(cumulativeLossPct - physicalMassLossPct).toFixed(1);
+  const saleableYield = Math.max(0.01, +(1 - cumulativeLossPct / 100).toFixed(4));
 
   // Question 1: Cash today per kg stored
   const question1_cashTodayPerKg = pNow;
 
-  // Question 2: Explicit holding cost breakdown per kg stored
+  // Question 2: Explicit holding cost breakdown per initial kg stored
   const storageOpex = +(Number(storageCostRubKgMonth) * months).toFixed(2);
   const financingCost = +(pNow * (Number(financingRateAnnualPct) / 100) * (months / 12)).toFixed(2);
   const lostMassCost = +(pNow * (1 - saleableYield)).toFixed(2);
   const question2_holdingCostTotalRubKg = +(storageOpex + financingCost + lostMassCost).toFixed(2);
 
-  // Question 3: Break-even required future price
+  // Question 3: Break-even required future price per remaining saleable kg
   // Equation: saleableYield * P_be - (storageOpex + financingCost) = pNow
-  const question3_breakEvenFuturePrice = +( (pNow + storageOpex + financingCost) / saleableYield ).toFixed(2);
+  const question3_breakEvenFuturePrice = +((pNow + storageOpex + financingCost) / saleableYield).toFixed(2);
 
-  // Realized net outcome in future vs sell now
-  const netFuturePerKgStored = +(saleableYield * pFuture - (storageOpex + financingCost)).toFixed(2);
+  // Realized net outcome per initial kg stored
+  const revenueFromRemainingSaleablePerInitialKg = +(saleableYield * pFuture).toFixed(2);
+  const netFuturePerKgStored = +(revenueFromRemainingSaleablePerInitialKg - (storageOpex + financingCost)).toFixed(2);
   const netGainVsSellNowRubKg = +(netFuturePerKgStored - pNow).toFixed(2);
 
   let verdict = 'HOLD_FOR_PREMIUM';
@@ -180,6 +183,7 @@ export function evaluateThreeFarmerQuestions({
     lotTierId,
     holdingDays,
     holdingMonths: +months.toFixed(1),
+    priceBasisNote: 'Цена реализации указана за 1 кг оставшегося товарного лука; итоги приведены на 1 кг исходного заложенного веса.',
     question1_cashTodayPerKg,
     question2_holdingCostTotalRubKg,
     question3_breakEvenFuturePrice,
@@ -187,8 +191,11 @@ export function evaluateThreeFarmerQuestions({
       storageOpex,
       financingCost,
       lostMassCost,
+      physicalMassLossPct,
+      marketabilityLossPct,
       cumulativeLossPct,
       saleableYield: +saleableYield.toFixed(3),
+      revenueFromRemainingSaleablePerInitialKg,
     },
     futurePriceRubKg: pFuture,
     netFuturePerKgStored,
@@ -199,25 +206,20 @@ export function evaluateThreeFarmerQuestions({
 }
 
 /**
- * Optimizes harvest allocation across the 3 quality tranches.
- *
- * @param {Object} params
- * @param {number} params.totalTonnage - e.g. 1500 tons
- * @param {Object} params.shares - { riskyPct: 20, standardPct: 40, premiumPct: 40 }
- * @param {number} [params.currentPriceRubKg] - e.g. 16.0
- * @param {number} [params.springForecastPriceRubKg] - e.g. 26.5
- * @returns {Object}
+ * Optimizes harvest allocation across the 3 quality tranches with exact gross/saleable/sold separation.
  */
 export function optimizeQualityAllocation({
   totalTonnage = 1500,
   shares = { riskyPct: 20, standardPct: 40, premiumPct: 40 },
   currentPriceRubKg = 16.0,
   springForecastPriceRubKg = 26.5,
+  midSeasonPriceRubKg = null,
 } = {}) {
   const total = Number(totalTonnage);
   const rPct = Number(shares.riskyPct ?? 20);
   const sPct = Number(shares.standardPct ?? 40);
   const pPct = Number(shares.premiumPct ?? 40);
+  const allocationSumPct = +(rPct + sPct + pPct).toFixed(2);
 
   const riskyTons = Math.round(total * (rPct / 100));
   const standardTons = Math.round(total * (sPct / 100));
@@ -225,81 +227,133 @@ export function optimizeQualityAllocation({
 
   const pNow = Number(currentPriceRubKg);
   const pSpring = Number(springForecastPriceRubKg);
-  const pMid = +(pNow + (pSpring - pNow) * 0.45).toFixed(2); // Mid-season price (~20.7 ₽/kg)
+  const pMid = midSeasonPriceRubKg != null ? Number(midSeasonPriceRubKg) : +(pNow + (pSpring - pNow) * 0.45).toFixed(2);
 
-  // Tranche 1: Risky
-  // Sold immediately (loss ~1.5%)
-  const t1Revenue = +(riskyTons * 1000 * 0.985 * pNow).toFixed(0);
+  const buildTranche = ({ tierId, name, grossTons, sharePct, timingWindow, lossPct, priceRubKg, storageCostRubKg, purposeRu }) => {
+    const lossTons = +(grossTons * (lossPct / 100)).toFixed(1);
+    const saleableTons = +(grossTons - lossTons).toFixed(1);
+    const soldTons = saleableTons;
+    const grossRevenueIfNoLossRub = Math.round(grossTons * 1000 * priceRubKg);
+    const expectedRevenueRub = Math.round(soldTons * 1000 * priceRubKg);
+    const storageCostRub = Math.round(grossTons * 1000 * storageCostRubKg);
+    const netProceedsRub = expectedRevenueRub - storageCostRub;
+    return {
+      tierId,
+      name,
+      grossTons,
+      allocatedTons: grossTons,
+      lossPct,
+      lossTons,
+      saleableTons,
+      soldTons,
+      sharePct,
+      timingWindow,
+      expectedPriceRubKg: priceRubKg,
+      grossRevenueIfNoLossRub,
+      expectedRevenueRub,
+      storageCostRub,
+      netProceedsRub,
+      purposeRu,
+    };
+  };
 
-  // Tranche 2: Standard
-  // Sold mid-season (loss ~5.5%, storage cost ~1.2 ₽/kg)
-  const t2Revenue = +(standardTons * 1000 * 0.945 * (pMid - 1.2)).toFixed(0);
+  const t1 = buildTranche({
+    tierId: 'risky',
+    name: 'Транш 1: Рискованный лук (сброс)',
+    grossTons: riskyTons,
+    sharePct: rPct,
+    timingWindow: 'Октябрь – Ноябрь (Срочно)',
+    lossPct: 1.5,
+    priceRubKg: pNow,
+    storageCostRubKg: 0.0,
+    purposeRu: 'Спасение от шейковой гнили, покрытие первоочередных кассовых разрывов и процентов по кредиту.',
+  });
 
-  // Tranche 3: Premium keeping
-  // Sold spring peak (loss ~5.0% with active cold/ventilation, storage cost ~2.4 ₽/kg)
-  const t3Revenue = +(premiumTons * 1000 * 0.95 * (pSpring - 2.4)).toFixed(0);
+  const t2 = buildTranche({
+    tierId: 'standard',
+    name: 'Транш 2: Средний калибр (4–5 см)',
+    grossTons: standardTons,
+    sharePct: sPct,
+    timingWindow: 'Ноябрь – Январь',
+    lossPct: 5.5,
+    priceRubKg: pMid,
+    storageCostRubKg: 1.2,
+    purposeRu: 'Гибкие плановые продажи по подтверждённым контрактам оптовиков и торговых сетей.',
+  });
 
-  const totalOptimizedRevenueRub = Number(t1Revenue) + Number(t2Revenue) + Number(t3Revenue);
+  const t3 = buildTranche({
+    tierId: 'premium_keeping',
+    name: 'Транш 3: Премиум лёжкий (5+ см)',
+    grossTons: premiumTons,
+    sharePct: pPct,
+    timingWindow: 'Февраль – 20 Марта',
+    lossPct: 5.0,
+    priceRubKg: pSpring,
+    storageCostRubKg: 2.4,
+    purposeRu: 'Максимальная сезонная премия на пике истощения запасов до прихода ранней Средней Азии.',
+  });
 
-  // Naive comparison: holding everything to spring
-  // Risky onion rots severely in warehouse (rot loss 38%), standard rots 12%, premium rots 6%
-  const naiveRiskyRevenue = riskyTons * 1000 * 0.62 * (pSpring * 0.75 - 2.4); // heavy downgrade
-  const naiveStandardRevenue = standardTons * 1000 * 0.88 * (pSpring * 0.90 - 2.4);
-  const naivePremiumRevenue = premiumTons * 1000 * 0.94 * (pSpring - 2.4);
-  const totalNaiveRevenueRub = Math.round(naiveRiskyRevenue + naiveStandardRevenue + naivePremiumRevenue);
+  const tranches = [t1, t2, t3];
+  const totalGrossRevenueIfNoLossRub = tranches.reduce((s, t) => s + t.grossRevenueIfNoLossRub, 0);
+  const totalRevenueRub = tranches.reduce((s, t) => s + t.expectedRevenueRub, 0);
+  const totalStorageCostRub = tranches.reduce((s, t) => s + t.storageCostRub, 0);
+  const totalNetProceedsRub = tranches.reduce((s, t) => s + t.netProceedsRub, 0);
+  const alternativeMarketableTons = +tranches.reduce((s, t) => s + t.saleableTons, 0).toFixed(1);
 
-  const totalGainRub = Math.max(0, totalOptimizedRevenueRub - totalNaiveRevenueRub);
-  const gainRubKg = +(totalGainRub / (total * 1000)).toFixed(2);
-  const rotSavedTons = Math.round(riskyTons * 0.36 + standardTons * 0.05);
+  // Baseline comparison: holding everything to spring without quality sorting
+  const baseRiskySaleable = +(riskyTons * 0.62).toFixed(1);
+  const baseStdSaleable = +(standardTons * 0.88).toFixed(1);
+  const basePremSaleable = +(premiumTons * 0.94).toFixed(1);
+  const baselineMarketableTons = +(baseRiskySaleable + baseStdSaleable + basePremSaleable).toFixed(1);
 
-  const tranches = [
-    {
-      tierId: 'risky',
-      name: 'Транш 1: Рискованный лук (сброс)',
-      allocatedTons: riskyTons,
-      sharePct: rPct,
-      timingWindow: 'Октябрь – Ноябрь (Срочно)',
-      expectedPriceRubKg: pNow,
-      expectedRevenueRub: Number(t1Revenue),
-      purposeRu: 'Спасение от шейковой гнили, покрытие первоочередных кассовых разрывов и процентов по кредиту.',
-    },
-    {
-      tierId: 'standard',
-      name: 'Транш 2: Средний калибр (4–5 см)',
-      allocatedTons: standardTons,
-      sharePct: sPct,
-      timingWindow: 'Ноябрь – Январь',
-      expectedPriceRubKg: pMid,
-      expectedRevenueRub: Number(t2Revenue),
-      purposeRu: 'Гибкие плановые продажи по подтверждённым контрактам оптовиков и торговых сетей.',
-    },
-    {
-      tierId: 'premium_keeping',
-      name: 'Транш 3: Премиум лёжкий (5+ см)',
-      allocatedTons: premiumTons,
-      sharePct: pPct,
-      timingWindow: 'Февраль – 20 Марта',
-      expectedPriceRubKg: pSpring,
-      expectedRevenueRub: Number(t3Revenue),
-      purposeRu: 'Максимальная сезонная премия на пике истощения запасов до прихода ранней Средней Азии.',
-    },
-  ];
+  const baselineRevenueRub = Math.round(
+    baseRiskySaleable * 1000 * (pSpring * 0.75) +
+    baseStdSaleable * 1000 * (pSpring * 0.90) +
+    basePremSaleable * 1000 * pSpring
+  );
+  const baselineStorageCostRub = Math.round(total * 1000 * 2.4);
+  const baselineNetProceedsRub = baselineRevenueRub - baselineStorageCostRub;
+
+  const totalGainRub = totalNetProceedsRub - baselineNetProceedsRub;
+  const gainRubKg = total > 0 ? +(totalGainRub / (total * 1000)).toFixed(2) : 0;
+  const rotSavedTons = +(alternativeMarketableTons - baselineMarketableTons).toFixed(1);
 
   return {
+    strategyType: 'three_tranche_quality_split',
+    allocationSumPct,
+    allocationValid: Math.abs(allocationSumPct - 100) < 0.01,
     totalAllocatedTons: total,
+    alternativeMarketableTons,
     tranches,
-    totalRevenueRub: totalOptimizedRevenueRub,
+    totalGrossRevenueIfNoLossRub,
+    totalRevenueRub,
+    totalStorageCostRub,
+    totalNetProceedsRub,
     isSimulation: true,
     simulationDisclaimerRu:
       'Симуляция модели: расчётный экономический эффект до накопления подтверждённых сделок и бэктеста стратегии хранения.',
+    simulationComparison: {
+      baselineStrategy: 'Держать весь объём до весны без сортировки по качеству',
+      alternativeStrategy: 'Сегментация на 3 транша по качеству (сброс / стандарт / премиум)',
+      initialInventoryTons: total,
+      baselineMarketableTons,
+      alternativeMarketableTons,
+      baselineRevenueRub,
+      alternativeRevenueRub: totalRevenueRub,
+      baselineStorageCostRub,
+      alternativeStorageCostRub: totalStorageCostRub,
+      baselineNetProceedsRub,
+      alternativeNetProceedsRub: totalNetProceedsRub,
+      differenceRub: totalGainRub,
+    },
     financialAdvantageVsNaiveHoldAll: {
       isSimulation: true,
       totalGainRub,
       gainRubKg,
       rotSavedTons,
       summaryRu:
-        `Симуляция (расчётный эффект модели): сегментация по качеству сохраняет ${rotSavedTons} т лука от списания в гниль и ` +
-        `моделирует +${(totalGainRub / 1000000).toFixed(2)} млн ₽ (+${gainRubKg.toFixed(2)} ₽/кг) условной прибыли ` +
+        `Симуляция (расчётный эффект модели): сегментация по качеству сохраняет ${rotSavedTons} т товарного лука и ` +
+        `моделирует ${totalGainRub >= 0 ? '+' : ''}${(totalGainRub / 1000000).toFixed(2)} млн ₽ (${gainRubKg >= 0 ? '+' : ''}${gainRubKg.toFixed(2)} ₽/кг) условной разницы чистой выручки ` +
         `по сравнению со стратегией «держать весь объём до весны» (требует подтверждённых сделок и бэктеста).`,
     },
   };

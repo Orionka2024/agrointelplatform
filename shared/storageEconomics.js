@@ -357,3 +357,85 @@ export function evaluateStorageAtHorizon(pNow, pFuture, baseParams, targetMonths
   return evaluateStorage(pNow, pFuture, scaled);
 }
 
+/**
+ * Centralized, reconciled storage break-even calculator (Phase 3F).
+ * Avoids double-counting physical shrinkage vs rot/quality rejection and guarantees
+ * exact reconciliation: `breakEvenPriceRubKg === currentPriceRubKg + sum(reconciledComponentsPerKgStored) / saleableYield`
+ * and provides per-kg-sold additive breakdown where components sum exactly to `breakEvenPriceRubKg`.
+ */
+export function computeReconciledStorageBreakEven({
+  currentPriceRubKg = 21.0,
+  months = 1,
+  shrinkPct = 2.5,
+  rotPct = 1.0,
+  electricityRubKgMonth = 0.26,
+  laborRubKgMonth = 0.12,
+  packagingRubKgSold = 0.0,
+  handlingRubKg = 0.0,
+  financingRateAnnualPct = 18.86,
+  insuranceRubKgMonth = 0.0,
+  otherRubKgMonth = 0.0,
+} = {}) {
+  const pNow = Number(currentPriceRubKg);
+  const m = Math.max(0, Number(months));
+  const shrinkFrac = Math.min(0.99, Math.max(0, Number(shrinkPct) / 100));
+  const rotFrac = Math.min(0.99, Math.max(0, Number(rotPct) / 100));
+
+  // Multiplicative mass balance (no double counting of physical shrink and rot)
+  const afterShrink = 1 - shrinkFrac;
+  const saleableYield = afterShrink * (1 - rotFrac);
+  const physicalShrinkKg = shrinkFrac;
+  const rotLossKg = afterShrink * rotFrac;
+  const totalLossPct = +((1 - saleableYield) * 100).toFixed(2);
+
+  const electricity = Number(electricityRubKgMonth) * m;
+  const labor = Number(laborRubKgMonth) * m;
+  const insurance = Number(insuranceRubKgMonth) * m;
+  const other = Number(otherRubKgMonth) * m;
+  const handling = Number(handlingRubKg);
+  const packaging = Number(packagingRubKgSold) * saleableYield;
+  const financing = pNow * (Number(financingRateAnnualPct) / 100) * (m / 12);
+
+  const cashOpexAndFinance = electricity + labor + insurance + other + handling + packaging + financing;
+  const exactBreakEven = saleableYield > 0 ? (pNow + cashOpexAndFinance) / saleableYield : null;
+
+  // Express loss burden in RUB per kg sold so components sum cleanly to exactBreakEven:
+  // (pNow + cashOpex) / saleableYield = pNow + lossBurden + cashOpexPerKgSold
+  const lossBurdenPerKgSold = saleableYield > 0 ? pNow * (1 / saleableYield - 1) : 0;
+  const totalLossKg = physicalShrinkKg + rotLossKg;
+  const shrinkShare = totalLossKg > 0 ? physicalShrinkKg / totalLossKg : 0.5;
+  const rotShare = totalLossKg > 0 ? rotLossKg / totalLossKg : 0.5;
+
+  const scale = saleableYield > 0 ? 1 / saleableYield : 1;
+  const perKgSoldComponents = {
+    acquisitionOrSpotPrice: +pNow.toFixed(4),
+    shrinkageLossRubKg: +(lossBurdenPerKgSold * shrinkShare).toFixed(4),
+    rotAndRejectionRubKg: +(lossBurdenPerKgSold * rotShare).toFixed(4),
+    electricityRubKg: +(electricity * scale).toFixed(4),
+    laborRubKg: +(labor * scale).toFixed(4),
+    packagingRubKg: +(packaging * scale).toFixed(4),
+    handlingRubKg: +(handling * scale).toFixed(4),
+    financingRubKg: +(financing * scale).toFixed(4),
+    insuranceRubKg: +(insurance * scale).toFixed(4),
+    otherRubKg: +(other * scale).toFixed(4),
+  };
+
+  const componentSum = +Object.values(perKgSoldComponents).reduce((s, x) => s + x, 0).toFixed(4);
+
+  return {
+    currentPriceRubKg: pNow,
+    months: m,
+    saleableYield: +saleableYield.toFixed(4),
+    totalLossPct,
+    physicalShrinkKg: +physicalShrinkKg.toFixed(4),
+    rotLossKg: +rotLossKg.toFixed(4),
+    cashOpexAndFinancePerKgStored: +cashOpexAndFinance.toFixed(4),
+    breakEvenPriceRubKg: exactBreakEven != null ? +exactBreakEven.toFixed(2) : null,
+    exactBreakEvenUnrounded: exactBreakEven,
+    perKgSoldComponents,
+    componentSumRubKg: +componentSum.toFixed(2),
+    reconciliationDiffRubKg: exactBreakEven != null ? +Math.abs(exactBreakEven - componentSum).toFixed(4) : 0,
+  };
+}
+
+

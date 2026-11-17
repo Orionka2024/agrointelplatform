@@ -238,7 +238,9 @@ export function computeCurrentMarketIndex({
   for (const [keyName, cfg] of Object.entries(REGIONAL_DESTINATIONS)) {
     const dapPrice = +(referencePrice + cfg.wholesalePremiumRubKg).toFixed(2);
     const transitShrinkageLossRubKg = +(dapPrice * (cfg.transitLossPct / 100)).toFixed(2);
-    const exwNetback = +(dapPrice - cfg.freightRubKg - transitShrinkageLossRubKg).toFixed(2);
+    const otherDeductionsRubKg = Number(cfg.otherDeductionsRubKg || 0);
+    const totalDeductionsRubKg = +(cfg.freightRubKg + transitShrinkageLossRubKg + otherDeductionsRubKg).toFixed(2);
+    const exwNetback = +(dapPrice - totalDeductionsRubKg).toFixed(2);
 
     destinations[cfg.key] = {
       key: cfg.key,
@@ -247,8 +249,11 @@ export function computeCurrentMarketIndex({
       freightRubKg: cfg.freightRubKg,
       transitLossPct: cfg.transitLossPct,
       transitLossRubKg: transitShrinkageLossRubKg,
+      otherDeductionsRubKg,
+      totalDeductionsRubKg,
       exwNetbackRubKg: exwNetback,
       premiumOverExwRubKg: +(exwNetback - referencePrice).toFixed(2),
+      formula: `${dapPrice.toFixed(2)} - ${cfg.freightRubKg.toFixed(2)} (фрахт) - ${transitShrinkageLossRubKg.toFixed(2)} (усушка в пути ${cfg.transitLossPct}%) = ${exwNetback.toFixed(2)} ₽/кг`,
     };
   }
 
@@ -261,18 +266,7 @@ export function computeCurrentMarketIndex({
 
 /**
  * Computes Supply Pressure Index (I_sp).
- *
- * Formula:
- * I_sp = (availableTonnage / (salesVelocityTonsPerWeek * 1.0)) * (1 + weeklyListingsGrowthPct / 100)
- *
- * @param {Object} params
- * @param {number} params.activeOffersCount
- * @param {number} params.availableTonnage
- * @param {number} params.salesVelocityTonsPerWeek
- * @param {number} [params.importTonnageMonth]
- * @param {number} [params.weeklyListingsGrowthPct]
- * @param {number} [params.marketableGradeShare]
- * @returns {Object}
+ * Never infers critical market pressure from missing/zero market offer observations.
  */
 export function computeSupplyPressureIndex({
   activeOffersCount = 0,
@@ -285,29 +279,41 @@ export function computeSupplyPressureIndex({
   const safeVelocity = Math.max(1, Number(salesVelocityTonsPerWeek));
   const weeksOfSupply = Number(availableTonnage) / safeVelocity;
   const growthMultiplier = 1 + Number(weeklyListingsGrowthPct) / 100;
-
-  // Normalized composite index
   const indexValue = +(weeksOfSupply * growthMultiplier).toFixed(2);
+  const offers = Number(activeOffersCount || 0);
 
   let pressureLevel = 'moderate';
   let earlyWarningSignal = false;
+  let confidence = 'medium';
+  let dataStatus = 'verified_offers';
   let interpretationRu = '';
 
-  if (indexValue > 1.5 || weeklyListingsGrowthPct > 20 || weeksOfSupply > 3.5) {
+  if (offers <= 0) {
+    pressureLevel = 'unverified';
+    earlyWarningSignal = false;
+    confidence = 'low';
+    dataStatus = 'insufficient_offers';
+    interpretationRu =
+      `Нет активных рыночных оферт (activeOffersCount = 0). Расчётное значение I_sp = ${indexValue} (${weeksOfSupply.toFixed(1)} нед. запаса) ` +
+      'отражает только внутреннюю оборачиваемость склада и не является подтверждением критического рыночного давления.';
+  } else if (indexValue > 1.5 || weeklyListingsGrowthPct > 20 || weeksOfSupply > 3.5) {
     pressureLevel = 'critical';
     earlyWarningSignal = true;
+    confidence = offers >= 10 ? 'high' : 'medium';
     interpretationRu =
       'Давление предложения критическое: объёмы активных предложений и товарные остатки опережают темп реализации. ' +
       'Это ранний сигнал снижения цены — покупатели диктуют условия, риск накопления скрытого брака на складах.';
   } else if (indexValue < 0.8) {
     pressureLevel = 'low';
     earlyWarningSignal = false;
+    confidence = offers >= 10 ? 'high' : 'medium';
     interpretationRu =
       'Давление предложения низкое: спрос превышает входящие объёмы, дефицит качественных партий. ' +
       'Хозяйства имеют переговорную силу и могут удерживать ценовую премию.';
   } else {
     pressureLevel = 'moderate';
     earlyWarningSignal = false;
+    confidence = offers >= 10 ? 'high' : 'medium';
     interpretationRu =
       'Давление предложения умеренное: баланс спроса и предложения стабилен. ' +
       'Реализация идёт в плановом темпе.';
@@ -318,9 +324,13 @@ export function computeSupplyPressureIndex({
     weeksOfSupply: +weeksOfSupply.toFixed(1),
     pressureLevel,
     earlyWarningSignal,
+    confidence,
+    dataStatus,
+    criticalThreshold: 1.5,
+    formula: '(availableTonnage / salesVelocityTonsPerWeek) * (1 + weeklyListingsGrowthPct / 100)',
     interpretationRu,
     metrics: {
-      activeOffersCount,
+      activeOffersCount: offers,
       availableTonnage,
       salesVelocityTonsPerWeek: safeVelocity,
       importTonnageMonth,
@@ -330,73 +340,57 @@ export function computeSupplyPressureIndex({
   };
 }
 
+export const QUALITY_LOSS_CURVES = {
+  risky: { monthlyShrinkRate: 0.045, monthlyGradeDecay: 0.065, label: 'Рискованный (толстая шейка / повышенная влажность)' },
+  standard: { monthlyShrinkRate: 0.025, monthlyGradeDecay: 0.025, label: 'Стандартный (товарный 4–5 см)' },
+  premium_keeping: { monthlyShrinkRate: 0.012, monthlyGradeDecay: 0.012, label: 'Премиум лёжкий (5+ см, сухой)' },
+  blended: { monthlyShrinkRate: 0.025, monthlyGradeDecay: 0.025, label: 'Смешанный фонд склада' },
+};
+
 /**
- * Computes Quality-Adjusted Deficit Index Q_товарный.
- *
- * Formula:
- * Q_товарный(t) = Q_остаток(t) * (1 - потери(t)) * доля_товарного_качества(t)
- *
- * @param {Object} farmStock
- * @param {number} farmStock.totalHarvestTons
- * @param {number} farmStock.initialQualityGradeShare
- * @param {string} [farmStock.storageType]
- * @param {Object} options
- * @param {Array<number>} [options.horizonsMonths]
- * @returns {Array<Object>}
+ * Computes Quality-Adjusted Deficit Index Q_товарный with quality-specific loss curves
+ * and exact reconciliation: physicalRemainingTons === marketableTons + substandardDiscardTons.
  */
 export function computeQualityAdjustedDeficit(
   farmStock,
-  { horizonsMonths = [1, 2, 3, 5] } = {}
+  { horizonsMonths = [1, 2, 3, 5], qualityCategory = 'blended' } = {}
 ) {
   const harvest = Number(farmStock?.totalHarvestTons || 1000);
   const initialGrade = Number(farmStock?.initialQualityGradeShare || 0.85);
   const storageType = farmStock?.storageType || 'ventilated';
+  const curve = QUALITY_LOSS_CURVES[qualityCategory] || QUALITY_LOSS_CURVES.blended;
 
   const results = [];
 
   for (const m of horizonsMonths) {
     const monthHorizon = Number(m);
 
-    // Physical shrinkage and rot curve
-    // Base monthly physical shrinkage rate (~2.5% compounded)
-    let physicalLossPct = +(100 * (1 - Math.pow(1 - 0.025, monthHorizon))).toFixed(1);
+    let physicalLossPct = +(100 * (1 - Math.pow(1 - curve.monthlyShrinkRate, monthHorizon))).toFixed(1);
 
-    // Storage tier specific degradation
     if (storageType === 'ventilated' && monthHorizon >= 4) {
-      // Spring warming in ventilated storage accelerates physical loss
       physicalLossPct = +(physicalLossPct + (monthHorizon - 3.5) * 1.2).toFixed(1);
     } else if (storageType === 'unventilated' && monthHorizon > 1.2) {
       physicalLossPct = +(physicalLossPct + (monthHorizon - 1.2) * 5.0).toFixed(1);
     }
 
+    physicalLossPct = Math.min(95, physicalLossPct);
     const physicalRemainingTons = +(harvest * (1 - physicalLossPct / 100)).toFixed(1);
 
-    // Quality degradation: neck rot, sprout initiation, disease progression
-    // In ventilated storage without cooling, marketable grade decays from initial 85% to ~70% by March (month 5)
-    let gradeDecayFactor = 1.0;
-    if (monthHorizon === 1) {
-      gradeDecayFactor = 0.99;
-    } else if (monthHorizon === 2) {
-      gradeDecayFactor = 0.96;
-    } else if (monthHorizon === 3) {
-      gradeDecayFactor = 0.92;
-    } else {
-      // monthHorizon >= 4: spring sprouting risk
-      gradeDecayFactor = Math.max(0.5, 0.92 - (monthHorizon - 3) * 0.085);
-    }
-
+    const gradeDecayFactor = Math.max(0.45, 1 - curve.monthlyGradeDecay * monthHorizon);
     const marketableGradeShare = +(initialGrade * gradeDecayFactor).toFixed(3);
-    const marketableTons = +(physicalRemainingTons * (marketableGradeShare / initialGrade) * initialGrade).toFixed(1);
+    const marketableTons = +(physicalRemainingTons * marketableGradeShare).toFixed(1);
+    const substandardDiscardTons = +(physicalRemainingTons - marketableTons).toFixed(1);
     const qualityScarcityRatio = +(marketableTons / harvest).toFixed(3);
 
     results.push({
       monthHorizon,
+      qualityCategory,
       physicalLossPct,
       physicalRemainingTons,
       marketableGradeShare,
       marketableTons,
       qualityScarcityRatio,
-      substandardDiscardTons: +(physicalRemainingTons - marketableTons).toFixed(1),
+      substandardDiscardTons,
     });
   }
 

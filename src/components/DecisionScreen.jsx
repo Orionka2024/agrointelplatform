@@ -8,6 +8,7 @@ import MarketIntelligenceModule1 from './MarketIntelligenceModule1';
 import CentralAsiaCorridorModule2 from './CentralAsiaCorridorModule2';
 import QualityTierStrategyModule3 from './QualityTierStrategyModule3';
 import PrePlantingPlanningModule4 from './PrePlantingPlanningModule4';
+import ConsistencyAuditPanel from './ConsistencyAuditPanel';
 
 
 
@@ -109,6 +110,8 @@ export default function DecisionScreen() {
           <AddActualPrice defaultOpen={true} />
         </div>
       )}
+
+      <ConsistencyAuditPanel consistencyAudit={model.consistencyAudit} />
 
       {/* 3 Core Decision Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>

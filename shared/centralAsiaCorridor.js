@@ -154,17 +154,19 @@ export function computeCentralAsianParity({
   // Adjust for transit physical loss
   const lossFactor = Math.max(0.7, 1 - Number(transitLossPct) / 100);
   const purchaseDeliveredBasis = baseRubKg / lossFactor;
-
-  // Total delivered price at buyer's gate in Southern Russia / Volgograd region
-  const deliveredPriceRubKg = +(
+  const transitLossCostRubKg = +(purchaseDeliveredBasis - baseRubKg).toFixed(2);
+  const pureLandedCostRubKg = +(
     purchaseDeliveredBasis +
     Number(freightRubKg) +
-    Number(customsPhytoRubKg) +
-    Number(importerMarginRubKg)
+    Number(customsPhytoRubKg)
   ).toFixed(2);
+
+  // Total delivered price at buyer's gate including optional importer margin
+  const deliveredPriceRubKg = +(pureLandedCostRubKg + Number(importerMarginRubKg)).toFixed(2);
 
   const localExw = Number(localVolgogradExwRubKg);
   const competitivenessGapRubKg = +(deliveredPriceRubKg - localExw).toFixed(2);
+  const importAdvantageRubKg = +(localExw - pureLandedCostRubKg).toFixed(2);
 
   let regime = 'parity_zone';
   let summaryRu = '';
@@ -185,29 +187,24 @@ export function computeCentralAsianParity({
     currency,
     fxRateToRub: fx,
     basePurchaseRubKg: +baseRubKg.toFixed(2),
+    transitLossCostRubKg,
     purchaseAdjustedForLossRubKg: +purchaseDeliveredBasis.toFixed(2),
     freightRubKg: Number(freightRubKg),
     customsPhytoRubKg: Number(customsPhytoRubKg),
+    pureLandedCostRubKg,
     importerMarginRubKg: Number(importerMarginRubKg),
     deliveredPriceRubKg,
     localVolgogradExwRubKg: localExw,
     competitivenessGapRubKg,
+    importAdvantageRubKg,
     regime,
     summaryRu,
   };
 }
 
 /**
- * Calculates the critical break-even FX rate where foreign import undercuts local warehouse price.
- *
- * @param {Object} params
- * @param {number} params.purchaseKztKg
- * @param {number} params.freightRubKg
- * @param {number} params.customsPhytoRubKg
- * @param {number} params.transitLossPct
- * @param {number} params.importerMarginRubKg
- * @param {number} params.targetLocalExwRubKg
- * @returns {Object}
+ * Calculates the critical break-even FX rate where foreign import undercuts local warehouse price
+ * and detects if the trigger is already active at currentKztRubRate.
  */
 export function calculateCriticalFxTrigger({
   purchaseKztKg = 55,
@@ -216,6 +213,7 @@ export function calculateCriticalFxTrigger({
   transitLossPct = 3.0,
   importerMarginRubKg = 1.0,
   targetLocalExwRubKg = 17.0,
+  currentKztRubRate = null,
 } = {}) {
   const pKzt = Number(purchaseKztKg);
   const target = Number(targetLocalExwRubKg);
@@ -224,15 +222,19 @@ export function calculateCriticalFxTrigger({
   const allowableNetBase = Math.max(0, target - fixedCosts);
   const lossFactor = 1 - Number(transitLossPct) / 100;
   const criticalKztRubRate = +( (allowableNetBase * lossFactor) / pKzt ).toFixed(4);
+  const curFx = currentKztRubRate != null && Number.isFinite(Number(currentKztRubRate)) ? Number(currentKztRubRate) : null;
+  const triggerAlreadyActive = curFx != null ? curFx <= criticalKztRubRate : false;
 
   return {
     purchaseKztKg: pKzt,
     targetLocalExwRubKg: target,
+    currentKztRubRate: curFx,
     criticalKztRubRate,
-    interpretationRu:
-      `Критический курс KZT/RUB: ${criticalKztRubRate}. ` +
-      `Если курс KZT/RUB опустится ниже этого порога (рубль окрепнет против тенге), ` +
-      `казахстанский лук станет дешевле волгоградского на местном рынке.`,
+    triggerAlreadyActive,
+    status: triggerAlreadyActive ? 'TRIGGER_ACTIVE' : 'TRIGGER_INACTIVE',
+    interpretationRu: triggerAlreadyActive
+      ? `Триггер УЖЕ АКТИВЕН: текущий курс KZT/RUB (${curFx}) ≤ критического (${criticalKztRubRate}). Казахстанский лук уже проходит по цене ниже локального склада (${target} ₽/кг).`
+      : `Критический курс KZT/RUB: ${criticalKztRubRate}. Если курс опустится ниже этого порога, казахстанский лук станет дешевле волгоградского.`,
   };
 }
 
@@ -321,50 +323,76 @@ export function analyzeEarlyImportArrivalsByYear(importsMonthly = []) {
   return summary.sort((a, b) => `${a.year}${a.partner}`.localeCompare(`${b.year}${b.partner}`));
 }
 
+export function resolveNextSpringCutoff(today = '2026-11-17', mmdd = DEFAULT_SPRING_ARRIVAL_CUTOFF) {
+  const year = Number(String(today).slice(0, 4));
+  const cleanMmdd = /^\d{2}-\d{2}$/.test(String(mmdd)) ? mmdd : DEFAULT_SPRING_ARRIVAL_CUTOFF;
+  const candidate = `${year}-${cleanMmdd}`;
+  if (candidate < today) {
+    return `${year + 1}-${cleanMmdd}`;
+  }
+  return candidate;
+}
+
 /**
  * Evaluates safe storage horizon against the spring arrival wave of new-crop Uzbek/Tajik onions.
+ * Dynamically resolves the upcoming marketing-season spring cutoff and prevents past dates from being marked ACTIVE.
  */
 export function evaluateSpringArrivalWindow({
-  today = '2027-02-10',
-  plannedSaleDate = '2027-03-15',
+  today = '2026-11-17',
+  plannedSaleDate = null,
   storageType = 'ventilated',
   springArrivalCutoff = DEFAULT_SPRING_ARRIVAL_CUTOFF,
+  explicitCutoffDate = null,
 } = {}) {
   void storageType;
-  const currentYear = today.slice(0, 4);
   const mmdd = /^\d{2}-\d{2}$/.test(String(springArrivalCutoff)) ? springArrivalCutoff : DEFAULT_SPRING_ARRIVAL_CUTOFF;
-  const springCutoff = `${currentYear}-${mmdd}`;
-  const daysUntilSpringWave = Math.max(0, daysBetween(today, springCutoff));
-  const isAfterCutoff = plannedSaleDate > springCutoff;
+  const springCutoff = explicitCutoffDate || resolveNextSpringCutoff(today, mmdd);
+  const rawDays = daysBetween(today, springCutoff);
+  const isPastDate = rawDays < 0 || springCutoff < today;
+  const daysUntilSpringWave = Math.max(0, rawDays);
+  const targetSaleDate = plannedSaleDate || springCutoff;
+  const isAfterCutoff = !isPastDate && targetSaleDate > springCutoff;
 
   let safeStorageWindowActive = true;
   let importHazardLevel = 'low';
+  let status = 'ACTIVE';
   let hazardWarningRu = '';
 
-  if (isAfterCutoff) {
+  if (isPastDate) {
+    safeStorageWindowActive = false;
+    importHazardLevel = 'expired';
+    status = 'EXPIRED_PAST_DATE';
+    hazardWarningRu = `Сезонная дата (${springCutoff}) уже прошла относительно ${today}. Используйте актуальный горизонт следующего урожая.`;
+  } else if (isAfterCutoff) {
     safeStorageWindowActive = false;
     importHazardLevel = 'critical';
+    status = 'CRITICAL_AFTER_CUTOFF';
     hazardWarningRu =
       `Высокий риск прихода раннего лука из Средней Азии: новый озимый урожай ` +
       `начинает вытеснять прошлогодний складской фонд. Рекомендуется завершить основные отгрузки до ${mmdd} (${springCutoff}).`;
   } else if (daysUntilSpringWave <= 14) {
     safeStorageWindowActive = true;
     importHazardLevel = 'moderate';
+    status = 'CLOSING_SOON';
     hazardWarningRu =
       `До настроенной отсечки раннего лука (${springCutoff}) осталось ${daysUntilSpringWave} дней. Окно стабильных цен закрывается.`;
   } else {
     safeStorageWindowActive = true;
     importHazardLevel = 'low';
+    status = 'ACTIVE';
     hazardWarningRu =
       `Безопасное окно хранения активно: до отсечки прихода раннего урожая (${springCutoff}) ${daysUntilSpringWave} дней.`;
   }
 
   return {
     today,
-    plannedSaleDate,
+    plannedSaleDate: targetSaleDate,
     springArrivalCutoff: mmdd,
     recommendedMaxHoldingDate: springCutoff,
     daysUntilSpringWave,
+    calendarMonthsRemaining: +(daysUntilSpringWave / 30.4375).toFixed(1),
+    isPastDate,
+    status,
     safeStorageWindowActive,
     importHazardLevel,
     hazardWarningRu,

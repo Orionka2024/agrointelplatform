@@ -66,11 +66,14 @@ export function calculateProfitPerHectare({
   // Revenue & Profit per hectare
   const expectedRevenueRubHa = Math.round(marketableYieldTHa * 1000 * weightedPriceRubKg);
   const expectedProfitRubHa = expectedRevenueRubHa - totalCostRubHa;
-  const profitMarginPct = +( (expectedProfitRubHa / expectedRevenueRubHa) * 100 ).toFixed(1);
+  const grossMarginRubHa = expectedRevenueRubHa - (cSeeds + cHarvest + cSorting + cLogistics);
+  const returnOnSalesPct = expectedRevenueRubHa > 0 ? +((expectedProfitRubHa / expectedRevenueRubHa) * 100).toFixed(1) : 0;
+  const returnOnCostsPct = totalCostRubHa > 0 ? +((expectedProfitRubHa / totalCostRubHa) * 100).toFixed(1) : 0;
 
-  // Break-even yield
-  const breakEvenGrossYieldTHa = +( totalCostRubHa / (weightedPriceRubKg * 1000 * mShare) ).toFixed(2);
-  const yieldSafetyMarginPct = +( ((grossYield / breakEvenGrossYieldTHa) - 1) * 100 ).toFixed(1);
+  // Break-even yields: marketable (32.69 t/ha) and gross (38.46 t/ha at 85% marketability)
+  const breakEvenMarketableYieldTHa = +(totalCostRubHa / (weightedPriceRubKg * 1000)).toFixed(2);
+  const breakEvenGrossYieldTHa = +(breakEvenMarketableYieldTHa / mShare).toFixed(2);
+  const yieldSafetyMarginPct = +(((grossYield / breakEvenGrossYieldTHa) - 1) * 100).toFixed(1);
 
   return {
     grossYieldTHa: grossYield,
@@ -86,88 +89,124 @@ export function calculateProfitPerHectare({
       logisticsLocal: cLogistics,
     },
     expectedRevenueRubHa,
+    grossMarginRubHa,
+    netProfitRubHa: expectedProfitRubHa,
     expectedProfitRubHa,
-    profitMarginPct,
+    profitMarginPct: returnOnSalesPct,
+    returnOnSalesPct,
+    returnOnCostsPct,
+    breakEvenMarketableYieldTHa,
     breakEvenGrossYieldTHa,
     yieldSafetyMarginPct,
   };
 }
 
 /**
- * Evaluates 3 pre-planting scenarios to advise the farmer on safe acreage.
- *
- * @param {Object} options
- * @param {Object} options.farmProfile - { totalArableLandHa, currentOnionAreaHa, storageCapacityTons }
- * @param {number} [options.productionCostRubHa]
- * @returns {Array<Object>}
+ * Evaluates 3 pre-planting scenarios with complete area, yield, cost, storage capacity, and farm profit breakdown.
  */
 export function evaluatePrePlantingScenarios({
   farmProfile = {},
   productionCostRubHa = 680000,
+  storageCostRubHa = 55000,
+  financingCostRubHa = 30000,
 } = {}) {
-  const arableLand = Number(farmProfile.totalArableLandHa || 100);
-  const rotationMaxOnionHa = Math.min(33, Math.round(arableLand * 0.33));
+  const arableLand = Number(farmProfile.totalArableLandHa || 78);
+  const rotationMaxOnionHa = Math.min(33, Math.floor(arableLand * 0.33));
   const storageCapTons = Number(farmProfile.storageCapacityTons || 1500);
+  const baseProdCost = Number(productionCostRubHa) - Number(storageCostRubHa) - Number(financingCostRubHa);
+
+  const buildScenario = ({ id, name, marketContext, priceRubKg, grossYieldTHa, marketableSharePct, areaHa, rotationCapEnforced, recommendationRu }) => {
+    const plantedAreaHa = Math.min(arableLand, areaHa);
+    const mShare = marketableSharePct / 100;
+    const marketableYieldTHa = +(grossYieldTHa * mShare).toFixed(2);
+    const revenueRubHa = Math.round(marketableYieldTHa * 1000 * priceRubKg);
+    const storCost = Number(storageCostRubHa);
+    const finCost = Number(financingCostRubHa);
+    const totalCostRubHa = baseProdCost + storCost + finCost;
+    const expectedProfitPerHa = revenueRubHa - totalCostRubHa;
+    const totalFarmProfitRub = Math.round(expectedProfitPerHa * plantedAreaHa);
+    const projectedHarvestTons = +(plantedAreaHa * grossYieldTHa).toFixed(1);
+    const exceedsStorageCapacity = projectedHarvestTons > storageCapTons;
+
+    return {
+      id,
+      name,
+      marketContext,
+      plantedAreaHa,
+      recommendedOnionAreaHa: plantedAreaHa,
+      expectedGrossYieldTHa: grossYieldTHa,
+      expectedYieldTHa: grossYieldTHa,
+      marketableSharePct,
+      marketableYieldTHa,
+      sellingPriceRubKg: priceRubKg,
+      realizationPriceRubKg: priceRubKg,
+      revenueRubHa,
+      productionCostRubHa: baseProdCost,
+      storageCostRubHa: storCost,
+      financingCostRubHa: finCost,
+      totalCostRubHa,
+      expectedProfitPerHa,
+      totalFarmProfitRub,
+      projectedHarvestTons,
+      storageCapacityTons: storageCapTons,
+      exceedsStorageCapacity,
+      rotationCapEnforced,
+      recommendationRu,
+    };
+  };
 
   return [
-    {
+    buildScenario({
       id: 'cautious',
       name: 'Осторожный (Пессимистичный)',
       marketContext: 'Перепроизводство, избыток предложения, дешёвый импорт',
-      realizationPriceRubKg: 13.5,
-      expectedYieldTHa: 45,
-      productionCostRubHa,
-      recommendedOnionAreaHa: 25,
+      priceRubKg: 13.5,
+      grossYieldTHa: 45,
+      marketableSharePct: 82,
+      areaHa: Math.min(20, rotationMaxOnionHa),
       rotationCapEnforced: false,
-      expectedProfitPerHa: Math.round(45 * 0.85 * 1000 * 13.5 - productionCostRubHa),
       recommendationRu:
-        'Не расширять площади! Сократить площадь сева до 20–25 га под подтверждённые твёрдые контракты. ' +
+        `Не расширять площади! Сократить площадь сева до ${Math.min(20, rotationMaxOnionHa)} га под подтверждённые твёрдые контракты. ` +
         'Высокий риск перепроизводства в РФ и импортного давления.',
-    },
-    {
+    }),
+    buildScenario({
       id: 'base',
       name: 'Базовый (Реалистичный)',
       marketContext: 'Нормальный спрос, стабильный баланс спроса и предложения',
-      realizationPriceRubKg: 18.0,
-      expectedYieldTHa: 50,
-      productionCostRubHa,
-      recommendedOnionAreaHa: rotationMaxOnionHa,
+      priceRubKg: 18.0,
+      grossYieldTHa: 50,
+      marketableSharePct: 85,
+      areaHa: rotationMaxOnionHa,
       rotationCapEnforced: true,
-      expectedProfitPerHa: Math.round(50 * 0.85 * 1000 * 18.0 - productionCostRubHa),
       recommendationRu:
-        `Сохранять плановую площадь в пределах севооборота (${rotationMaxOnionHa} га). ` +
-        `Урожай полностью укладывается в складские мощности (${storageCapTons} т) с акцентом на лёжкие гибриды.`,
-    },
-    {
+        `Сохранять плановую площадь в пределах севооборота (${rotationMaxOnionHa} га из ${arableLand} га). ` +
+        `Урожай сопоставлен со складской ёмкостью (${storageCapTons} т) с акцентом на лёжкие гибриды.`,
+    }),
+    buildScenario({
       id: 'optimistic',
       name: 'Оптимистичный (Дефицитный)',
       marketContext: 'Региональный дефицит в ЮФО, экспортный спрос, высокая товарность',
-      realizationPriceRubKg: 24.5,
-      expectedYieldTHa: 55,
-      productionCostRubHa,
-      recommendedOnionAreaHa: rotationMaxOnionHa, // Capped by rotation rule!
+      priceRubKg: 24.5,
+      grossYieldTHa: 55,
+      marketableSharePct: 88,
+      areaHa: rotationMaxOnionHa,
       rotationCapEnforced: true,
-      expectedProfitPerHa: Math.round(55 * 0.85 * 1000 * 24.5 - productionCostRubHa),
       recommendationRu:
-        `Ограничить площадь сева ${rotationMaxOnionHa} га (33% пашни): агрономический севооборот защищает ` +
+        `Ограничить площадь сева ${rotationMaxOnionHa} га (≤33% от ${arableLand} га): агрономический севооборот защищает ` +
         `почву от фузариоза и предотвращает кризис перепроизводства при смене рыночной конъюнктуры.`,
-    },
+    }),
   ];
 }
 
 /**
- * Calculates farm crop portfolio diversification and risk metrics.
- *
- * @param {Object} farmData
- * @param {number} farmData.totalArableLandHa - e.g. 100
- * @param {Object} farmData.crops - map of crop specifications
- * @returns {Object}
+ * Calculates farm crop portfolio diversification and reconciles total allocated area against available farm land.
  */
 export function calculateCropDiversification({
-  totalArableLandHa = 100,
+  totalArableLandHa = 78,
+  externalLeasedLandHa = 0,
   crops = {},
 } = {}) {
-  const arable = Number(totalArableLandHa);
+  const arable = Number(totalArableLandHa) + Number(externalLeasedLandHa);
   let totalAllocatedHa = 0;
   let totalExpectedProfitRub = 0;
   let weightedRiskSum = 0;
@@ -181,28 +220,34 @@ export function calculateCropDiversification({
     const totalCropProfit = area * profitHa;
     totalAllocatedHa += area;
     totalExpectedProfitRub += totalCropProfit;
-    weightedRiskSum += risk * (area / arable);
+    weightedRiskSum += arable > 0 ? risk * (area / arable) : 0;
 
     allocationRows.push({
       cropKey,
       areaHa: area,
-      sharePct: +((area / arable) * 100).toFixed(1),
+      sharePct: arable > 0 ? +((area / arable) * 100).toFixed(1) : 0,
       expectedProfitPerHa: profitHa,
-      totalProfitRub: totalCropProfit,
+      totalProfitRub: Math.round(totalCropProfit),
       riskIndex: risk,
     });
   }
 
   const portfolioRiskScore = +weightedRiskSum.toFixed(2);
+  const landOverallocated = totalAllocatedHa > arable + 0.01;
 
   return {
-    totalArableLandHa: arable,
-    totalAllocatedHa,
-    totalExpectedProfitRub,
+    totalArableLandHa: Number(totalArableLandHa),
+    externalLeasedLandHa: Number(externalLeasedLandHa),
+    effectiveAvailableLandHa: arable,
+    totalAllocatedHa: +totalAllocatedHa.toFixed(1),
+    landOverallocated,
+    totalExpectedProfitRub: Math.round(totalExpectedProfitRub),
     portfolioRiskScore,
+    isSimulation: true,
+    diversificationAssumptionsNote:
+      'Оценка риска портфеля — взвешенная линейная симуляция по экспертным индексам волатильности культур (не эконометрическая VaR-модель).',
     allocationRows,
     onionMonocultureLossProtectionRu:
-      `Диверсификация портфеля (лук + морковь + бахчевые) снижает совокупный риск волатильности ` +
-      `с 0.65 до ${portfolioRiskScore} и снижает риск банкротства при обвале цен на одну культуру.`,
+      `Диверсификация портфеля (в пределах ${arable} га) даёт расчётный индекс волатильности ${portfolioRiskScore} вместо 0.65 при монокультуре и снижает риск банкротства при обвале цен на одну культуру (симуляция).`,
   };
 }
