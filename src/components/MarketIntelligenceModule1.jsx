@@ -328,6 +328,43 @@ export default function MarketIntelligenceModule1({ model }) {
           ))}
         </div>
       </div>
+
+      {/* Separated Price Basis & Paired Wholesale/Retail Ratio Range (Task 2) */}
+      {model?.priceBasis && (
+        <div
+          style={{
+            marginTop: '1rem',
+            padding: '0.85rem 1rem',
+            background: '#f8fafc',
+            borderRadius: 8,
+            border: '1px solid #cbd5e1',
+            fontSize: '0.825rem',
+            color: '#334155',
+          }}
+        >
+          <strong style={{ color: '#0f172a', display: 'block', marginBottom: 4 }}>
+            Разделение ценовых базисов и парное соотношение Опт / Розница
+          </strong>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.5rem' }}>
+            <div>
+              <span style={{ color: '#64748b' }}>Калибровочный ряд (Росстат EXW без НДС): </span>
+              <strong>{model.priceBasis.calibrationSeries?.length || 0} мес.</strong>
+            </div>
+            <div>
+              <span style={{ color: '#64748b' }}>Целевой ряд (калибр 5+ см, партии ≥ 20 т): </span>
+              <strong>{model.priceBasis.targetSeries?.length || 0} сделок</strong>
+            </div>
+            <div>
+              <span style={{ color: '#64748b' }}>Опт (5+, ≥20т) / Розница (парные): </span>
+              <strong>{model.priceBasis.wholesaleRetailRatio?.rangeText || 'Недостаточно парных данных'}</strong>
+            </div>
+            <div>
+              <span style={{ color: '#64748b' }}>Росстат СХО / Розница ({model.priceBasis.officialProducerRetailRatio?.n || 0} парных мес.): </span>
+              <strong>{model.priceBasis.officialProducerRetailRatio?.rangeText || '—'}</strong>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

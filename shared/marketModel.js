@@ -21,6 +21,8 @@ import { DEFAULT_VAT_RATE, TARGET_SPECS } from './spec.js';
 import { moscowToWarehouse } from './bridge.js';
 import { buildVolgogradOnionIntelligence } from './onionValidatedIntel.js';
 import { computeCurrentMarketIndex, computeSupplyPressureIndex, computeQualityAdjustedDeficit } from './marketIndex.js';
+import { buildSeparatedPriceBasis } from './priceBasis.js';
+import officialHistory from '../data/official-history.json' with { type: 'json' };
 import {
   computeCentralAsianParity,
   calculateCriticalFxTrigger,
@@ -437,9 +439,16 @@ export function computeMarketModel({ observations = [], indicators = [], forecas
     cropDiversification,
   };
 
+  const priceBasis = buildSeparatedPriceBasis({
+    officialMonthly: officialHistory?.producer?.monthly || [],
+    retailWeekly: officialHistory?.retail?.weekly || [],
+    observations,
+  });
+
   return {
     mode: demo ? 'demo' : 'observed', today, storeAvailable, evidence,
     verifiedObservations,
+    priceBasis,
     onionIntel,
     currentMarketIndex,
     supplyPressureIndex,
