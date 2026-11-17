@@ -18,6 +18,7 @@ import {
 } from '../../shared/weeklyDecisionPlan.js';
 import { STORAGE_TIERS } from '../../shared/storageEconomics.js';
 import { FACTOR_DEFS } from '../../shared/factorToggles.js';
+import AddActualPrice from './AddActualPrice';
 import MonthlySalesPlanTable from './MonthlySalesPlanTable';
 
 const OfficialMarket = lazy(() => import('./OfficialMarket'));
@@ -389,6 +390,12 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
             <OffSeasonPlanningView cropProfile={cropProfile} />
           ) : (
             <div>
+              {/* Actual Deal Entry (real price as of now for calibration & model training) */}
+              {activeCrop === 'onion' && (
+                <div style={{ marginBottom: 12 }}>
+                  <AddActualPrice defaultOpen={(model.evidence?.pricesVerified ?? 0) === 0} />
+                </div>
+              )}
               {/* Starting Warehouse Price Calibration Bar */}
               <div className="cash-control-card">
                 <div className="cash-control-left">

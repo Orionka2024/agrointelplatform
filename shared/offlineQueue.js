@@ -22,8 +22,15 @@ export function setOfflineStorageProvider(provider) {
 /**
  * Validates that an attested transaction has all required physical and contractual parameters.
  */
+export const ATTESTED_PRICE_MIN_RUB_KG = 3;
+export const ATTESTED_PRICE_MAX_RUB_KG = 120;
+
 export function validateAttestedTransaction(tx = {}) {
   const errors = [];
+
+  if (tx.sourceType === 'listing' || tx.isListing || (tx.kind && tx.kind !== 'transaction')) {
+    errors.push('Объявление (listing) не может быть записано как подтверждённая сделка — используйте режим предпросмотра');
+  }
 
   if (!tx.attested) {
     errors.push('Необходимо подтвердить фактическое совершение сделки по накладным (ТТН/УПД)');
@@ -32,6 +39,8 @@ export function validateAttestedTransaction(tx = {}) {
   const price = Number(tx.priceRubKg ?? tx.price ?? tx.priceExVat);
   if (!Number.isFinite(price) || price <= 0) {
     errors.push('Укажите корректную положительную цену (₽/кг)');
+  } else if (price < ATTESTED_PRICE_MIN_RUB_KG || price > ATTESTED_PRICE_MAX_RUB_KG) {
+    errors.push(`Цена ${price.toFixed(2)} ₽/кг выходит за разумный диапазон ${ATTESTED_PRICE_MIN_RUB_KG}–${ATTESTED_PRICE_MAX_RUB_KG} ₽/кг`);
   }
 
   const lotSize = Number(tx.lotSizeT ?? tx.volumeT ?? tx.volume);
@@ -39,8 +48,36 @@ export function validateAttestedTransaction(tx = {}) {
     errors.push('Укажите физический объём партии (тонн)');
   }
 
-  if (!tx.date && !tx.observationDate) {
-    errors.push('Укажите дату совершения сделки');
+  const date = tx.date || tx.observationDate;
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(String(date))) {
+    errors.push('Укажите корректную дату совершения сделки (ГГГГ-ММ-ДД)');
+  }
+
+  if (tx.region !== undefined || tx.geography !== undefined) {
+    const region = String(tx.region ?? tx.geography ?? '').trim();
+    if (!region) {
+      errors.push('Укажите регион сделки');
+    }
+  }
+
+  const grade = String(tx.grade ?? '').trim();
+  const caliber = String(tx.caliber ?? tx.sizeMm ?? '').trim();
+  if (!grade && !caliber) {
+    errors.push('Укажите сорт или калибр лука');
+  }
+
+  if (tx.vat !== undefined) {
+    const vat = String(tx.vat).toLowerCase();
+    if (vat !== 'excl' && vat !== 'incl') {
+      errors.push('Укажите режим НДС (без НДС / с НДС)');
+    }
+  }
+
+  if (tx.deliveryBasis !== undefined || tx.deliveryTerms !== undefined) {
+    const delivery = String(tx.deliveryBasis ?? tx.deliveryTerms ?? '').toUpperCase();
+    if (delivery !== 'EXW' && delivery !== 'DAP') {
+      errors.push('Укажите базис поставки (EXW / DAP)');
+    }
   }
 
   return {

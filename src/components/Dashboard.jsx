@@ -264,7 +264,7 @@ export default function Dashboard() {
       )}
 
       {/* Inline Actual Deal Entry */}
-      <AddActualPrice defaultOpen={false} />
+      <AddActualPrice defaultOpen={(model.evidence?.pricesVerified ?? 0) === 0} />
 
       {/* Active User Price Entries Log (visible immediately when user adds/fixes a price) */}
       {(verifiedObs.length > 0 || manualCropEntries.length > 0) && (

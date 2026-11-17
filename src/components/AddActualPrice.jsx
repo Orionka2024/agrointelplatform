@@ -11,11 +11,14 @@ let browserSynced = false;
  * calibrate the national benchmark immediately and, over time, train the weekly own-price series.
  */
 export default function AddActualPrice({ defaultOpen = true }) {
-  const { model, demo, importData, issueNewForecast } = useMarket();
+  const { model, demo, setDemo, importData, issueNewForecast, refresh, applySpotPreview } = useMarket();
   const [basis, setBasis] = useState('warehouse');
   const [price, setPrice] = useState('');
   const [date, setDate] = useState(model.today);
   const [vat, setVat] = useState('excl');
+  const [region, setRegion] = useState('Волгоградская обл.');
+  const [deliveryBasis, setDeliveryBasis] = useState('EXW');
+  const [sourceType, setSourceType] = useState('transaction');
 
   // Attestation & physical deal parameters (P1-8, F-06, F-11)
   const [lotSizeT, setLotSizeT] = useState('25');
@@ -40,6 +43,7 @@ export default function AddActualPrice({ defaultOpen = true }) {
   const durable = model.storeDurable !== false;
   const whWeeks = model.series?.warehouse?.nUsed ?? 0;
   const mskWeeks = model.series?.moscow?.nUsed ?? 0;
+  const verifiedCount = model.evidence?.pricesVerified ?? 0;
 
   async function submit(e) {
     e.preventDefault();
@@ -48,12 +52,27 @@ export default function AddActualPrice({ defaultOpen = true }) {
     const numPrice = Number(String(price).replace(',', '.'));
     const numLotSize = Number(String(lotSizeT).replace(',', '.'));
 
+    if (sourceType === 'listing') {
+      if (!Number.isFinite(numPrice) || numPrice < 3 || numPrice > 120) {
+        setMsg({ bad: true, text: 'Укажите цену оферты в диапазоне 3–120 ₽/кг.' });
+        return;
+      }
+      applySpotPreview(numPrice, { basis });
+      setMsg({
+        text: `Предпросмотр объявления (${numPrice.toFixed(2)} ₽/кг · listing, только сессия). В базу подтверждённых сделок не записано.`,
+      });
+      return;
+    }
+
     const txEntry = {
       basis,
       date,
       price: numPrice,
       priceRubKg: numPrice,
       vat,
+      region,
+      deliveryBasis,
+      sourceType,
       lotSizeT: numLotSize,
       grade,
       caliber,
@@ -92,6 +111,7 @@ export default function AddActualPrice({ defaultOpen = true }) {
     }
 
     try {
+      if (demo) setDemo(false);
       const prevWeeks = basis === 'warehouse' ? whWeeks : mskWeeks;
       upsertStoredUserPrice(txEntry);
       const r = await importData('prices', buildUserPriceCsv([txEntry], model.today));
@@ -99,16 +119,17 @@ export default function AddActualPrice({ defaultOpen = true }) {
       if (rep.rejected?.length) {
         setMsg({ bad: true, text: 'Не принято: ' + rep.rejected[0].errors.join('; ') });
       } else {
-        if (rep.accepted?.length && !demo && prevWeeks >= 1) {
+        if (rep.accepted?.length && prevWeeks >= 1) {
           try {
             await issueNewForecast(basis);
           } catch {
             /* optional weekly issue */
           }
         }
+        await refresh();
         setMsg({
           text: rep.accepted?.length
-            ? 'Подтверждённая сделка сохранена в историю и откалибровала прогноз.'
+            ? `Сохранено: подтверждённая сделка ${numPrice.toFixed(2)} ₽/кг (${deliveryBasis}, ${region}) добавлена для обучения и калибровки прогноза.`
             : 'Запись обновлена / уже учтена в расчёте.',
         });
         setPrice('');
@@ -131,16 +152,21 @@ export default function AddActualPrice({ defaultOpen = true }) {
 
   return (
     <details className="add-price" open={defaultOpen}>
-      <summary>Внести подтверждённую сделку (аттестация, калибровка базиса под ваш склад)</summary>
+      <summary>
+        Внести фактическую цену сделки (подтверждено в базе: {verifiedCount})
+      </summary>
       <form onSubmit={submit} className="audit-controls" style={{ display: 'grid', gap: '0.75rem', marginTop: '0.75rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
           <label>
-            Базис поставки
+            Рынок / Категория
             <select
               value={basis}
               onChange={(ev) => {
-                setBasis(ev.target.value);
-                setVat(USER_PRICE_MARKETS[ev.target.value].vat);
+                const nextBasis = ev.target.value;
+                setBasis(nextBasis);
+                setVat(USER_PRICE_MARKETS[nextBasis].vat);
+                setRegion(USER_PRICE_MARKETS[nextBasis].geo);
+                setDeliveryBasis(USER_PRICE_MARKETS[nextBasis].delivery);
               }}
             >
               {Object.entries(USER_PRICE_MARKETS).map(([k, m]) => (
@@ -151,14 +177,22 @@ export default function AddActualPrice({ defaultOpen = true }) {
             </select>
           </label>
           <label>
-            Дата отгрузки (ТТН)
+            Тип источника
+            <select value={sourceType} onChange={(ev) => setSourceType(ev.target.value)}>
+              <option value="transaction">Подтверждённая сделка (ТТН/УПД)</option>
+              <option value="listing">Объявление с доски (listing — только предпросмотр)</option>
+            </select>
+          </label>
+          <label>
+            Дата сделки
             <input type="date" value={date} max={model.today} onChange={(ev) => setDate(ev.target.value)} />
           </label>
           <label>
-            Цена реализации, ₽/кг
+            Фактическая цена, ₽/кг (3–120)
             <input
               type="number"
-              min="0.01"
+              min="3"
+              max="120"
               step="0.01"
               value={price}
               onChange={(ev) => setPrice(ev.target.value)}
@@ -171,6 +205,17 @@ export default function AddActualPrice({ defaultOpen = true }) {
               <option value="excl">без НДС</option>
               <option value="incl">с НДС (10%)</option>
             </select>
+          </label>
+          <label>
+            Условия поставки
+            <select value={deliveryBasis} onChange={(ev) => setDeliveryBasis(ev.target.value)}>
+              <option value="EXW">EXW (у хозяйства / склад)</option>
+              <option value="DAP">DAP (с доставкой покупателю)</option>
+            </select>
+          </label>
+          <label>
+            Регион
+            <input type="text" value={region} onChange={(ev) => setRegion(ev.target.value)} placeholder="Волгоградская обл." />
           </label>
         </div>
 
@@ -231,27 +276,43 @@ export default function AddActualPrice({ defaultOpen = true }) {
           </label>
         </div>
 
-        {/* Attestation Checkbox */}
-        <div style={{ marginTop: '0.25rem' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, color: '#0f172a' }}>
-            <input
-              type="checkbox"
-              checked={attested}
-              onChange={(e) => setAttested(e.target.checked)}
-              style={{ width: 18, height: 18 }}
-            />
-            <span>Подтверждаю фактическое совершение сделки по товарно-транспортным накладным (ТТН / УПД)</span>
-          </label>
-        </div>
+        {/* Attestation Checkbox (only for confirmed transactions) */}
+        {sourceType === 'transaction' ? (
+          <div style={{ marginTop: '0.25rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, color: '#0f172a' }}>
+              <input
+                type="checkbox"
+                checked={attested}
+                onChange={(e) => setAttested(e.target.checked)}
+                style={{ width: 18, height: 18 }}
+              />
+              <span>Подтверждаю фактическое совершение сделки по товарно-транспортным накладным (ТТН / УПД)</span>
+            </label>
+          </div>
+        ) : (
+          <p className="audit-warning" style={{ margin: 0 }}>
+            Запись с типом «Объявление (listing)» никогда не попадает в подтверждённые сделки и используется только как временный предпросмотр.
+          </p>
+        )}
 
-        <button type="submit" disabled={busy || demo || !attested} className="btn-primary" style={{ padding: '8px 16px', fontWeight: 600 }}>
-          {busy ? 'Сохранение…' : 'Подтвердить и внести сделку'}
+        <button
+          type="submit"
+          disabled={busy}
+          className="btn-primary"
+          data-testid="save-actual-price-btn"
+          style={{ padding: '8px 16px', fontWeight: 600 }}
+        >
+          {busy
+            ? 'Сохранение…'
+            : sourceType === 'listing'
+              ? '👁 Предпросмотр оферты (не сохраняется в сделки)'
+              : '💾 Сохранить фактическую цену'}
         </button>
       </form>
 
       {demo && (
         <p className="audit-warning">
-          Переключите кнопку «ДЕМО-РЕЖИМ» вверху экрана в режим «НАБЛЮДЕНИЯ / ДОПУЩЕНИЯ», чтобы вводить реальные цены.
+          Вы в «ДЕМО-РЕЖИМЕ» — при сохранении сделки приложение автоматически переключится в режим реальных наблюдений.
         </p>
       )}
       {msg && (
@@ -260,8 +321,8 @@ export default function AddActualPrice({ defaultOpen = true }) {
         </p>
       )}
       <p style={{ fontSize: '0.825rem', color: '#64748b' }}>
-        Запись сохраняется как подтверждённая сделка: она сразу калибрует уровень месячного прогноза РФ под ваш склад/опт
-        и накапливает ваш собственный недельный ряд (сохранено недель: склад — <strong>{whWeeks}</strong>, Москва — <strong>{mskWeeks}</strong>).
+        Введённая фактическая цена — это реальная цена сделки на дату, а не прогноз. Она сохраняется для дальнейшего обучения модели
+        и сразу калибрует прогноз (сохранено недель: склад — <strong>{whWeeks}</strong>, Москва — <strong>{mskWeeks}</strong>).
       </p>
       {!durable && (
         <p className="audit-warning">

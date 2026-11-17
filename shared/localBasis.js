@@ -39,6 +39,7 @@ export const VOLGOGRAD_SEASONAL_PRIOR_CURVE = {
 export function buildUserPriceCsv(entries, verifiedAt) {
   const rows = entries.map(e => {
     if (
+      e?.sourceType === 'listing' ||
       e?.isListing ||
       e?.sessionOnly ||
       (e?.kind && e.kind !== 'transaction') ||
@@ -47,6 +48,8 @@ export function buildUserPriceCsv(entries, verifiedAt) {
       throw new Error('Оферта с доски объявлений (unverified ask / listing) не может быть записана как подтверждённая сделка');
     }
     const m = USER_PRICE_MARKETS[e.basis];
+    const geo = String(e.region || e.geography || m.geo).replace(/"/g, '""');
+    const delivery = String(e.deliveryBasis || e.deliveryTerms || m.delivery).toUpperCase();
     const grade = e.grade ? `"${String(e.grade).replace(/"/g, '""')}"` : '';
     const sizeMm = e.sizeMm || e.caliber || '';
     const packaging = e.packaging ? `"${String(e.packaging).replace(/"/g, '""')}"` : '';
@@ -58,12 +61,12 @@ export function buildUserPriceCsv(entries, verifiedAt) {
       e.date,
       'transaction',
       m.market,
-      `"${m.geo}"`,
+      `"${geo}"`,
       Number(e.price),
       'RUB/kg',
       e.vat,
       '0.10',
-      m.delivery,
+      delivery,
       grade,
       sizeMm,
       packaging,
