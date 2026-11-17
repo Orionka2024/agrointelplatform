@@ -12,6 +12,7 @@ import { warehouseToMoscow, BRIDGE_LABELS } from '../../shared/bridge.js';
 import {
   buildWeeklyDecisionPlan,
   buildCatBoostShapCards,
+  buildScenarioCorridor,
   resolveSelectedHorizonMetrics,
   formatIntervalBand,
   INTERVAL_UNAVAILABLE_MESSAGE,
@@ -605,6 +606,37 @@ export default function Forecast({ onNavigateToImport, onNavigateToDashboard }) 
                   </button>
                 </div>
               </div>
+
+              {/* Explicit Low / Base / High Scenario Corridor (Task 4) */}
+              {(() => {
+                const corridorRows = buildScenarioCorridor(basePlan.weeks).filter((c) => [4, 13, 26].includes(c.h));
+                if (!corridorRows.length) return null;
+                return (
+                  <div className="import-sim-panel" style={{ marginTop: 10 }} data-testid="scenario-corridor">
+                    <div className="import-sim-header">
+                      <div className="import-sim-title">
+                        <span>Сценарный коридор цен (Низкий / Базовый / Высокий):</span>
+                        <span className="badge info">Не только перцентили</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, marginTop: 8 }}>
+                      {corridorRows.map((c) => (
+                        <div key={c.h} style={{ background: 'var(--bg2)', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 12 }}>
+                          <div style={{ fontWeight: 700, marginBottom: 4 }}>W+{c.h} ({c.shortDate})</div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#b91c1c' }}>Низкий: <strong>{c.lowPrice} ₽</strong></span>
+                            <span style={{ color: '#1A56A8' }}>База: <strong>{c.basePrice} ₽</strong></span>
+                            <span style={{ color: '#0D7C4A' }}>Высокий: <strong>{c.highPrice} ₽</strong></span>
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--txt2)', marginTop: 4 }}>
+                            Коридор: {c.lowPrice}–{c.highPrice} ₽/кг (ширина {c.corridorWidthRubKg} ₽)
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {activeCrop === 'onion' && (
                 <div className="import-sim-panel" style={{ marginTop: 10 }}>

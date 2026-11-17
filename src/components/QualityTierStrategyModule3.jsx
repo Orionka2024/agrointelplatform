@@ -113,7 +113,7 @@ export default function QualityTierStrategyModule3({ model }) {
             fontWeight: 700,
           }}
         >
-          Эффект: +{adv.totalGainRub ? (adv.totalGainRub / 1000).toFixed(0) : '864'} тыс. ₽
+          Симуляция (расчётный эффект): +{adv.totalGainRub ? (adv.totalGainRub / 1000).toFixed(0) : '864'} тыс. ₽
         </span>
       </div>
 

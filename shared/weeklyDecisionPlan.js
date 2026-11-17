@@ -1255,3 +1255,24 @@ export function buildCatBoostShapCards({ officialForecast, officialSnapshotData,
     }))
     .sort((a, b) => b.pct - a.pct);
 }
+
+/**
+ * Builds Low / Base / High scenario trajectories and a price corridor from weekly decision plan rows.
+ * Used alongside conformal percentiles so farmers see explicit commercial scenarios.
+ */
+export function buildScenarioCorridor(weeks = [], { lowFactor = 0.85, highFactor = 1.18 } = {}) {
+  return (weeks || []).map((w) => {
+    const base = Number(w.whPrice);
+    const low = Number.isFinite(w.lo80) ? Math.min(w.lo80, +(base * lowFactor).toFixed(1)) : +(base * lowFactor).toFixed(1);
+    const high = Number.isFinite(w.hi80) ? Math.max(w.hi80, +(base * highFactor).toFixed(1)) : +(base * highFactor).toFixed(1);
+    return {
+      h: w.h,
+      weekStart: w.weekStart,
+      shortDate: w.shortDate,
+      lowPrice: +low.toFixed(1),
+      basePrice: +base.toFixed(1),
+      highPrice: +high.toFixed(1),
+      corridorWidthRubKg: +(high - low).toFixed(1),
+    };
+  });
+}

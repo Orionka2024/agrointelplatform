@@ -289,14 +289,18 @@ export function optimizeQualityAllocation({
     totalAllocatedTons: total,
     tranches,
     totalRevenueRub: totalOptimizedRevenueRub,
+    isSimulation: true,
+    simulationDisclaimerRu:
+      'Симуляция модели: расчётный экономический эффект до накопления подтверждённых сделок и бэктеста стратегии хранения.',
     financialAdvantageVsNaiveHoldAll: {
+      isSimulation: true,
       totalGainRub,
       gainRubKg,
       rotSavedTons,
       summaryRu:
-        `Сегментация по качеству сохраняет ${rotSavedTons} т лука от списания в гниль и ` +
-        `даёт дополнительно +${(totalGainRub / 1000000).toFixed(2)} млн ₽ (+${gainRubKg.toFixed(2)} ₽/кг) чистой прибыли ` +
-        `по сравнению со стратегией «держать весь объём до весны».`,
+        `Симуляция (расчётный эффект модели): сегментация по качеству сохраняет ${rotSavedTons} т лука от списания в гниль и ` +
+        `моделирует +${(totalGainRub / 1000000).toFixed(2)} млн ₽ (+${gainRubKg.toFixed(2)} ₽/кг) условной прибыли ` +
+        `по сравнению со стратегией «держать весь объём до весны» (требует подтверждённых сделок и бэктеста).`,
     },
   };
 }
