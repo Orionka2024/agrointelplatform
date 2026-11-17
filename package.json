@@ -14,7 +14,8 @@
     "preview": "vite preview",
     "data:collect": "python3 scripts/collect_rosstat.py --download",
     "data:drivers": "node scripts/collect_cbr.mjs",
-    "data:forecast": "node scripts/build_official_forecast.mjs"
+    "data:forecast": "node scripts/build_official_forecast.mjs",
+    "backtest": "node scripts/run_backtest.mjs"
   },
   "dependencies": {
     "chart.js": "^4.5.1",
